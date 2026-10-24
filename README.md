@@ -1,4 +1,4 @@
-# Agent Config Store
+# Liam's Magic Agent Config Store
 
 This is the local, versionable home for Liam's agent configuration templates,
 provider mappings, helper commands, redacted audits, and setup notes.
