@@ -53,6 +53,26 @@ alternate local route when oMLX is not installed or the model is unavailable.
 The endpoint key stays in the native secret store and is injected only for a
 process launched with `agent-store with omlx -- ...`.
 
+On macOS, after installing oMLX and entering the credential, install the
+OpenClaw service wrapper with:
+
+```sh
+./scripts/install-openclaw-local.zsh
+```
+
+This refreshes only the native LaunchAgent entrypoint and keeps OpenClaw on a
+loopback gateway. It does not copy credentials into the store or OpenClaw
+configuration.
+
+OpenClaw local mode uses the same endpoint through its built-in `openai`
+provider. Keep `apiKey` set to the environment-variable name
+`OPENAI_API_KEY`, never to a credential. Its gateway should bind to loopback,
+keep Tailscale exposure off, and use the Keychain-backed wrapper installed on
+the machine so the LaunchAgent receives the credential without persisting it
+in `openclaw.json` or `models.json`. The recommended local-model guardrail is
+`agents.defaults.sandbox.mode = "all"` with `tools.deny = ["group:web",
+"browser"]`; Docker Desktop must be running for OpenClaw sandboxing.
+
 The `android-mcp` credential is stored as `ANDROID_MCP_TOKEN` and injected only
 when requested. Never copy a bearer token from a planning document or commit a
 device URL; use `adb forward` and the local MCP URL by default.

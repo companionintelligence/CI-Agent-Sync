@@ -1,26 +1,27 @@
 {
   "meta": {
     "lastTouchedVersion": "2026.2.12",
-    "lastTouchedAt": "2026-10-24T22:08:45.102Z"
+    "lastTouchedAt": "2026-10-24T22:55:00.000Z"
   },
   "wizard": {
-    "lastRunAt": "2026-09-01T03:54:11.482Z",
+    "lastRunAt": "2026-10-24T22:55:00.000Z",
     "lastRunVersion": "2026.2.12",
     "lastRunCommand": "doctor",
-    "lastRunMode": "remote"
+    "lastRunMode": "local"
   },
   "auth": "<redacted>",
   "agents": {
     "defaults": {
       "model": {
-        "primary": "github-copilot/gpt-5.2-codex",
+        "primary": "openai/Qwen3.8-27B-oQ4e-fp16-mtp",
         "fallbacks": [
           "github-copilot/claude-opus-4.6"
         ]
       },
       "models": {
         "github-copilot/claude-opus-4.6": {},
-        "github-copilot/gpt-5.2-codex": {}
+        "github-copilot/gpt-5.2-codex": {},
+        "openai/Qwen3.8-27B-oQ4e-fp16-mtp": {}
       },
       "workspace": "/Users/liam/.openclaw/workspace",
       "compaction": {
@@ -29,6 +30,9 @@
       "maxConcurrent": 4,
       "subagents": {
         "maxConcurrent": 8
+      },
+      "sandbox": {
+        "mode": "all"
       }
     }
   },
@@ -49,17 +53,13 @@
   },
   "gateway": {
     "port": 18789,
-    "mode": "remote",
+    "mode": "local",
     "bind": "loopback",
     "auth": "<redacted>",
     "tailscale": {
-      "mode": "serve",
-      "resetOnExit": false
+      "mode": "off"
     },
-    "remote": {
-      "url": "ws://beta-1.capybara-ulmer.ts.net:18789",
-      "sshTarget": "liam@beta-1.capybara-ulmer.ts.net"
-    }
+    "remote": {}
   },
   "skills": {
     "install": {
@@ -77,6 +77,30 @@
       }
     }
   },
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "openai": {
+        "baseUrl": "http://127.0.0.1:8000/v1",
+        "api": "openai-completions",
+        "apiKey": "OPENAI_API_KEY",
+        "authHeader": true,
+        "models": [
+          {
+            "id": "Qwen3.8-27B-oQ4e-fp16-mtp",
+            "name": "Qwen3.8 27B oMLX",
+            "reasoning": true,
+            "input": ["text"],
+            "contextWindow": 32768,
+            "maxTokens": 8192
+          }
+        ]
+      }
+    }
+  },
+  "tools": {
+    "deny": ["group:web", "browser"]
+  },
   "plugins": {
     "allow": [
       "imessage",
@@ -85,9 +109,6 @@
     "entries": {
       "imessage": {
         "enabled": true
-      },
-      "bluebubbles": {
-        "enabled": false
       }
     }
   }

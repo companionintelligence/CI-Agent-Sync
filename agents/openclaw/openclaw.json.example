@@ -1,15 +1,48 @@
 {
   "agents": {
     "defaults": {
-      "model": { "primary": "provider/model" },
+      "model": {
+        "primary": "openai/Qwen3.8-27B-oQ4e-fp16-mtp",
+        "fallbacks": ["github-copilot/claude-opus-4.6"]
+      },
+      "models": {
+        "openai/Qwen3.8-27B-oQ4e-fp16-mtp": {}
+      },
       "workspace": "~/openclaw-workspace",
-      "compaction": { "mode": "safeguard" }
+      "compaction": { "mode": "safeguard" },
+      "sandbox": { "mode": "all" }
     }
   },
   "gateway": {
-    "mode": "remote",
+    "mode": "local",
     "bind": "loopback",
-    "remote": { "url": "wss://your-gateway.example/ws" }
+    "port": 18789,
+    "tailscale": { "mode": "off" }
+  },
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "openai": {
+        "baseUrl": "http://127.0.0.1:8000/v1",
+        "api": "openai-completions",
+        "apiKey": "OPENAI_API_KEY",
+        "authHeader": true,
+        "models": [
+          {
+            "id": "Qwen3.8-27B-oQ4e-fp16-mtp",
+            "name": "Qwen3.8 27B oMLX",
+            "reasoning": true,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 32768,
+            "maxTokens": 8192
+          }
+        ]
+      }
+    }
+  },
+  "tools": {
+    "deny": ["group:web", "browser"]
   },
   "plugins": {
     "allow": ["imessage", "memory-core"]
