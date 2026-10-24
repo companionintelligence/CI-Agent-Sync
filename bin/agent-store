@@ -1,0 +1,232 @@
+#!/usr/bin/env zsh
+
+set -euo pipefail
+
+STORE_ROOT="${0:A:h:h}"
+KEYCHAIN_NAMESPACE="agent-configs"
+
+usage() {
+  cat <<'EOF'
+agent-store — local agent config and credential helper
+
+Commands:
+  inventory                         Show installed agents and config locations
+  credentials status                Show which provider credentials exist
+  credentials set <provider>        Read one secret silently into macOS Keychain
+  credentials delete <provider>     Remove one Keychain entry
+  with <provider> -- <command...>   Run one command with a secret injected
+  audit [agent|all]                 Run safe built-in diagnostics
+  snapshot                          Refresh all redacted config snapshots
+
+Providers: anthropic, openai, openrouter, ollama, companion-hub
+EOF
+}
+
+normalize_provider() {
+  case "$1" in
+    claude|anthropic) print -r -- anthropic ;;
+    codex|openai) print -r -- openai ;;
+    openrouter) print -r -- openrouter ;;
+    ollama|ollama-cloud) print -r -- ollama ;;
+    companion_hub|companionhub|companion-hub) print -r -- companion-hub ;;
+    *) print -u2 "Unknown provider: $1"; return 2 ;;
+  esac
+}
+
+provider_env() {
+  case "$1" in
+    anthropic) print -r -- ANTHROPIC_API_KEY ;;
+    openai) print -r -- OPENAI_API_KEY ;;
+    openrouter) print -r -- OPENROUTER_API_KEY ;;
+    ollama) print -r -- OLLAMA_API_KEY ;;
+    companion-hub) print -r -- COMPANION_HUB_API_KEY ;;
+  esac
+}
+
+service_name() {
+  print -r -- "$KEYCHAIN_NAMESPACE/$(normalize_provider "$1")"
+}
+
+has_secret() {
+  security find-generic-password -a "$USER" -s "$(service_name "$1")" >/dev/null 2>&1
+}
+
+inventory() {
+  print "Agent config store: $STORE_ROOT"
+  print ""
+  typeset -a rows=(
+    "hermes|hermes|$HOME/.hermes/config.yaml"
+    "openclaw|openclaw|$HOME/.openclaw/openclaw.json"
+    "claude|claude|$HOME/.claude"
+    "codex|codex|$HOME/.codex"
+    "antigravity|/Applications/Antigravity.app|$HOME/.gemini/antigravity"
+    "opencode|opencode|$HOME/.config/opencode/opencode.jsonc"
+    "ollama|ollama|$HOME/.ollama"
+    "aider-desk|/Applications/aider-desk.app|$HOME/Library/Application Support/aider-desk"
+    "pi|/Applications/pi-gui.app|$HOME/.pi"
+  )
+  for row in $rows; do
+    IFS='|' read -r name binary config_path <<< "$row"
+    if [[ "$binary" == /*.app && -d "$binary" ]]; then
+      typeset installed="installed app: $binary"
+    elif command_path="$(whence -p "$binary" 2>/dev/null)"; then
+      typeset installed="installed: $command_path"
+    else
+      typeset installed="command not found"
+    fi
+    [[ -e "$config_path" ]] && typeset config="config: present" || typeset config="config: missing"
+    print "  $name — $installed — $config"
+    print "    $config_path"
+  done
+}
+
+credentials_status() {
+  print "Provider credentials (macOS Keychain, values never printed):"
+  for provider in anthropic openai openrouter ollama companion-hub; do
+    if has_secret "$provider"; then
+      print "  ✓ $provider ($(provider_env "$provider"))"
+    else
+      print "  · $provider ($(provider_env "$provider")) — not set"
+    fi
+  done
+}
+
+credentials_set() {
+  typeset provider="$(normalize_provider "$1")"
+  typeset env_name="$(provider_env "$provider")"
+  typeset secret
+  print -n "Enter $provider credential for $env_name (hidden): "
+  read -r -s secret
+  print ""
+  [[ -n "$secret" ]] || { print -u2 "Empty credential; nothing saved."; return 2; }
+  security add-generic-password -a "$USER" -s "$(service_name "$provider")" -w "$secret" -U >/dev/null
+  unset secret
+  print "Saved $provider credential to macOS Keychain."
+}
+
+credentials_delete() {
+  typeset provider="$(normalize_provider "$1")"
+  security delete-generic-password -a "$USER" -s "$(service_name "$provider")" >/dev/null 2>&1 || true
+  print "Removed $provider credential if it existed."
+}
+
+with_provider() {
+  typeset provider="$(normalize_provider "$1")"
+  shift
+  [[ "${1:-}" == "--" ]] || { print -u2 "Use: agent-store with <provider> -- <command...>"; return 2; }
+  shift
+  (( $# > 0 )) || { print -u2 "Missing command."; return 2; }
+  typeset value
+  value="$(security find-generic-password -a "$USER" -s "$(service_name "$provider")" -w 2>/dev/null)" || {
+    print -u2 "No $provider credential in Keychain. Run: agent-store credentials set $provider"; return 2;
+  }
+  export "$(provider_env "$provider")=$value"
+  unset value
+  exec "$@"
+}
+
+redact_output() {
+  sed -E 's/((api[_-]?key|token|secret|password|credential|authorization|cookie)[[:space:]]*[:=][[:space:]]*)[^[:space:],}\"]+/\1<redacted>/Ig'
+}
+
+audit_one() {
+  case "$1" in
+    hermes)
+      command -v hermes >/dev/null 2>&1 || { print "hermes: not installed"; return 0; }
+      hermes doctor 2>&1 | redact_output || true
+      ;;
+    openclaw)
+      command -v openclaw >/dev/null 2>&1 || { print "openclaw: not installed"; return 0; }
+      openclaw doctor --deep --non-interactive 2>&1 | redact_output || true
+      ;;
+    claude)
+      command -v claude >/dev/null 2>&1 || { print "claude: not installed"; return 0; }
+      claude doctor 2>&1 | redact_output || true
+      claude plugin validate "$HOME/.claude/skills" 2>&1 | redact_output || true
+      ;;
+    codex)
+      command -v codex >/dev/null 2>&1 || { print "codex: not installed"; return 0; }
+      codex doctor --summary 2>&1 | redact_output || true
+      ;;
+    opencode)
+      command -v opencode >/dev/null 2>&1 || { print "opencode: not installed"; return 0; }
+      opencode auth list 2>&1 | redact_output || true
+      opencode mcp list 2>&1 | redact_output || true
+      opencode service status 2>&1 | redact_output || true
+      ;;
+    ollama)
+      command -v ollama >/dev/null 2>&1 || { print "ollama: not installed"; return 0; }
+      ollama list 2>&1 | redact_output || true
+      ollama ps 2>&1 | redact_output || true
+      ;;
+    aider-desk)
+      [[ -d "/Applications/aider-desk.app" ]] || { print "aider-desk: app not installed"; return 0; }
+      /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' /Applications/aider-desk.app/Contents/Info.plist 2>&1 || true
+      "$HOME/Library/Application Support/aider-desk/python-venv/bin/aider" --version 2>&1 | redact_output || true
+      ;;
+    antigravity)
+      [[ -d "/Applications/Antigravity.app" ]] || { print "antigravity: app not installed"; return 0; }
+      /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' /Applications/Antigravity.app/Contents/Info.plist 2>&1 || true
+      [[ -s "$HOME/.gemini/antigravity-ide/mcp_config.json" ]] && print "MCP config: non-empty" || print "MCP config: empty"
+      ;;
+    pi)
+      [[ -d "/Applications/pi-gui.app" ]] || { print "pi: app not installed"; return 0; }
+      /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' /Applications/pi-gui.app/Contents/Info.plist 2>&1 || true
+      if ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); exit(j.is_a?(Hash) && j.empty? ? 1 : 0)' "$HOME/.pi/agent/models-store.json" 2>/dev/null; then
+        print "model store: non-empty"
+      else
+        print "model store: empty"
+      fi
+      if ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); exit(j.is_a?(Hash) && j.empty? ? 1 : 0)' "$HOME/.pi/agent/auth.json" 2>/dev/null; then
+        print "auth store: non-empty"
+      else
+        print "auth store: empty"
+      fi
+      ;;
+    *) print -u2 "Unknown audit target: $1"; return 2 ;;
+  esac
+}
+
+snapshot() {
+  mkdir -p "$STORE_ROOT/agents/hermes" "$STORE_ROOT/agents/openclaw"
+  [[ -f "$HOME/.hermes/config.yaml" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.hermes/config.yaml" "$STORE_ROOT/agents/hermes/current.redacted.yaml"
+  [[ -f "$HOME/.openclaw/openclaw.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.openclaw/openclaw.json" "$STORE_ROOT/agents/openclaw/current.redacted.json"
+  [[ -f "$HOME/.claude/settings.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.claude/settings.json" "$STORE_ROOT/agents/claude/settings.redacted.json"
+  [[ -f "$HOME/.claude/.claude.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.claude/.claude.json" "$STORE_ROOT/agents/claude/claude.redacted.json"
+  [[ -f "$HOME/.codex/config.toml" ]] && ruby "$STORE_ROOT/scripts/redact-text.rb" "$HOME/.codex/config.toml" "$STORE_ROOT/agents/codex/config.redacted.toml"
+  [[ -f "$HOME/.config/opencode/opencode.jsonc" ]] && ruby "$STORE_ROOT/scripts/redact-text.rb" "$HOME/.config/opencode/opencode.jsonc" "$STORE_ROOT/agents/opencode/opencode.redacted.jsonc"
+  [[ -f "$HOME/Library/Application Support/opencode/opencode.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/Library/Application Support/opencode/opencode.json" "$STORE_ROOT/agents/opencode/desktop-current.redacted.json"
+  [[ -f "$HOME/Library/Application Support/aider-desk/config.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/Library/Application Support/aider-desk/config.json" "$STORE_ROOT/agents/aider-desk/config.redacted.json"
+  [[ -f "$HOME/.gemini/antigravity-ide/mcp_config.json" ]] && ruby "$STORE_ROOT/scripts/redact-text.rb" "$HOME/.gemini/antigravity-ide/mcp_config.json" "$STORE_ROOT/agents/antigravity/mcp_config.redacted.jsonc"
+  [[ -f "$HOME/.pi/agent/models-store.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.pi/agent/models-store.json" "$STORE_ROOT/agents/pi/models-store.redacted.json"
+  print "Wrote redacted snapshots under agents/."
+}
+
+case "${1:-}" in
+  inventory) inventory ;;
+  credentials)
+    case "${2:-}" in
+      status) credentials_status ;;
+      set) credentials_set "${3:?provider required}" ;;
+      delete) credentials_delete "${3:?provider required}" ;;
+      *) usage; exit 2 ;;
+    esac
+    ;;
+  with) with_provider "${2:?provider required}" "${@:3}" ;;
+  audit)
+    case "${2:-all}" in
+      hermes|openclaw|claude|codex|opencode|ollama|aider-desk|antigravity|pi) audit_one "$2" ;;
+      all)
+        for agent in hermes openclaw claude codex opencode ollama aider-desk antigravity pi; do
+          print "\n===== $agent ====="
+          if ! audit_one "$agent"; then
+            print "audit failed: $agent"
+          fi
+        done
+        ;;
+      *) usage; exit 2 ;;
+    esac
+    ;;
+  snapshot) snapshot ;;
+  *) usage; exit 2 ;;
+esac

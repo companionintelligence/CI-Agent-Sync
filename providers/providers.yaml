@@ -1,0 +1,35 @@
+version: 1
+
+# Non-secret provider metadata. Credentials are resolved from macOS Keychain.
+providers:
+  anthropic:
+    aliases: [claude]
+    env: ANTHROPIC_API_KEY
+    keychain_service: agent-configs/anthropic
+    primary_clients: [claude, hermes, opencode, aider-desk, pi]
+
+  openai:
+    aliases: [codex]
+    env: OPENAI_API_KEY
+    keychain_service: agent-configs/openai
+    primary_clients: [codex, hermes, openclaw, opencode, aider-desk, pi]
+
+  openrouter:
+    aliases: []
+    env: OPENROUTER_API_KEY
+    keychain_service: agent-configs/openrouter
+    primary_clients: [hermes, opencode, aider-desk, pi]
+
+  ollama:
+    aliases: [ollama-cloud]
+    env: OLLAMA_API_KEY
+    keychain_service: agent-configs/ollama
+    endpoint_env: OLLAMA_HOST
+    primary_clients: [hermes, openclaw, opencode, aider-desk, pi]
+
+  companion-hub:
+    aliases: [companion_hub, companionhub]
+    env: COMPANION_HUB_API_KEY
+    keychain_service: agent-configs/companion-hub
+    endpoint_env: COMPANION_HUB_BASE_URL
+    primary_clients: [hermes, openclaw, opencode]

@@ -1,0 +1,17 @@
+{
+  "agents": {
+    "defaults": {
+      "model": { "primary": "provider/model" },
+      "workspace": "~/openclaw-workspace",
+      "compaction": { "mode": "safeguard" }
+    }
+  },
+  "gateway": {
+    "mode": "remote",
+    "bind": "loopback",
+    "remote": { "url": "wss://your-gateway.example/ws" }
+  },
+  "plugins": {
+    "allow": ["imessage", "memory-core"]
+  }
+}
