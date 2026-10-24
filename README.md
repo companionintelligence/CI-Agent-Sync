@@ -43,6 +43,7 @@ file:
 ./bin/agent-store credentials set openai
 ./bin/agent-store credentials set openrouter
 ./bin/agent-store credentials set ollama
+./bin/agent-store credentials set omlx
 ./bin/agent-store credentials set companion-hub
 ./bin/agent-store credentials set omniroute
 ./bin/agent-store credentials set android-mcp

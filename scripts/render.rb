@@ -27,6 +27,20 @@ def expand_path(value, ci_root)
   value.to_s.gsub("${CI_ROOT}", ci_root).gsub("${HOME}", Dir.home)
 end
 
+def replace_machine_paths(value, ci_root, machine_paths)
+  return value.map { |item| replace_machine_paths(item, ci_root, machine_paths) } if value.is_a?(Array)
+  if value.is_a?(Hash)
+    return value.transform_values { |item| replace_machine_paths(item, ci_root, machine_paths) }
+  end
+  return value unless value.is_a?(String)
+
+  result = expand_path(value, ci_root)
+  machine_paths.each do |name, path|
+    result = result.gsub("${#{name.upcase}_ROOT}", path) if path
+  end
+  result
+end
+
 def write_file(path, content)
   FileUtils.mkdir_p(File.dirname(path))
   File.write(path, content)
@@ -93,7 +107,7 @@ workspace_repositories = all_workspace_names.map do |name|
 end
 
 requested = options[:agent]
-allowed = %w[all vscode workspace]
+allowed = %w[all vscode workspace aider-desk]
 abort "Unknown agent: #{requested}; choose #{allowed.join(", ")}" unless allowed.include?(requested)
 
 if requested == "all"
@@ -151,6 +165,25 @@ if requested == "all" || requested == "workspace"
   %w[companion-intelligence.code-workspace companion-intelligence.local.code-workspace repository-status.json README.md].each do |name|
     record.call("workspace/#{name}")
   end
+end
+
+if requested == "all" || requested == "aider-desk"
+  aider_desk_root = File.join(output_root, "aider-desk")
+  template_path = File.join(root, "integrations", "aider-desk", "mcp-servers.json.example")
+  template = JSON.parse(File.read(template_path))
+  machine_paths = machine_config.fetch("paths", {}).transform_values { |path| expand_path(path, ci_root) }
+  machine_paths["ci_root"] = ci_root
+  rendered = replace_machine_paths(template, ci_root, machine_paths)
+  write_file(File.join(aider_desk_root, "mcp-servers.json"), JSON.pretty_generate(rendered) + "\n")
+  write_file(File.join(aider_desk_root, "README.md"), <<~MARKDOWN)
+    # Generated Aider Desk configuration
+
+    Copy `mcp-servers.json` to `~/Library/Application Support/aider-desk/` after
+    reviewing the resolved machine paths. API keys and OAuth sessions are not
+    included; Metricool authorization remains native to Aider Desk.
+  MARKDOWN
+  record.call("aider-desk/mcp-servers.json")
+  record.call("aider-desk/README.md")
 end
 
 if requested == "all"

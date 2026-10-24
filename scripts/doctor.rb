@@ -82,7 +82,7 @@ config_paths.each do |name, path|
   add_check(checks, "config.#{name}", File.exist?(path) ? "ok" : "warn", File.exist?(path) ? "present" : "missing")
 end
 
-providers = %w[anthropic openai openrouter ollama companion-hub omniroute android-mcp]
+providers = %w[anthropic openai openrouter ollama omlx companion-hub omniroute android-mcp]
 if RUBY_PLATFORM.include?("darwin") && system("command -v security >/dev/null 2>&1")
   providers.each do |provider|
     service = "agent-configs/#{provider}"
@@ -134,9 +134,13 @@ else
 end
 
 ollama_url = ENV.fetch("OLLAMA_HOST", "http://127.0.0.1:11434").sub(%r{/v1\z}, "")
+omlx_url = ENV.fetch("OMLX_BASE_URL", "http://127.0.0.1:8000").sub(%r{/v1\z}, "")
 omniroute_url = ENV.fetch("OMNIROUTE_BASE_URL", "http://127.0.0.1:20128")
 ollama_code = http_status(ollama_url, "/api/tags")
 add_check(checks, "runtime.ollama", ollama_code == 200 ? "ok" : "warn", "HTTP #{ollama_code}")
+omlx_code = http_status(omlx_url, "/v1/models")
+omlx_detail = omlx_code == 401 ? "HTTP 401; local oMLX endpoint is up and needs its access key" : "HTTP #{omlx_code}"
+add_check(checks, "runtime.omlx", [200, 401].include?(omlx_code) ? "ok" : "warn", omlx_detail)
 
 gateway_host = URI.parse(omniroute_url).host rescue nil
 gateway_binding = %w[127.0.0.1 localhost].include?(gateway_host)
