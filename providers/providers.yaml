@@ -30,6 +30,8 @@ providers:
   companion-hub:
     aliases: [companion_hub, companionhub]
     env: COMPANION_HUB_API_KEY
+    env_aliases: [CI_SERVER_TOKEN]
     keychain_service: agent-configs/companion-hub
     endpoint_env: COMPANION_HUB_BASE_URL
-    primary_clients: [hermes, openclaw, opencode]
+    endpoint_env_aliases: [CI_SERVER_URL]
+    primary_clients: [hermes, openclaw, claude, codex, opencode, vscode]

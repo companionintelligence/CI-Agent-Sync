@@ -1,0 +1,13 @@
+{
+  "workbench.colorTheme": "simple red theme",
+  "git.enableSmartCommit": true,
+  "git.confirmSync": false,
+  "git.autofetch": true,
+  "security.promptForLocalFileProtocolHandling": false,
+  "chat.viewSessions.orientation": "stacked",
+  "git.replaceTagsWhenPull": true,
+  "claudeCode.hideOnboarding": true,
+  "extensions.supportAgentsWindow": {
+    "ltmoerdani.opencode-copilot-chat": true
+  }
+}
