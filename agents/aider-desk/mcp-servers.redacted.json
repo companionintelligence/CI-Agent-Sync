@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "ci-common": {
+      "command": "/Users/<user>/.local/bin/node",
+      "args": [
+        "/Users/<user>/devel/ci/CI-Common/apps/dashboard/mcp.mjs",
+        "--start"
+      ],
+      "env": {
+        "CI_WORKSPACE": "/Users/<user>/devel/ci"
+      }
+    },
+    "ci-engineering": {
+      "command": "/Users/<user>/.local/bin/node",
+      "args": [
+        "/Users/<user>/devel/ci/0-HUB/CI-Engineering/tools/mcp-server.mjs",
+        "--start"
+      ],
+      "env": {
+        "CI_WORKSPACE": "/Users/<user>/devel/ci"
+      }
+    },
+    "metricool": {
+      "url": "https://ai.metricool.com/mcp"
+    }
+  }
+}

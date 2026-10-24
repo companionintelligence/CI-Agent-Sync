@@ -61,6 +61,20 @@ items:
     groups: [shared]
     description: Portable Brand Studio, CI-Common, CI-Engineering, and Metricool workflow
 
+  - id: shared/harness-routing
+    version: 1
+    source: workflows/harness-routing.md
+    destination: .agent-configs/workflows/harness-routing.md
+    groups: [shared]
+    description: Provider and handoff contract shared by local harnesses
+
+  - id: shared/aider-desk-mcp-template
+    version: 1
+    source: integrations/aider-desk/mcp-servers.json.example
+    destination: .agent-configs/aider-desk/mcp-servers.json.example
+    groups: [shared]
+    description: Portable Aider Desk MCP template with machine-path placeholders
+
   - id: shared/references
     version: 1
     source: integrations/references.yaml
