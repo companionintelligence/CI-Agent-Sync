@@ -19,6 +19,13 @@ items:
     groups: [shared]
     description: Provider routing policy without credentials
 
+  - id: shared/onepassword-references
+    version: 1
+    source: providers/onepassword.yaml
+    destination: .agent-configs/providers/onepassword.yaml
+    groups: [shared]
+    description: Portable 1Password references and migration policy without values
+
   - id: shared/provider-fallbacks
     version: 1
     source: integrations/providers/fallbacks.yaml
@@ -32,6 +39,20 @@ items:
     destination: .agent-configs/mcp/registry.yaml
     groups: [shared]
     description: Reviewed MCP recipes and safety policy
+
+  - id: shared/capability-bundles
+    version: 1
+    source: integrations/capability-bundles.yaml
+    destination: .agent-configs/capability-bundles.yaml
+    groups: [shared]
+    description: Portable reviewed MCP bundles and client defaults
+
+  - id: shared/harness-inventory
+    version: 1
+    source: integrations/harnesses.yaml
+    destination: .agent-configs/harnesses.yaml
+    groups: [shared]
+    description: Cross-platform harness discovery and smoke-test metadata
 
   - id: shared/skills-registry
     version: 1
@@ -95,6 +116,34 @@ items:
     destination: .agent-configs/context/agent-operating-context.md
     groups: [shared]
     description: Distilled cross-harness workspace and validation context
+
+  - id: shared/harness-parity
+    version: 1
+    source: docs/harness-parity.md
+    destination: .agent-configs/docs/harness-parity.md
+    groups: [shared]
+    description: Portable parity and test-tier contract
+
+  - id: shared/recovery
+    version: 1
+    source: docs/recovery.md
+    destination: .agent-configs/docs/recovery.md
+    groups: [shared]
+    description: Redacted backup, recovery, and OpenClaw repair runbook
+
+  - id: shared/control-plane
+    version: 1
+    source: docs/control-plane.md
+    destination: .agent-configs/docs/control-plane.md
+    groups: [shared]
+    description: Portable control-plane lifecycle and store separation
+
+  - id: shared/onepassword-guide
+    version: 1
+    source: docs/onepassword.md
+    destination: .agent-configs/docs/onepassword.md
+    groups: [shared]
+    description: Cross-machine 1Password setup and migration guide
 
   - id: shared/aider-desk-mcp-template
     version: 1

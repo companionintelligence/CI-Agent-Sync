@@ -2,8 +2,8 @@
 
 This store is the portable control plane for the agent tools on a machine. It
 keeps provider names, reviewed MCP and plugin recipes, repository roles, and
-redacted audits in Git while leaving credentials and native app state where the
-operating system expects them.
+redacted audits in Git while keeping credential values in a shared 1Password
+vault and native app state where each client expects it.
 
 ## New machine
 
@@ -13,6 +13,8 @@ cd agent-configs
 cp profiles/machines/macos-laptop.yaml.example profiles/machines/local.yaml
 ./scripts/bootstrap-machine.zsh
 ./bin/agent-store inventory
+./bin/agentctl credentials op setup
+./bin/agentctl credentials op import
 ./bin/agent-store credentials status
 ./bin/agent-store audit all
 ./bin/agent-store vscode audit
@@ -20,8 +22,8 @@ cp profiles/machines/macos-laptop.yaml.example profiles/machines/local.yaml
 ```
 
 Set only the providers you intend to use. The prompt is hidden and the value is
-written to the machine's supported native secret store; it is never written to
-this repository:
+written to the configured 1Password vault; it is never written to this
+repository:
 
 ```sh
 ./bin/agent-store credentials set anthropic
@@ -36,21 +38,22 @@ this repository:
 ```
 
 Use `./bin/agent-store with <provider> -- <command>` for one process when a
-client needs an environment variable. Native OAuth stores remain native to
+client needs an environment variable. 1Password is resolved first and the
+native migration source is used only while explicitly allowed. Native OAuth stores remain native to
 Claude, Codex, VS Code, and the desktop apps. The `companion-hub` provider is
 for Hub control-plane MCP. The separate `companion-memory` provider is for
 Memory MCP; set `COMPANION_HUB_BASE_URL` and `COMPANION_MEMORY_BASE_URL`
 independently when the services have different origins. Memory keys need both
 `mcp` and `intents` scopes for a useful tool list.
 
-The OmniRoute credential is intentionally only a Keychain helper. This store
+The OmniRoute credential is intentionally only a 1Password item. This store
 does not create a gateway key automatically; configure one locally, then use
 `OMNIROUTE_BASE_URL=http://127.0.0.1:20128` for the loopback gateway.
 
 The `omlx` provider is the preferred local route on this Mac. Its default
 OpenAI-compatible endpoint is `http://127.0.0.1:8000/v1`; use `ollama` as the
 alternate local route when oMLX is not installed or the model is unavailable.
-The endpoint key stays in the native secret store and is injected only for a
+The endpoint key stays in 1Password and is injected only for a
 process launched with `agent-store with omlx -- ...`.
 
 On macOS, after installing oMLX and entering the credential, install the
@@ -62,12 +65,12 @@ OpenClaw service wrapper with:
 
 This refreshes only the native LaunchAgent entrypoint and keeps OpenClaw on a
 loopback gateway. It does not copy credentials into the store or OpenClaw
-configuration.
+configuration. The wrapper resolves it from 1Password at launch.
 
 OpenClaw local mode uses the same endpoint through its built-in `openai`
 provider. Keep `apiKey` set to the environment-variable name
 `OPENAI_API_KEY`, never to a credential. Its gateway should bind to loopback,
-keep Tailscale exposure off, and use the Keychain-backed wrapper installed on
+keep Tailscale exposure off, and use the 1Password-backed wrapper installed on
 the machine so the LaunchAgent receives the credential without persisting it
 in `openclaw.json` or `models.json`. The recommended local-model guardrail is
 `agents.defaults.sandbox.mode = "all"` with `tools.deny = ["group:web",
@@ -90,7 +93,7 @@ device URL; use `adb forward` and the local MCP URL by default.
 
 ## What is deliberately not portable
 
-- API keys, OAuth refresh tokens, cookies, private keys, and native auth files;
+- API key values, OAuth refresh tokens, cookies, private keys, and native auth files;
 - SQLite databases, session history, rollout stores, or app caches;
 - absolute paths, host-specific VPN names, or machine-specific auto-approval;
 - unreviewed third-party skills, plugins, or MCP servers.

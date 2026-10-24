@@ -1,0 +1,90 @@
+version: 1
+
+# Canonical harness inventory. Native app state is deliberately not copied;
+# this file describes how a machine can discover, audit, and smoke-test it.
+harnesses:
+  hermes:
+    command: hermes
+    config_paths:
+      macos: "${HOME}/.hermes/config.yaml"
+      linux: "${HOME}/.hermes/config.yaml"
+      windows: "${USERPROFILE}/.hermes/config.yaml"
+    capabilities: [chat, coding, mcp, skills]
+    smoke: version
+  openclaw:
+    command: openclaw
+    gateway_probe: gateway health --json
+    app_paths: ["/Applications/OpenClaw.app", "${HOME}/Applications/OpenClaw.app"]
+    config_paths:
+      macos: "${HOME}/.openclaw/openclaw.json"
+      linux: "${HOME}/.openclaw/openclaw.json"
+      windows: "${USERPROFILE}/.openclaw/openclaw.json"
+    capabilities: [chat, coding, mcp, skills, gateway]
+    smoke: gateway
+  claude:
+    command: claude
+    app_paths: ["/Applications/Claude.app", "${HOME}/Applications/Claude.app"]
+    config_paths:
+      macos: "${HOME}/.claude"
+      linux: "${HOME}/.claude"
+      windows: "${USERPROFILE}/.claude"
+    capabilities: [chat, coding, mcp, skills, plugins]
+    smoke: version
+  codex:
+    command: codex
+    config_paths:
+      macos: "${HOME}/.codex"
+      linux: "${HOME}/.codex"
+      windows: "${USERPROFILE}/.codex"
+    capabilities: [chat, coding, mcp, skills]
+    smoke: version
+  opencode:
+    command: opencode
+    app_paths: ["/Applications/OpenCode.app", "${HOME}/Applications/OpenCode.app"]
+    config_paths:
+      macos: "${HOME}/.config/opencode"
+      linux: "${HOME}/.config/opencode"
+      windows: "${APPDATA}/opencode"
+    capabilities: [chat, coding, mcp, plugins]
+    smoke: version
+  aider-desk:
+    app_paths: ["/Applications/aider-desk.app", "${HOME}/Applications/aider-desk.app"]
+    config_paths:
+      macos: "${HOME}/Library/Application Support/aider-desk"
+      linux: "${HOME}/.config/aider-desk"
+      windows: "${APPDATA}/aider-desk"
+    capabilities: [chat, coding, mcp]
+    smoke: app
+  antigravity:
+    app_paths: ["/Applications/Antigravity.app", "${HOME}/Applications/Antigravity.app"]
+    config_paths:
+      macos: "${HOME}/.gemini/antigravity"
+      linux: "${HOME}/.config/antigravity"
+      windows: "${APPDATA}/antigravity"
+    capabilities: [chat, coding, mcp, plugins]
+    smoke: app
+  pi:
+    app_paths: ["/Applications/pi-gui.app", "${HOME}/Applications/pi-gui.app"]
+    config_paths:
+      macos: "${HOME}/.pi"
+      linux: "${HOME}/.pi"
+      windows: "${USERPROFILE}/.pi"
+    capabilities: [chat, coding, mcp]
+    smoke: app
+  vscode:
+    command: code
+    app_paths: ["/Applications/Visual Studio Code.app", "${HOME}/Applications/Visual Studio Code.app"]
+    config_paths:
+      macos: "${HOME}/Library/Application Support/Code/User"
+      linux: "${HOME}/.config/Code/User"
+      windows: "${APPDATA}/Code/User"
+    capabilities: [chat, coding, mcp, plugins]
+    smoke: version
+  ollama:
+    command: ollama
+    config_paths:
+      macos: "${HOME}/.ollama"
+      linux: "${HOME}/.ollama"
+      windows: "${USERPROFILE}/.ollama"
+    capabilities: [local-models, coding]
+    smoke: runtime

@@ -31,7 +31,25 @@ rescue Errno::ENOENT
   ["", false]
 end
 
+def op_secret_value(provider)
+  return nil if ENV["AGENT_CONFIGS_SECRET_BACKEND"] == "native"
+  binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
+  return nil unless system("which", binary, out: File::NULL, err: File::NULL)
+  _whoami, _whoami_error, whoami_status = Open3.capture3(binary, "whoami", "--format=json")
+  return nil unless whoami_status.success?
+  vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
+  item = "agent-configs-#{provider}"
+  reference = "op://#{vault}/#{item}/credential"
+  output, _error, status = Open3.capture3(binary, "read", "--no-newline", reference)
+  output.strip if status.success? && !output.strip.empty?
+rescue StandardError
+  nil
+end
+
 def secret_value(provider)
+  op_value = op_secret_value(provider)
+  return op_value if op_value
+
   service = "agent-configs/#{provider}"
   if RUBY_PLATFORM.include?("darwin") && system("which", "security", out: File::NULL, err: File::NULL)
     output, _error, status = Open3.capture3("security", "find-generic-password", "-a", ENV.fetch("USER", ""), "-s", service, "-w")
@@ -94,22 +112,50 @@ config_paths = {
   "antigravity" => File.join(Dir.home, ".gemini", "antigravity"),
   "pi" => File.join(Dir.home, ".pi"),
 }
+if system("command", "-v", "hermes", out: File::NULL, err: File::NULL)
+  hermes_path, _error, hermes_status = Open3.capture3("hermes", "config", "path")
+  config_paths["hermes"] = hermes_path.strip if hermes_status.success? && !hermes_path.strip.empty?
+end
 config_paths.each do |name, path|
   add_check(checks, "config.#{name}", File.exist?(path) ? "ok" : "warn", File.exist?(path) ? "present" : "missing")
 end
 
+if command = `command -v openclaw 2>/dev/null`.strip
+  gateway_command = File.join(Dir.home, ".local", "bin", "openclaw-gateway-with-omlx")
+  gateway_command = command unless File.executable?(gateway_command)
+  gateway_probe, gateway_ok = run_command(gateway_command, "gateway", "health", "--json")
+  add_check(checks, "runtime.openclaw.gateway", gateway_ok ? "ok" : "warn", gateway_ok ? "gateway health responded" : "gateway probe failed; use the desktop-matched runtime when installed")
+end
+
 providers = %w[anthropic openai openrouter ollama omlx companion-hub companion-memory omniroute android-mcp]
+op_binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
+if system("which", op_binary, out: File::NULL, err: File::NULL)
+  _whoami, _whoami_error, whoami_status = Open3.capture3(op_binary, "whoami", "--format=json")
+  if whoami_status.success?
+    add_check(checks, "credential-backend.onepassword", "ok", "1Password CLI authenticated; values are never printed")
+  else
+    add_check(checks, "credential-backend.onepassword", "warn", "1Password CLI installed but not authenticated")
+  end
+else
+  add_check(checks, "credential-backend.onepassword", "warn", "1Password CLI is not installed")
+end
 if RUBY_PLATFORM.include?("darwin") && system("command -v security >/dev/null 2>&1")
   providers.each do |provider|
     service = "agent-configs/#{provider}"
     present = system("security", "find-generic-password", "-a", ENV.fetch("USER", ""), "-s", service, out: File::NULL, err: File::NULL)
-    add_check(checks, "credential.#{provider}", present ? "ok" : "warn", present ? "present in Keychain" : "not set; values are never printed")
+    op_present = !op_secret_value(provider).nil?
+    status = op_present ? "ok" : (present ? "warn" : "warn")
+    detail = op_present ? "present in 1Password" : (present ? "present only in Keychain migration source" : "not set; values are never printed")
+    add_check(checks, "credential.#{provider}", status, detail)
   end
 elsif RUBY_PLATFORM.include?("linux") && system("command -v secret-tool >/dev/null 2>&1")
   providers.each do |provider|
     service = "agent-configs/#{provider}"
     present = system("secret-tool", "lookup", "service", service, "account", ENV.fetch("USER", ""), out: File::NULL, err: File::NULL)
-    add_check(checks, "credential.#{provider}", present ? "ok" : "warn", present ? "present in Linux Secret Service" : "not set; values are never printed")
+    op_present = !op_secret_value(provider).nil?
+    status = op_present ? "ok" : "warn"
+    detail = op_present ? "present in 1Password" : (present ? "present only in Linux Secret Service migration source" : "not set; values are never printed")
+    add_check(checks, "credential.#{provider}", status, detail)
   end
 else
   add_check(checks, "credentials", "info", "native secret store check unavailable on this platform")
@@ -121,7 +167,7 @@ begin
     File.join(STORE_ROOT, "integrations", "vscode", "mcp.json.example"),
   ]
   examples.each { |path| JSON.parse(File.read(path)) }
-  %w[providers/providers.yaml integrations/mcp/registry.yaml integrations/providers/routing.yaml integrations/providers/fallbacks.yaml repos/companionintelligence.yaml repos/workspace.yaml].each do |relative|
+  %w[providers/providers.yaml providers/onepassword.yaml integrations/mcp/registry.yaml integrations/capability-bundles.yaml integrations/harnesses.yaml integrations/providers/routing.yaml integrations/providers/fallbacks.yaml repos/companionintelligence.yaml repos/workspace.yaml].each do |relative|
     YAML.safe_load_file(File.join(STORE_ROOT, relative), aliases: true)
   end
   add_check(checks, "store.manifests", "ok", "YAML and JSON templates parse")

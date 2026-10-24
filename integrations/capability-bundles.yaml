@@ -1,0 +1,41 @@
+version: 1
+
+# Bundles make the reviewed MCP set portable without enabling every tool in
+# every client. A client may select one or more bundles locally.
+policy:
+  default_bundle: core
+  remote_servers_disabled_by_default: true
+  mutations_require_approval: true
+  device_control_requires_explicit_target: true
+
+bundles:
+  core:
+    description: Shared workspace context and read-oriented Companion services
+    servers: [companion-hub, companion-memory, ci-engineering]
+    clients: [claude, codex, hermes, openclaw, opencode, vscode]
+  development:
+    description: Core development, documentation, browser, and GitHub tools
+    extends: [core]
+    servers: [ci-common, markitdown, playwright, github]
+    clients: [claude, codex, opencode, vscode]
+  marketing:
+    description: Brand Studio to CI-Common to CI-Engineering to Metricool
+    extends: [core]
+    servers: [ci-brand-studio, ci-common, metricool]
+    clients: [claude, codex, hermes, opencode, vscode]
+  mobile:
+    description: Explicitly enabled Android device-control workflow
+    servers: [android-remote-control]
+    clients: [claude, codex, opencode, vscode]
+    high_risk: true
+
+client_defaults:
+  claude: [core]
+  codex: [core]
+  hermes: []
+  openclaw: [core]
+  opencode: [core]
+  vscode: [development]
+  aider-desk: []
+  pi: []
+  antigravity: []
