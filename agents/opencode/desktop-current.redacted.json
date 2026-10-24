@@ -1,0 +1,11 @@
+{
+  "plugin": [
+    [
+      "./plugins/omniroute/dist/index.js",
+      {
+        "providerId": "omniroute",
+        "baseURL": "http://localhost:20128"
+      }
+    ]
+  ]
+}

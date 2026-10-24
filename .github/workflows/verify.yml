@@ -1,0 +1,13 @@
+name: Verify agent config store
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify scripts and secret hygiene
+        run: ./scripts/verify.sh

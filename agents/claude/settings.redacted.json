@@ -1,0 +1,212 @@
+{
+  "env": {
+    "ANDROID_MCP_TOKEN_BEAM_PRO": "<redacted>",
+    "ANDROID_MCP_TOKEN_BEAM_PRO_1": "<redacted>",
+    "ANDROID_MCP_TOKEN_TAB_S8_ULTRA": "<redacted>",
+    "ANDROID_MCP_TOKEN_TAB_S9_ULTRA": "<redacted>"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npx vite:*)",
+      "Bash(rsvg-convert -w 180 -h 180 apple-touch-icon.svg)",
+      "Bash(rsvg-convert -w 192 -h 192 icon.svg)",
+      "Bash(rsvg-convert -w 512 -h 512 icon.svg)",
+      "Bash(rsvg-convert -w 512 -h 512 maskable-icon.svg)",
+      "Bash(ls -la *.png)",
+      "Bash(npm outdated:*)",
+      "Bash(npm audit:*)",
+      "Bash(npm update:*)",
+      "Bash(git -C /Users/liam/devel/ci/CI-Earth-2 log --oneline -3)",
+      "Bash(git -C /Users/liam/devel/ci/CI-Earth-2 status -sb)",
+      "mcp__Claude_Browser__navigate",
+      "mcp__Claude_Browser__read_page",
+      "mcp__Claude_Browser__find",
+      "mcp__Claude_Browser__read_console_messages",
+      "Bash(npm test*)",
+      "mcp__Claude_Browser__get_page_text",
+      "Bash(git ls-tree *)",
+      "mcp__Claude_Browser__preview_logs",
+      "Bash(pnpm vitest run *)",
+      "mcp__Claude_Browser__read_network_requests"
+    ]
+  },
+  "model": "sonnet",
+  "hooks": {
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/liam/.config/iterm2/cc-status"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/liam/.config/iterm2/cc-status"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/liam/.config/iterm2/cc-status"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/liam/.config/iterm2/cc-status"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/liam/.config/iterm2/cc-status"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/liam/.config/iterm2/cc-status"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/liam/.config/iterm2/cc-status"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/liam/.config/iterm2/cc-status"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/liam/.config/iterm2/cc-status"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/liam/.config/iterm2/cc-status"
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "codex@openai-codex": true
+  },
+  "extraKnownMarketplaces": {
+    "openai-codex": {
+      "source": {
+        "source": "github",
+        "repo": "openai/codex-plugin-cc"
+      }
+    }
+  },
+  "outputStyle": "Proactive",
+  "effortLevel": "high",
+  "tui": "fullscreen",
+  "skipWorkflowUsageWarning": true,
+  "inputNeededNotifEnabled": true,
+  "agentPushNotifEnabled": true,
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Bash(deno task check)",
+      "Bash(deno task test)",
+      "Bash(tailscale status --json)"
+    ],
+    "soft_deny": [
+      "$defaults",
+      "Bash(gh issue create:*)",
+      "Bash(scripts/factory/factory.sh create:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git clean -f:*)"
+    ],
+    "environment": [
+      "### Org-wide",
+      "**Organization**: companionintelligence (GitHub org of this repo's `origin` remote)",
+      "**Cloud provider(s)**: None configured — deployment is self-hosted over Tailscale; `az` appears in shell history but is not corroborated for this repo",
+      "**Repository visibility**: private (per authenticated gh API for companionintelligence/CI-Spatial)",
+      "**Internal sharing / snippet hosting**: None configured — treat public paste/gist services as outside the trust boundary",
+      "**Secrets management**: None configured — CI references only the built-in `GITHUB_TOKEN`; local config comes from shell env vars or a systemd EnvironmentFile (`.env` files are gitignored and not auto-loaded)",
+      "**Default / protected branches**: default branch `main`; gh reports no rulesets and no classic protected branches for this repo",
+      "**CI/CD deploy targets**: GitHub Actions in `.github/workflows` publishing the container image `ghcr.io/companionintelligence/ci-web-xr-scan` (do not rename that image tag); runtime deploys are self-hosted Deno (:8000) + Vite (:5173) behind Tailscale",
+      "**Network posture**: Tailscale tailnet is the deployment backbone — HTTPS hostnames, certs and CORS are built around `*.ts.net`; the Deno API listens on :8000 and Vite dev/preview on :5173, local-only unless a share link is issued",
+      "**Source control**: github.com/companionintelligence/CI-Spatial (`origin`) only — as scoped by the Trusted repo and Repository visibility entries above",
+      "**Trusted internal domains**: this machine's Tailscale hostname under `*.ts.net` (resolved via `TAILSCALE_HOSTNAME`/`VITE_HOSTNAME`/`ALLOWED_ORIGIN_PREFIX`), plus `localhost:8000` and `localhost:5173` for the local API and dev server",
+      "**Trusted cloud buckets**: None configured",
+      "**Key internal services**: local Ollama inference server at `http://localhost:11434` (`moondream:latest`); CI-Portal identity provider (OIDC client id `ci-web-xr-scan`); CI-Server memory-push endpoint (`sourceSystem` `companion-scan`)",
+      "**Internal package registry**: None configured — npm and Deno pull from their public default registries; GHCR is used for images only",
+      "<long string 545 chars>",
+      "**Data retention / declassification**: None configured",
+      "**Sensitive remote targets**: any namespace, host, or container whose name carries `prod` or `production` as a whole word or name segment (hyphen/underscore/dot-delimited — e.g. matches `prod-db`, not `producer`)",
+      "**Protected deployment namespaces / environments**: None configured — fall back to the Sensitive remote targets heuristic",
+      "<long string 307 chars>",
+      "**Cloud provider(s)**: None configured",
+      "**Repository visibility**: private (per authenticated gh API for companionintelligence/CI-Engineering)",
+      "**Secrets management**: None configured",
+      "**Default / protected branches**: default branch `main`; ruleset active on `main`; classic protected branches: `main`",
+      "**CI/CD deploy targets**: None configured",
+      "**Network posture**: None configured",
+      "**Host containment**: None configured — assume Claude Code runs on an ordinary developer machine or CI runner with open internet",
+      "**Source control**: github.com/companionintelligence/CI-Engineering (`origin`) only — as scoped by the Trusted repo and Repository visibility entries above",
+      "**Trusted internal domains**: None configured",
+      "**Key internal services**: None configured",
+      "**Internal package registry**: None configured",
+      "<long string 551 chars>",
+      "**Protected IaC scopes**: IAM, RBAC, networking, quota, and node-pool resources; anything whose name or tag carries `prod` or `production` as a whole word or name segment",
+      "### User-specific",
+      "**Primary use of Claude Code**: software development on this AR room-scanning app — Deno/TypeScript server, Vite/Three.js frontend, reconstruction pipelines, and local ticket/ADR drafting under `docs/factory/`",
+      "<long string 807 chars>",
+      "**Org-specific CLIs**: `deno` (deno task check / test), `npm` scripts in this repo, `tailscale` (hostname/cert resolution), `ollama` (local inference), `gh`, and `scripts/factory/factory.sh` (local-only ticket/ADR tooling)",
+      "**Routine under this repo's prefix**: local-only Factory workflow — ticket markdown under `docs/factory/<wave-name>/` and ADRs under `docs/adr/` are drafted as files and never pushed to a GitHub issue board (no `gh issue create`, no `factory.sh create`)",
+      "**Primary use of Claude Code**: software development — this repo is a documentation/engineering-wiki repo (Markdown + Node ESM tooling in tools/) for the Companion Intelligence platform",
+      "<long string 424 chars>",
+      "**Org-specific CLIs**: `gh` (CI-Engineering issue tracking), `node --test` (tools/ suite), `npx markdown-link-check` (link validation)",
+      "**Routine under this repo's prefix**: `node tools/serve-gallery.mjs` (product-video dashboard, localhost:8794) and `node tools/ci-video-ctl.mjs` (CLI for the same run store) are routine local operations under this repo"
+    ]
+  },
+  "switchModelsOnFlag": true
+}

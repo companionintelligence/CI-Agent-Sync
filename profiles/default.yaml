@@ -1,0 +1,49 @@
+version: 1
+name: default
+
+providers:
+  source: macos-keychain
+  namespace: agent-configs
+
+agents:
+  hermes:
+    command: hermes
+    config: ~/.hermes/config.yaml
+    env_file: ~/.hermes/.env
+    audit: hermes doctor
+  openclaw:
+    command: openclaw
+    config: ~/.openclaw/openclaw.json
+    env_file: ~/.openclaw/.env
+    audit: openclaw doctor --deep --non-interactive
+  claude:
+    command: claude
+    config: ~/.claude
+    audit: claude --help
+  codex:
+    command: codex
+    config: ~/.codex
+    audit: codex --help
+  antigravity:
+    command: desktop app
+    app: /Applications/Antigravity.app
+    config: ~/.gemini/antigravity
+    audit: desktop-only
+  opencode:
+    command: opencode
+    config: ~/.config/opencode/opencode.jsonc
+    audit: opencode --help
+  ollama:
+    command: ollama
+    config: ~/.ollama
+    audit: ollama list
+  aider-desk:
+    command: desktop app
+    app: /Applications/aider-desk.app
+    config: ~/Library/Application Support/aider-desk
+    audit: desktop-only
+  pi:
+    command: desktop app
+    app: /Applications/pi-gui.app
+    config: ~/.pi
+    audit: command-or-desktop-only
