@@ -75,6 +75,20 @@ items:
     groups: [shared]
     description: Provider and handoff contract shared by local harnesses
 
+  - id: shared/fleet-pool-policy
+    version: 1
+    source: integrations/fleet/pool-policy.yaml
+    destination: .agent-configs/fleet/pool-policy.yaml
+    groups: [shared]
+    description: Plan-first CI-Hub fleet policy with explicit safety boundaries
+
+  - id: shared/fleet-operations
+    version: 1
+    source: docs/fleet-operations.md
+    destination: .agent-configs/docs/fleet-operations.md
+    groups: [shared]
+    description: Portable CI-Hub fleet repair and verification runbook
+
   - id: shared/agent-operating-context
     version: 1
     source: context/agent-operating-context.md

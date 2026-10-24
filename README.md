@@ -87,6 +87,12 @@ The latest fallback and cross-harness evidence is recorded in
 The internal MCP source review is in
 [reports/2026-10-24-internal-mcp-registry.md](reports/2026-10-24-internal-mcp-registry.md).
 
+For CI-Hub fleet work, use the plan-first policy in
+[integrations/fleet/pool-policy.yaml](integrations/fleet/pool-policy.yaml) and
+follow [docs/fleet-operations.md](docs/fleet-operations.md). The latest
+repair evidence is in
+[reports/2026-10-24-fleet-pool-repair.md](reports/2026-10-24-fleet-pool-repair.md).
+
 The mobile references are catalogued in
 [integrations/references.yaml](integrations/references.yaml). The Android
 remote-control MCP is deliberately opt-in and high-risk; the private Companion
