@@ -9,7 +9,7 @@ abort "usage: redact-config.rb INPUT OUTPUT" unless input && output
 
 # Match credential-bearing keys without treating ordinary metadata such as
 # `trackTokenUsage` or `contextCompactingThreshold.tokens` as secrets.
-SENSITIVE = /api[._-]?key|(?:access|refresh|auth|gateway|remote)?[._-]?token\z|secret|password|credential|cookie|session[._-]?key|private[._-]?key|authorization|oauth|auth\z/i
+SENSITIVE = /api[._-]?key|(?:access|refresh|auth|gateway|remote)?[._-]?token\z|(?:^|[._-])token(?:$|[._-])|[a-z]token\z|secret|password|credential|cookie|session[._-]?key|private[._-]?key|authorization|oauth|auth\z/i
 
 def scrub(value, key = nil)
   if key && key.match?(SENSITIVE)
