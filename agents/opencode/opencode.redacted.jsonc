@@ -36,5 +36,35 @@
     }
   },
   "model": "ollama/qwen3.6-35b-64k:latest",
-  "small_model": "ollama/qwen3.6-35b-64k:latest"
+  "small_model": "ollama/qwen3.6-35b-64k:latest",
+  "mcp": {
+    "servers": {
+      "ci-common": {
+        "type": "local",
+        "command": [
+          "node",
+          "/Users/liam/devel/ci/CI-Common/apps/dashboard/mcp.mjs",
+          "--start"
+        ],
+        "environment": {
+          "CI_WORKSPACE": "/Users/liam/devel/ci"
+        }
+      },
+      "ci-engineering": {
+        "type": "local",
+        "command": [
+          "node",
+          "/Users/liam/devel/ci/0-HUB/CI-Engineering/tools/mcp-server.mjs",
+          "--start"
+        ],
+        "environment": {
+          "CI_WORKSPACE": "/Users/liam/devel/ci"
+        }
+      },
+      "metricool": {
+        "type": "remote",
+        "url": "https://ai.metricool.com/mcp"
+      }
+    }
+  }
 }

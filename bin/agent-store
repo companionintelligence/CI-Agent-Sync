@@ -21,6 +21,7 @@ Commands:
   repos inventory                   Compare the portable repo map to local checkouts
   repos sync [--apply]              Fetch and fast-forward only clean checkouts
   render [--agent NAME]             Generate safe client/workspace artifacts
+  sync [--apply] [--target PATH]    Plan or apply reviewed config sync to repos
   doctor [--json]                   Run integrated machine health checks
 
 Providers: anthropic, openai, openrouter, ollama, companion-hub, omniroute
@@ -229,6 +230,10 @@ render_store() {
   ruby "$STORE_ROOT/scripts/render.rb" "$@"
 }
 
+sync_store() {
+  ruby "$STORE_ROOT/scripts/sync.rb" "$@"
+}
+
 doctor_store() {
   ruby "$STORE_ROOT/scripts/doctor.rb" "$@"
 }
@@ -318,7 +323,12 @@ snapshot() {
   [[ -f "$HOME/.hermes/config.yaml" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.hermes/config.yaml" "$STORE_ROOT/agents/hermes/current.redacted.yaml"
   [[ -f "$HOME/.openclaw/openclaw.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.openclaw/openclaw.json" "$STORE_ROOT/agents/openclaw/current.redacted.json"
   [[ -f "$HOME/.claude/settings.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.claude/settings.json" "$STORE_ROOT/agents/claude/settings.redacted.json"
-  [[ -f "$HOME/.claude/.claude.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.claude/.claude.json" "$STORE_ROOT/agents/claude/claude.redacted.json"
+  # Claude's root file contains project/session metadata as well as MCP state;
+  # keep it out of the store. The legacy nested file is safe to snapshot when
+  # present, while the reviewed MCP inventory lives in agents/claude/mcp.redacted.yaml.
+  if [[ -f "$HOME/.claude/.claude.json" ]]; then
+    ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.claude/.claude.json" "$STORE_ROOT/agents/claude/claude.redacted.json"
+  fi
   [[ -f "$HOME/.codex/config.toml" ]] && ruby "$STORE_ROOT/scripts/redact-text.rb" "$HOME/.codex/config.toml" "$STORE_ROOT/agents/codex/config.redacted.toml"
   [[ -f "$HOME/.config/opencode/opencode.jsonc" ]] && ruby "$STORE_ROOT/scripts/redact-text.rb" "$HOME/.config/opencode/opencode.jsonc" "$STORE_ROOT/agents/opencode/opencode.redacted.jsonc"
   [[ -f "$HOME/Library/Application Support/opencode/opencode.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/Library/Application Support/opencode/opencode.json" "$STORE_ROOT/agents/opencode/desktop-current.redacted.json"
@@ -374,6 +384,7 @@ case "${1:-}" in
     esac
     ;;
   render) render_store "${@:2}" ;;
+  sync) sync_store "${@:2}" ;;
   doctor) doctor_store "${@:2}" ;;
   *) usage; exit 2 ;;
 esac

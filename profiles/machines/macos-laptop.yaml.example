@@ -6,6 +6,8 @@ architecture: arm64
 
 paths:
   ci_root: "${HOME}/devel/ci"
+  ci_common: "${CI_ROOT}/CI-Common"
+  ci_brand_studio: "${CI_ROOT}/CI-Brand-Studio"
   companion_hub: "${CI_ROOT}/Companion-Hub"
   companion_memory: "${CI_ROOT}/Companion-Memory"
   ci_engineering: "${CI_ROOT}/CI-Engineering"

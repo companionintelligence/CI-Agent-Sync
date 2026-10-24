@@ -29,6 +29,7 @@ Start here:
 ./bin/agent-store repos inventory
 ./bin/agent-store repos sync
 ./bin/agent-store render
+./bin/agent-store sync
 ./bin/agent-store doctor
 ./bin/agent-store doctor --json
 ./scripts/bootstrap-machine.zsh
@@ -58,3 +59,14 @@ scope and [reports/2026-10-24-hermes-openclaw.md](reports/2026-10-24-hermes-open
 for the first completed phase. The portable setup and Companion Intelligence
 repository map are in [docs/portable-setup.md](docs/portable-setup.md) and
 [repos/companionintelligence.yaml](repos/companionintelligence.yaml).
+
+The repository distribution contract is in [sync/](sync/README.md). It uses a
+versioned manifest, target-local group selection, explicit deletion records,
+and plan-first application so reviewed policies can be transplanted without
+copying native auth or credentials.
+
+For the marketing stack, start with
+[workflows/marketing-video.md](workflows/marketing-video.md). It connects
+CI-Brand-Studio planning, CI-Common production, CI-Engineering evidence, and
+Metricool analytics across Claude, Codex, OpenCode, and VS Code, with opt-in
+recipes for lean local Hermes and OpenClaw.
