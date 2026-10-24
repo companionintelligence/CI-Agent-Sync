@@ -23,7 +23,8 @@ def usage
       agentctl audit ...
       agentctl fallbacks [CHAIN]
 
-    Secrets stay in native stores. This command never prints credential values.
+    Credential values stay in 1Password or client-native OAuth stores. This
+    command never prints credential values.
   USAGE
 end
 

@@ -26,7 +26,24 @@ def expand_path(value)
     .gsub("${APPDATA}", ENV.fetch("APPDATA", File.join(Dir.home, "Library", "Application Support")))
 end
 
+def op_secret_value(provider)
+  return nil if ENV["AGENT_CONFIGS_SECRET_BACKEND"] == "native"
+  binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
+  return nil unless system("which", binary, out: File::NULL, err: File::NULL)
+  _whoami, _whoami_error, whoami_status = Open3.capture3(binary, "whoami", "--format=json")
+  return nil unless whoami_status.success?
+  vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
+  reference = "op://#{vault}/agent-configs-#{provider}/credential"
+  output, _error, status = Open3.capture3(binary, "read", "--no-newline", reference)
+  output.strip if status.success? && !output.strip.empty?
+rescue StandardError
+  nil
+end
+
 def secret_value(provider)
+  op_value = op_secret_value(provider)
+  return op_value if op_value
+
   service = "agent-configs/#{provider}"
   if RUBY_PLATFORM.include?("darwin") && system("command", "-v", "security", out: File::NULL, err: File::NULL)
     out, _err, status = Open3.capture3("security", "find-generic-password", "-a", ENV.fetch("USER", ""), "-s", service, "-w")

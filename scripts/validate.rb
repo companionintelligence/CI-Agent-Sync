@@ -39,6 +39,7 @@ end
 
 begin
   providers = YAML.safe_load_file(File.join(STORE_ROOT, "providers", "providers.yaml"), aliases: false).fetch("providers")
+  onepassword = YAML.safe_load_file(File.join(STORE_ROOT, "providers", "onepassword.yaml"), aliases: false)
   routing = YAML.safe_load_file(File.join(STORE_ROOT, "integrations", "providers", "routing.yaml"), aliases: false)
   fallback = YAML.safe_load_file(File.join(STORE_ROOT, "integrations", "providers", "fallbacks.yaml"), aliases: false)
   bundles = YAML.safe_load_file(File.join(STORE_ROOT, "integrations", "capability-bundles.yaml"), aliases: false)
@@ -69,6 +70,10 @@ begin
   end
   valid_routes = routing.fetch("routes").values.all? { |route| route["primary"].nil? || providers.key?(route["primary"]) }
   add_check(checks, "routing.providers", valid_routes ? "ok" : "error", "routing providers are declared")
+  onepassword.fetch("providers").each do |name, metadata|
+    valid = providers.key?(name) && metadata.fetch("reference").start_with?("op://") && metadata.fetch("env").match?(/\A[A-Z][A-Z0-9_]*\z/)
+    add_check(checks, "reference.onepassword.#{name}", valid ? "ok" : "error", valid ? "reference and environment mapping are valid" : "invalid 1Password mapping")
+  end
 rescue StandardError => error
   add_check(checks, "cross-references", "error", "#{error.class}: #{error.message}")
 end

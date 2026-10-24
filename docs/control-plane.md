@@ -21,8 +21,10 @@ servers. It stores policy and reproducible recipes, not native app state.
 
 - **Tracked policy:** providers, fallback chains, MCP recipes, capability
   bundles, skills, plugins, workflows, and redacted snapshots.
-- **Native secrets:** macOS Keychain, Linux Secret Service, or each client's
-  native OAuth/token store. Values never enter Git or command output.
+- **Portable secrets:** 1Password CLI items referenced by `op://` paths. The
+  macOS Keychain/Linux Secret Service copies are migration fallbacks only, and
+  each client's native OAuth store remains local. Values never enter Git or
+  command output.
 - **Native state:** sessions, transcripts, model caches, device state, and app
   databases. These remain on the machine that owns them.
 

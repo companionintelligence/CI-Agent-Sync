@@ -19,6 +19,7 @@ ruby -c scripts/test.rb >/dev/null
 ruby -c scripts/harness-smoke.rb >/dev/null
 ruby -c scripts/backup.rb >/dev/null
 ruby -c scripts/repair-openclaw.rb >/dev/null
+ruby -c scripts/onepassword.rb >/dev/null
 git diff --check
 
 while IFS= read -r file; do

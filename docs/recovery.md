@@ -13,7 +13,7 @@ Backups are redacted and stored below `local/backups/`. They do not contain
 OAuth sessions, native app databases, device identities, or provider keys.
 
 For a service that is reachable but unauthenticated, set the credential through
-the native store and retry the health check. Do not paste it into a config file:
+1Password and retry the health check. Do not paste it into a config file:
 
 ```sh
 ./bin/agentctl credentials set omlx

@@ -19,9 +19,10 @@ Do not put API keys, OAuth exports, native app databases, or machine-specific
 hostnames in an overlay. Provider credentials belong in the platform's native
 secret store; this repository only records their names and injection rules.
 
-The shared credential helper currently supports macOS Keychain and Linux
-Secret Service. Windows profiles deliberately use each client's native auth
-until a reviewed Windows credential backend is selected.
+The shared credential helper uses 1Password CLI with desktop integration as the
+portable backend. macOS Keychain and Linux Secret Service remain migration
+sources until each provider has been verified in 1Password. Windows uses the
+same `op` flow rather than copying client-native credentials.
 
 The bootstrap order is deliberately idempotent:
 

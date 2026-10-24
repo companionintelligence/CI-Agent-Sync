@@ -49,4 +49,5 @@ onboarding:
     busy_input_prompt: true
 plugins:
   enabled: []
+secrets: "<redacted>"
 _config_version: 38
