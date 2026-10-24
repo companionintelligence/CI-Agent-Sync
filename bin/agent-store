@@ -22,6 +22,7 @@ Commands:
   repos sync [--apply]              Fetch and fast-forward only clean checkouts
   render [--agent NAME]             Generate safe client/workspace artifacts
   sync [--apply] [--target PATH]    Plan or apply reviewed config sync to repos
+  fallbacks [CHAIN]                 Show portable fallback chains and models
   doctor [--json]                   Run integrated machine health checks
 
 Providers: anthropic, openai, openrouter, ollama, omlx, companion-hub, omniroute, android-mcp
@@ -242,6 +243,30 @@ doctor_store() {
   ruby "$STORE_ROOT/scripts/doctor.rb" "$@"
 }
 
+fallbacks_store() {
+  ruby -ryaml -e '
+    data = YAML.safe_load_file(ARGV[0], aliases: false)
+    policy = data.fetch("policy")
+    providers = data.fetch("providers")
+    chains = data.fetch("chains")
+    requested = ARGV[1]
+    selected = requested && requested != "all" ? { requested => chains.fetch(requested) } : chains
+    puts "Fallback policy: local-first, health-gated, max #{policy.fetch("max_attempts_per_request")} attempts"
+    puts "External fallback requires explicit enablement; mutations are never retried after they begin."
+    selected.each do |name, chain|
+      puts ""
+      puts name + ": " + chain.fetch("purpose")
+      chain.fetch("steps").each_with_index do |step, index|
+        provider = providers.fetch(step.fetch("provider"))
+        model = provider.fetch("model", "native_default")
+        requirement = Array(step["requires"])
+        suffix = requirement.empty? ? "" : " [requires: #{requirement.join(", ")}]"
+        puts "  #{index + 1}. #{step.fetch("provider")} / #{model}#{suffix}"
+      end
+    end
+  ' "$STORE_ROOT/integrations/providers/fallbacks.yaml" "${1:-all}"
+}
+
 with_provider() {
   typeset provider="$(normalize_provider "$1")"
   shift
@@ -396,6 +421,7 @@ case "${1:-}" in
     ;;
   render) render_store "${@:2}" ;;
   sync) sync_store "${@:2}" ;;
+  fallbacks) fallbacks_store "${2:-all}" ;;
   doctor) doctor_store "${@:2}" ;;
   *) usage; exit 2 ;;
 esac
