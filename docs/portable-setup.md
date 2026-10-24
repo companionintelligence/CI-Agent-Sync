@@ -53,6 +53,17 @@ alternate local route when oMLX is not installed or the model is unavailable.
 The endpoint key stays in the native secret store and is injected only for a
 process launched with `agent-store with omlx -- ...`.
 
+On macOS, after installing oMLX and entering the credential, install the
+OpenClaw service wrapper with:
+
+```sh
+./scripts/install-openclaw-local.zsh
+```
+
+This refreshes only the native LaunchAgent entrypoint and keeps OpenClaw on a
+loopback gateway. It does not copy credentials into the store or OpenClaw
+configuration.
+
 OpenClaw local mode uses the same endpoint through its built-in `openai`
 provider. Keep `apiKey` set to the environment-variable name
 `OPENAI_API_KEY`, never to a credential. Its gateway should bind to loopback,
