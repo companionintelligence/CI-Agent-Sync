@@ -1,0 +1,91 @@
+{
+  "meta": {
+    "lastTouchedVersion": "2026.2.12",
+    "lastTouchedAt": "2026-10-24T20:23:21.550Z"
+  },
+  "wizard": {
+    "lastRunAt": "2026-09-01T03:54:11.482Z",
+    "lastRunVersion": "2026.2.12",
+    "lastRunCommand": "doctor",
+    "lastRunMode": "remote"
+  },
+  "auth": "<redacted>",
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "github-copilot/gpt-5.2-codex"
+      },
+      "models": {
+        "github-copilot/claude-opus-4.6": {},
+        "github-copilot/gpt-5.2-codex": {}
+      },
+      "workspace": "/Users/liam/.openclaw/workspace",
+      "compaction": {
+        "mode": "safeguard"
+      },
+      "maxConcurrent": 4,
+      "subagents": {
+        "maxConcurrent": 8
+      }
+    }
+  },
+  "messages": {
+    "ackReactionScope": "group-mentions"
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto"
+  },
+  "channels": {
+    "imessage": {
+      "enabled": false,
+      "cliPath": "imsg",
+      "dmPolicy": "pairing",
+      "groupPolicy": "allowlist"
+    }
+  },
+  "gateway": {
+    "port": 18789,
+    "mode": "remote",
+    "bind": "loopback",
+    "auth": "<redacted>",
+    "tailscale": {
+      "mode": "serve",
+      "resetOnExit": false
+    },
+    "remote": {
+      "url": "ws://beta-1.capybara-ulmer.ts.net:18789",
+      "sshTarget": "liam@beta-1.capybara-ulmer.ts.net"
+    }
+  },
+  "skills": {
+    "install": {
+      "nodeManager": "pnpm"
+    },
+    "entries": {
+      "nano-banana-pro": {
+        "apiKey": "<redacted>"
+      },
+      "openai-image-gen": {
+        "apiKey": "<redacted>"
+      },
+      "openai-whisper-api": {
+        "apiKey": "<redacted>"
+      }
+    }
+  },
+  "plugins": {
+    "allow": [
+      "imessage",
+      "memory-core"
+    ],
+    "entries": {
+      "imessage": {
+        "enabled": true
+      },
+      "bluebubbles": {
+        "enabled": false
+      }
+    }
+  }
+}

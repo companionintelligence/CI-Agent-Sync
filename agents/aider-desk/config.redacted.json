@@ -1,0 +1,264 @@
+{
+  "userId": "b77cd95a-2f6d-4a0b-b6e0-cc2e74a2188c",
+  "settings": {
+    "language": "en",
+    "startupMode": "empty",
+    "zoomLevel": 1,
+    "notificationsEnabled": false,
+    "theme": "obsidian",
+    "font": "GoogleSansCode",
+    "renderMarkdown": true,
+    "fullMessageRendering": false,
+    "aiderDeskAutoUpdate": true,
+    "messageViewMode": "compact",
+    "showMessageMap": true,
+    "diffViewMode": "side-by-side",
+    "aider": {
+      "options": "",
+      "environmentVariables": "",
+      "addRuleFiles": true,
+      "autoCommits": true,
+      "cachingEnabled": true,
+      "watchFiles": true,
+      "confirmBeforeEdit": false
+    },
+    "preferredModels": [],
+    "llmProviders": {},
+    "telemetryEnabled": false,
+    "windowTitleTemplate": "AiderDesk - {project}",
+    "promptBehavior": {
+      "suggestionMode": "automatically",
+      "suggestionDelay": 100,
+      "requireCommandConfirmation": {
+        "add": false,
+        "readOnly": false,
+        "model": false,
+        "modeSwitching": false
+      },
+      "useVimBindings": false
+    },
+    "server": {
+      "enabled": false,
+      "readonly": false,
+      "readonlyExtensionUi": true,
+      "basicAuth": "<redacted>",
+      "cors": {
+        "enabled": false,
+        "origins": []
+      }
+    },
+    "memory": {
+      "enabled": true,
+      "provider": "sentence-transformers",
+      "model": "Xenova/all-MiniLM-L6-v2",
+      "maxDistance": 1.5
+    },
+    "taskSettings": {
+      "smartTaskState": true,
+      "autoGenerateTaskName": true,
+      "showTaskStateActions": true,
+      "worktreeSymlinkFolders": [
+        "node_modules",
+        "vendor",
+        "__pycache__",
+        ".venv",
+        "venv"
+      ],
+      "worktreePostCreateCommand": "",
+      "contextCompactingThreshold": {
+        "percentage": 90,
+        "tokens": "<redacted>"
+      },
+      "contextCompactionType": "compact",
+      "defaultWorkingMode": "local",
+      "worktreeBranchPrefix": "aider-desk/task/",
+      "renameBranchOnNameGeneration": true
+    },
+    "extensions": {
+      "repositories": [
+        "https://github.com/hotovo/aider-desk/tree/main/packages/extensions/extensions/"
+      ],
+      "disabled": []
+    },
+    "proxy": {
+      "enabled": false,
+      "url": "",
+      "noProxy": ""
+    },
+    "fileWatchMode": "auto",
+    "virtualizedRendering": false,
+    "agentProfiles": [
+      {
+        "id": "default",
+        "name": "Power Tools",
+        "provider": "ollama",
+        "model": "gemma3:1b",
+        "maxIterations": 100,
+        "minTimeBetweenToolCalls": 0,
+        "toolApprovals": {
+          "aider---get_context_files": "always",
+          "aider---add_context_files": "always",
+          "aider---drop_context_files": "always",
+          "aider---run_prompt": "ask",
+          "power---file_edit": "ask",
+          "power---file_read": "always",
+          "power---file_write": "ask",
+          "power---glob": "always",
+          "power---grep": "always",
+          "power---semantic_search": "always",
+          "power---bash": "ask",
+          "power---fetch": "always",
+          "subagents---run_task": "always"
+        },
+        "toolSettings": {
+          "power---bash": {
+            "allowedPattern": "ls .*;cat .*;git status;git show;git log",
+            "deniedPattern": "rm .*;del .*;chown .*;chgrp .*;chmod .*"
+          }
+        },
+        "includeContextFiles": true,
+        "includeRepoMap": false,
+        "usePowerTools": true,
+        "useAiderTools": false,
+        "useTodoTools": true,
+        "useSubagents": true,
+        "customInstructions": "",
+        "enabledServers": [],
+        "subagent": {
+          "enabled": false,
+          "systemPrompt": "You are a specialized subagent for code analysis and file manipulation. Focus on providing detailed technical insights and precise file operations.",
+          "invocationMode": "on-demand",
+          "color": "#3368a8",
+          "description": "Direct file manipulation and system operations. Best for codebase analysis, file management, advanced search, data analysis, and tasks requiring precise control over individual files. This agent should be used as the main agent for analysis and coding tasks.",
+          "contextMemory": "off"
+        }
+      },
+      {
+        "id": "aider",
+        "name": "Aider",
+        "provider": "ollama",
+        "model": "gemma3:1b",
+        "maxIterations": 100,
+        "minTimeBetweenToolCalls": 0,
+        "toolApprovals": {
+          "aider---get_context_files": "always",
+          "aider---add_context_files": "always",
+          "aider---drop_context_files": "always",
+          "aider---run_prompt": "ask",
+          "power---file_edit": "never",
+          "power---file_read": "always",
+          "power---file_write": "never",
+          "power---glob": "always",
+          "power---grep": "always",
+          "power---semantic_search": "always",
+          "power---bash": "ask",
+          "power---fetch": "always",
+          "subagents---run_task": "always"
+        },
+        "toolSettings": {
+          "power---bash": {
+            "allowedPattern": "ls .*;cat .*;git status;git show;git log",
+            "deniedPattern": "rm .*;del .*;chown .*;chgrp .*;chmod .*"
+          }
+        },
+        "includeContextFiles": true,
+        "includeRepoMap": true,
+        "usePowerTools": false,
+        "useAiderTools": true,
+        "useTodoTools": true,
+        "useSubagents": true,
+        "customInstructions": "",
+        "enabledServers": [],
+        "subagent": {
+          "enabled": false,
+          "systemPrompt": "You are a specialized subagent for AI-powered code generation and refactoring. Focus on providing high-quality code modifications based on the given requirements.",
+          "invocationMode": "on-demand",
+          "color": "#3368a8",
+          "description": "AI-powered code generation and refactoring. Best for implementing features, fixing bugs, and structured development workflows using Aider's intelligent code understanding and modification capabilities.",
+          "contextMemory": "off"
+        }
+      },
+      {
+        "id": "aider-power-tools",
+        "name": "Aider with Power Search",
+        "provider": "ollama",
+        "model": "gemma3:1b",
+        "maxIterations": 100,
+        "minTimeBetweenToolCalls": 0,
+        "toolApprovals": {
+          "aider---get_context_files": "always",
+          "aider---add_context_files": "always",
+          "aider---drop_context_files": "always",
+          "aider---run_prompt": "ask",
+          "power---file_edit": "never",
+          "power---file_read": "never",
+          "power---file_write": "never",
+          "power---glob": "always",
+          "power---grep": "always",
+          "power---semantic_search": "always",
+          "power---bash": "never",
+          "power---fetch": "always",
+          "subagents---run_task": "always"
+        },
+        "toolSettings": {
+          "power---bash": {
+            "allowedPattern": "ls .*;cat .*;git status;git show;git log",
+            "deniedPattern": "rm .*;del .*;chown .*;chgrp .*;chmod .*"
+          }
+        },
+        "includeContextFiles": true,
+        "includeRepoMap": true,
+        "usePowerTools": true,
+        "useAiderTools": true,
+        "useTodoTools": true,
+        "useSubagents": true,
+        "customInstructions": "",
+        "enabledServers": [],
+        "subagent": {
+          "enabled": false,
+          "systemPrompt": "You are a specialized subagent for AI-powered code generation and advanced search. Focus on providing high-quality code modifications based on the given requirements and comprehensive codebase exploration.",
+          "invocationMode": "on-demand",
+          "color": "#3368a8",
+          "description": "Hybrid approach combining Aider's code generation with advanced search capabilities. Best for complex development tasks requiring both intelligent code modification and comprehensive codebase exploration.",
+          "contextMemory": "off"
+        }
+      }
+    ],
+    "mcpServers": {},
+    "onboardingFinished": true,
+    "telemetryInformed": true,
+    "fontSize": 17
+  },
+  "windowState": {
+    "width": 1504,
+    "height": 1660,
+    "x": 0,
+    "y": 32,
+    "isMaximized": false
+  },
+  "providers": [
+    {
+      "id": "ollama",
+      "name": "ollama",
+      "provider": {
+        "name": "ollama",
+        "baseUrl": "http://localhost:11434/api"
+      },
+      "headers": {}
+    }
+  ],
+  "openProjects": [
+    {
+      "baseDir": "/Users/liam/devel/ci/CI-App-Store",
+      "settings": {
+        "mainModel": "ollama/gemma3:1b",
+        "modelEditFormats": {},
+        "currentMode": "code",
+        "agentProfileId": "default"
+      },
+      "active": true
+    }
+  ],
+  "releaseNotes": null,
+  "settingsVersion": 22
+}

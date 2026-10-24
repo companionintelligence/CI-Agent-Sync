@@ -1,0 +1,17 @@
+# Safe starter overlay. Keep live credentials in ~/.hermes/.env or Keychain.
+model:
+  provider: custom
+  base_url: http://127.0.0.1:8000/v1
+  api_mode: chat_completions
+  context_length: 64000
+  max_tokens: 8192
+
+terminal:
+  backend: local
+  cwd: /path/to/your/workspace
+
+auxiliary:
+  compression:
+    provider: main
+    model: your-model
+    base_url: http://127.0.0.1:8000/v1
