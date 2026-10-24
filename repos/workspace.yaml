@@ -1,0 +1,42 @@
+version: 1
+
+# Parent-workspace layer map. These entries describe the broader workspace,
+# including repos that are not currently cloned on every machine.
+root_env: CI_ROOT
+default_root: "${HOME}/devel/ci"
+
+layers:
+  cloud_plane: [CI-Portal, CI-Marketplace]
+  appliance_core: [CI-Server, CI-Hub, CI-Gateway, CI-OS]
+  capture: [CI-Browser-Extension, CI-Applet, Companion-Pipe, CI-Import-Tools, CI-OMI, CI-MaixCAM]
+  clients: [CI-Connect, CI-Mobile-Flutter-Testbed, CI-Earth-2, CI-Spatial, CI-Spatial-Web, CI-Spatial-Web-Meta, CI-Spatial-Atlas, CI-Spatial-Photo, CI-Spatial-Photos-2, CI-Spatial-Unity, CI-Spatial-Agent-Web, CI-Spatial-Agent-Web-2, CI-Spatial-Agent-Unity]
+  apps_and_agents: [CI-Active-Inference, JustInCase, Local-Bench, CI-Marketing, CI-Hermes, CI-OpenClaw]
+  devices: [CI-OMI, CI-MaixCAM, CI-Mentra, CI-Even-Realities, CI-Pebble]
+  docs_and_ops: [CI-Engineering, CI-Docs, CI-Operations, CI-Local-CICD]
+
+aliases:
+  CI-Server: [CI-Memory, Companion-Memory]
+  CI-Hub: [Companion-Hub]
+
+local_paths:
+  CI-Server: "${CI_ROOT}/CI-Memory"
+  CI-Hub: "${CI_ROOT}/CI-Hub"
+
+stacks:
+  CI-Server: {stack: "NestJS + React/Vite + PostgreSQL + pgvector + Ollama", package_manager: yarn}
+  CI-Hub: {stack: "NestJS + React/Tauri + Drizzle + PostgreSQL + Traefik", package_manager: pnpm}
+  CI-Portal: {stack: "Hono + TanStack Router + Drizzle + D1", package_manager: pnpm}
+  CI-Marketplace: {stack: "JSON manifests + validation scripts", package_manager: bun}
+  CI-Gateway: {stack: "Caddy/NGINX + Docker Compose", package_manager: make}
+  CI-Browser-Extension: {stack: "WXT + TypeScript + IndexedDB", package_manager: npm}
+  CI-Applet: {stack: "Rust/Tauri + Screenpipe", package_manager: "bun + cargo"}
+  CI-Connect: {stack: Flutter/Dart, package_manager: flutter}
+  CI-Active-Inference: {stack: Python + ONNX, package_manager: pip}
+  JustInCase: {stack: "C++ + llama.cpp + Docker", package_manager: "cmake + docker"}
+
+sync_policy:
+  fetch: all --prune
+  clean_checkout: pull --ff-only
+  dirty_checkout: skip_and_report
+  detached_checkout: skip_and_report
+  destructive_commands: forbidden_without_explicit_confirmation

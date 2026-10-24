@@ -1,0 +1,58 @@
+version: 1
+
+# Provider routing is policy, not a credential file. Credentials are resolved
+# by agent-store from Keychain or by each client's native OAuth store.
+policy:
+  private_first: true
+  default_local_model: ollama
+  gateway_binding: loopback_only
+  gateway_requires_auth: true
+  fallback_requires_explicit_enablement: true
+
+routes:
+  local:
+    primary: ollama
+    endpoint_env: OLLAMA_HOST
+    default_endpoint: http://127.0.0.1:11434
+    clients: [hermes, openclaw, opencode, aider-desk, pi]
+
+  gateway:
+    primary: omniroute
+    endpoint_env: OMNIROUTE_BASE_URL
+    default_endpoint: http://127.0.0.1:20128
+    credential: OMNIROUTE_API_KEY
+    clients: [opencode, claude, codex, hermes, openclaw, vscode]
+    health: /v1/models
+
+  appliance_memory:
+    primary: companion-hub
+    endpoint_env: COMPANION_HUB_BASE_URL
+    credential: COMPANION_HUB_API_KEY
+    clients: [claude, codex, hermes, openclaw, vscode]
+    health: /api/health
+    mcp: /api/mcp
+
+  remote_providers:
+    candidates: [anthropic, openai, openrouter]
+    selection: explicit_client_or_gateway_policy
+
+client_policy:
+  hermes: [local, gateway, remote_providers]
+  openclaw: [local, gateway, appliance_memory]
+  claude: [gateway, remote_providers, appliance_memory]
+  codex: [local, gateway, remote_providers, appliance_memory]
+  opencode: [local, gateway, remote_providers]
+  vscode: [gateway, remote_providers, appliance_memory]
+  aider-desk: [local, remote_providers]
+  pi: [local, remote_providers]
+
+health_rules:
+  - id: gateway-authenticated
+    endpoint: /v1/models
+    success_status: 200
+    warning_status: 401
+    warning: access key is missing or not supplied; routing is not operational
+  - id: memory-reachable
+    endpoint: /api/health
+    success_status: 200
+    warning: configure a reachable Companion Memory URL before enabling shared memory

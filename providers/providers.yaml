@@ -35,3 +35,10 @@ providers:
     endpoint_env: COMPANION_HUB_BASE_URL
     endpoint_env_aliases: [CI_SERVER_URL]
     primary_clients: [hermes, openclaw, claude, codex, opencode, vscode]
+
+  omniroute:
+    aliases: [omni-route]
+    env: OMNIROUTE_API_KEY
+    keychain_service: agent-configs/omniroute
+    endpoint_env: OMNIROUTE_BASE_URL
+    primary_clients: [opencode, claude, codex, hermes, openclaw, vscode]

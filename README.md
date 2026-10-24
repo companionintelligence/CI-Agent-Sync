@@ -10,10 +10,11 @@ redacted audits live here.
 
 ## Secret policy
 
-Secrets are never copied into this repository. Provider credentials are stored
-in the macOS Keychain under the `agent-configs` service namespace. Tool-specific
-OAuth files remain in their native application directories. Audits and config
-snapshots redact credential-bearing fields.
+Secrets are never copied into this repository. Provider credentials use the
+machine's supported secret store under the `agent-configs` namespace; on
+Windows, use each client's native auth until a shared backend is selected.
+Tool-specific OAuth files remain in their native application directories.
+Audits and config snapshots redact credential-bearing fields.
 
 Start here:
 
@@ -26,6 +27,10 @@ Start here:
 ./bin/agent-store snapshot
 ./bin/agent-store vscode audit
 ./bin/agent-store repos inventory
+./bin/agent-store repos sync
+./bin/agent-store render
+./bin/agent-store doctor
+./bin/agent-store doctor --json
 ./scripts/bootstrap-machine.zsh
 ```
 
@@ -38,9 +43,10 @@ file:
 ./bin/agent-store credentials set openrouter
 ./bin/agent-store credentials set ollama
 ./bin/agent-store credentials set companion-hub
+./bin/agent-store credentials set omniroute
 ```
 
-Run a client with a Keychain credential injected only into that process:
+Run a client with a provider credential injected only into that process:
 
 ```sh
 ./bin/agent-store with anthropic -- claude

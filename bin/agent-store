@@ -19,8 +19,11 @@ Commands:
   snapshot                          Refresh all redacted config snapshots
   vscode audit                      Audit VS Code, extensions, MCP, and plugins
   repos inventory                   Compare the portable repo map to local checkouts
+  repos sync [--apply]              Fetch and fast-forward only clean checkouts
+  render [--agent NAME]             Generate safe client/workspace artifacts
+  doctor [--json]                   Run integrated machine health checks
 
-Providers: anthropic, openai, openrouter, ollama, companion-hub
+Providers: anthropic, openai, openrouter, ollama, companion-hub, omniroute
 EOF
 }
 
@@ -31,6 +34,7 @@ normalize_provider() {
     openrouter) print -r -- openrouter ;;
     ollama|ollama-cloud) print -r -- ollama ;;
     companion_hub|companionhub|companion-hub) print -r -- companion-hub ;;
+    omniroute|omni-route) print -r -- omniroute ;;
     *) print -u2 "Unknown provider: $1"; return 2 ;;
   esac
 }
@@ -42,6 +46,7 @@ provider_env() {
     openrouter) print -r -- OPENROUTER_API_KEY ;;
     ollama) print -r -- OLLAMA_API_KEY ;;
     companion-hub) print -r -- COMPANION_HUB_API_KEY ;;
+    omniroute) print -r -- OMNIROUTE_API_KEY ;;
   esac
 }
 
@@ -60,7 +65,28 @@ service_name() {
 }
 
 has_secret() {
-  security find-generic-password -a "$USER" -s "$(service_name "$1")" >/dev/null 2>&1
+  secret_lookup "$1" >/dev/null 2>&1
+}
+
+secret_lookup() {
+  case "$(uname -s)" in
+    Darwin)
+      security find-generic-password -a "$USER" -s "$(service_name "$1")" -w 2>/dev/null
+      ;;
+    Linux)
+      command -v secret-tool >/dev/null 2>&1 || return 2
+      secret-tool lookup service "$(service_name "$1")" account "$USER"
+      ;;
+    *) return 2 ;;
+  esac
+}
+
+secret_store_label() {
+  case "$(uname -s)" in
+    Darwin) print -r -- "macOS Keychain" ;;
+    Linux) print -r -- "Linux Secret Service" ;;
+    *) print -r -- "native client stores" ;;
+  esac
 }
 
 inventory() {
@@ -76,6 +102,7 @@ inventory() {
     "ollama|ollama|$HOME/.ollama"
     "aider-desk|/Applications/aider-desk.app|$HOME/Library/Application Support/aider-desk"
     "pi|/Applications/pi-gui.app|$HOME/.pi"
+    "vscode|code|$HOME/Library/Application Support/Code/User"
   )
   for row in $rows; do
     IFS='|' read -r name binary config_path <<< "$row"
@@ -93,8 +120,8 @@ inventory() {
 }
 
 credentials_status() {
-  print "Provider credentials (macOS Keychain, values never printed):"
-  for provider in anthropic openai openrouter ollama companion-hub; do
+  print "Provider credentials ($(secret_store_label), values never printed):"
+  for provider in anthropic openai openrouter ollama companion-hub omniroute; do
     if has_secret "$provider"; then
       print "  ✓ $provider ($(provider_env "$provider"))"
     else
@@ -111,14 +138,30 @@ credentials_set() {
   read -r -s secret
   print ""
   [[ -n "$secret" ]] || { print -u2 "Empty credential; nothing saved."; return 2; }
-  security add-generic-password -a "$USER" -s "$(service_name "$provider")" -w "$secret" -U >/dev/null
+  case "$(uname -s)" in
+    Darwin)
+      security add-generic-password -a "$USER" -s "$(service_name "$provider")" -w "$secret" -U >/dev/null
+      ;;
+    Linux)
+      command -v secret-tool >/dev/null 2>&1 || { unset secret; print -u2 "Linux Secret Service is unavailable; install secret-tool or use the client's native auth."; return 2; }
+      print -rn -- "$secret" | secret-tool store --label="agent-configs/$provider" service "$(service_name "$provider")" account "$USER"
+      ;;
+    *)
+      unset secret
+      print -u2 "This platform has no supported shared secret backend; use the client's native auth store."
+      return 2
+      ;;
+  esac
   unset secret
-  print "Saved $provider credential to macOS Keychain."
+  print "Saved $provider credential to $(secret_store_label)."
 }
 
 credentials_delete() {
   typeset provider="$(normalize_provider "$1")"
-  security delete-generic-password -a "$USER" -s "$(service_name "$provider")" >/dev/null 2>&1 || true
+  case "$(uname -s)" in
+    Darwin) security delete-generic-password -a "$USER" -s "$(service_name "$provider")" >/dev/null 2>&1 || true ;;
+    Linux) command -v secret-tool >/dev/null 2>&1 && secret-tool clear service "$(service_name "$provider")" account "$USER" >/dev/null 2>&1 || true ;;
+  esac
   print "Removed $provider credential if it existed."
 }
 
@@ -178,6 +221,18 @@ repos_inventory() {
   ' "$manifest"
 }
 
+repos_sync() {
+  "$STORE_ROOT/scripts/sync-repos.zsh" "$@"
+}
+
+render_store() {
+  ruby "$STORE_ROOT/scripts/render.rb" "$@"
+}
+
+doctor_store() {
+  ruby "$STORE_ROOT/scripts/doctor.rb" "$@"
+}
+
 with_provider() {
   typeset provider="$(normalize_provider "$1")"
   shift
@@ -185,8 +240,8 @@ with_provider() {
   shift
   (( $# > 0 )) || { print -u2 "Missing command."; return 2; }
   typeset value
-  value="$(security find-generic-password -a "$USER" -s "$(service_name "$provider")" -w 2>/dev/null)" || {
-    print -u2 "No $provider credential in Keychain. Run: agent-store credentials set $provider"; return 2;
+  value="$(secret_lookup "$provider")" || {
+    print -u2 "No $provider credential in the native secret store. Run: agent-store credentials set $provider"; return 2;
   }
   while IFS= read -r env_name; do
     [[ -n "$env_name" ]] && export "$env_name=$value"
@@ -314,8 +369,11 @@ case "${1:-}" in
   repos)
     case "${2:-inventory}" in
       inventory) repos_inventory ;;
+      sync) repos_sync "${@:3}" ;;
       *) usage; exit 2 ;;
     esac
     ;;
+  render) render_store "${@:2}" ;;
+  doctor) doctor_store "${@:2}" ;;
   *) usage; exit 2 ;;
 esac
