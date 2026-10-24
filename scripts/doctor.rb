@@ -82,7 +82,7 @@ config_paths.each do |name, path|
   add_check(checks, "config.#{name}", File.exist?(path) ? "ok" : "warn", File.exist?(path) ? "present" : "missing")
 end
 
-providers = %w[anthropic openai openrouter ollama companion-hub omniroute]
+providers = %w[anthropic openai openrouter ollama companion-hub omniroute android-mcp]
 if RUBY_PLATFORM.include?("darwin") && system("command -v security >/dev/null 2>&1")
   providers.each do |provider|
     service = "agent-configs/#{provider}"

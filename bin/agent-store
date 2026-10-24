@@ -24,7 +24,7 @@ Commands:
   sync [--apply] [--target PATH]    Plan or apply reviewed config sync to repos
   doctor [--json]                   Run integrated machine health checks
 
-Providers: anthropic, openai, openrouter, ollama, companion-hub, omniroute
+Providers: anthropic, openai, openrouter, ollama, companion-hub, omniroute, android-mcp
 EOF
 }
 
@@ -36,6 +36,7 @@ normalize_provider() {
     ollama|ollama-cloud) print -r -- ollama ;;
     companion_hub|companionhub|companion-hub) print -r -- companion-hub ;;
     omniroute|omni-route) print -r -- omniroute ;;
+    android|android-mcp|android-remote-control) print -r -- android-mcp ;;
     *) print -u2 "Unknown provider: $1"; return 2 ;;
   esac
 }
@@ -48,6 +49,7 @@ provider_env() {
     ollama) print -r -- OLLAMA_API_KEY ;;
     companion-hub) print -r -- COMPANION_HUB_API_KEY ;;
     omniroute) print -r -- OMNIROUTE_API_KEY ;;
+    android-mcp) print -r -- ANDROID_MCP_TOKEN ;;
   esac
 }
 
@@ -122,7 +124,7 @@ inventory() {
 
 credentials_status() {
   print "Provider credentials ($(secret_store_label), values never printed):"
-  for provider in anthropic openai openrouter ollama companion-hub omniroute; do
+  for provider in anthropic openai openrouter ollama companion-hub omniroute android-mcp; do
     if has_secret "$provider"; then
       print "  ✓ $provider ($(provider_env "$provider"))"
     else

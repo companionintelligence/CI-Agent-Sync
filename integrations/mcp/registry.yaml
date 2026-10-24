@@ -55,6 +55,21 @@ servers:
     optional_clients: [hermes]
     notes: "Use the URL/OAuth flow for supported clients and authorize only trusted tools. Metricool grants broad account access within plan limits; publishing and scheduling remain approval-gated."
 
+  android-remote-control:
+    owner: danielealbano/android-remote-control-mcp
+    transport: streamable-http
+    url: "${ANDROID_MCP_URL:-http://127.0.0.1:8080/mcp}"
+    auth: bearer_or_oauth
+    headers:
+      Authorization: "Bearer ${ANDROID_MCP_TOKEN}"
+    source_repository: https://github.com/danielealbano/android-remote-control-mcp
+    setup_guide: https://github.com/danielealbano/android-remote-control-mcp#setup
+    clients: [claude, codex, opencode, vscode]
+    optional_clients: [hermes, openclaw, antigravity]
+    state: opt_in
+    bind: device-local-by-default
+    notes: "High-risk device-control MCP. Runs on Android with Accessibility access. Prefer adb port forwarding to a loopback host; use a public HTTPS tunnel only when explicitly required. Restrict tools and stop the server when not in use."
+
   markitdown:
     transport: stdio
     command: uvx
