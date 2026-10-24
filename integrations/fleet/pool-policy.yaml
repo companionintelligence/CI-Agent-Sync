@@ -1,0 +1,69 @@
+version: 1
+
+# This is a reviewed operating policy, not an auto-applied inventory. The
+# cihub CLI remains the source of truth for live discovery and health state.
+name: companion-intelligence-tailnet-pool
+
+policy:
+  mode: plan_then_apply
+  source_of_truth: cihub_cli_and_live_health_checks
+  preserve_operator_exclusions: true
+  preserve_dirty_checkouts: true
+  ssh_host_key_policy: strict
+  remote_sudo: cached_noninteractive_only
+  never_copy_credentials: true
+  never_force_remote_changes: true
+  require_before_apply:
+    - tailscale_connected
+    - hub_health_200
+    - pool_identify_200
+    - engine_reachable_from_hub_container
+    - context_cap_matches_engine
+    - signed_peer_auth
+
+# These exclusions are intentionally explicit. A transplant must not remove
+# or override them without an operator reviewing the target fleet first.
+operator_exclusions:
+  - node: core-7
+    reason: explicitly ignored for this repair pass
+  - node: fzzy
+    reason: explicitly ignored for this repair pass
+
+blocked_until_review:
+  - node: core-5
+    reason: SSH host key changed; strict verification blocked administration
+
+backend_policy:
+  preferred_engine: ollama
+  engine_context_is_authoritative: true
+  set_hub_cap_to_engine_context: true
+  do_not_raise_engine_context_implicitly: true
+  default_slots: 4
+  keep_alive: 24h
+  max_loaded_models: 2
+
+# Observed settings from the 2026-10-24 repair pass. They document the
+# expected relationship between the engine and Hub metadata without being a
+# command to rewrite a new machine's fleet.
+observed_context_caps:
+  beta-1: 16384
+  beta-3-glass: 16384
+  beta-max: 32768
+  beta-ms-a2: 16384
+  beta-nas: 16384
+  beta-red: 16384
+  core-3: 8192
+  core-4: 65536
+  core-6: 65536
+  core-17: 16384
+
+verification:
+  commands:
+    - cihub fleet list --json
+    - cihub fleet backends --backends ollama
+    - cihub pool doctor
+    - cihub pool status
+  endpoint_checks:
+    - http://127.0.0.1:11434/api/tags
+    - http://127.0.0.1:5002/api/health
+    - http://127.0.0.1:5002/api/inference/pool/identify
