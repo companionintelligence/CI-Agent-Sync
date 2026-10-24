@@ -30,16 +30,18 @@ this repository:
 ./bin/agent-store credentials set ollama
 ./bin/agent-store credentials set omlx
 ./bin/agent-store credentials set companion-hub
+./bin/agent-store credentials set companion-memory
 ./bin/agent-store credentials set omniroute
 ./bin/agent-store credentials set android-mcp
 ```
 
 Use `./bin/agent-store with <provider> -- <command>` for one process when a
 client needs an environment variable. Native OAuth stores remain native to
-Claude, Codex, VS Code, and the desktop apps. The `companion-hub` provider
-also injects the `CI_SERVER_TOKEN` alias used by the OpenClaw Companion Memory
-plugin; set `COMPANION_HUB_BASE_URL` and `CI_SERVER_URL` separately for the
-chosen reachable appliance address.
+Claude, Codex, VS Code, and the desktop apps. The `companion-hub` provider is
+for Hub control-plane MCP. The separate `companion-memory` provider is for
+Memory MCP; set `COMPANION_HUB_BASE_URL` and `COMPANION_MEMORY_BASE_URL`
+independently when the services have different origins. Memory keys need both
+`mcp` and `intents` scopes for a useful tool list.
 
 The OmniRoute credential is intentionally only a Keychain helper. This store
 does not create a gateway key automatically; configure one locally, then use

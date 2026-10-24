@@ -1,7 +1,7 @@
 {
   "meta": {
     "lastTouchedVersion": "2026.2.12",
-    "lastTouchedAt": "2026-10-24T20:23:21.550Z"
+    "lastTouchedAt": "2026-10-24T22:08:45.102Z"
   },
   "wizard": {
     "lastRunAt": "2026-09-01T03:54:11.482Z",
@@ -13,7 +13,10 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "github-copilot/gpt-5.2-codex"
+        "primary": "github-copilot/gpt-5.2-codex",
+        "fallbacks": [
+          "github-copilot/claude-opus-4.6"
+        ]
       },
       "models": {
         "github-copilot/claude-opus-4.6": {},

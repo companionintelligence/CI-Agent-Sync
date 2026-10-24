@@ -12,6 +12,18 @@
     },
     "metricool": {
       "url": "https://ai.metricool.com/mcp"
+    },
+    "companion-hub": {
+      "url": "${COMPANION_HUB_BASE_URL}/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${COMPANION_HUB_API_KEY}"
+      }
+    },
+    "companion-memory": {
+      "url": "${COMPANION_MEMORY_BASE_URL}/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${COMPANION_MEMORY_API_KEY}"
+      }
     }
   }
 }

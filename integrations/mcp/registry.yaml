@@ -8,21 +8,53 @@ policy:
   destructive_tools: require_client_approval
 
 servers:
-  companion-memory:
-    owner: companionintelligence/Companion-Memory
+  companion-hub:
+    owner: companionintelligence/Companion-Hub
+    source_repository: https://github.com/companionintelligence/Companion-Hub
     transport: streamable-http
     url: "${COMPANION_HUB_BASE_URL}/api/mcp"
     auth:
       provider: companion-hub
       header: Authorization
       format: "Bearer ${COMPANION_HUB_API_KEY}"
+      scopes: [mcp]
+      capability: read
+    clients: [vscode, claude, codex, opencode, hermes, openclaw]
+    optional_clients: [aider-desk, pi]
+    state: opt_in
+    notes: "Companion Hub control-plane MCP. Enable MCP in Hub, mint a scoped key, and use read capability by default; write and full keys are for explicitly approved lifecycle or configuration work."
+
+  companion-memory:
+    owner: companionintelligence/Companion-Memory
+    source_repository: https://github.com/companionintelligence/Companion-Memory
+    transport: streamable-http
+    url: "${COMPANION_MEMORY_BASE_URL}/api/mcp"
+    auth:
+      provider: companion-memory
+      header: Authorization
+      format: "Bearer ${COMPANION_MEMORY_API_KEY}"
       scopes: [mcp, intents]
       capability: read
     clients: [vscode, claude, codex, openclaw, hermes]
-    notes: The endpoint is /api/mcp at the appliance edge, not bare /mcp.
+    optional_clients: [opencode, aider-desk, pi]
+    state: opt_in
+    notes: "Companion Memory MCP. The external appliance URL is /api/mcp; API keys need both mcp and intents scopes or the tool list will be empty."
+
+  ci-brand-studio:
+    owner: companionintelligence/CI-Brand-Studio
+    source_repository: https://github.com/companionintelligence/CI-Brand-Studio
+    transport: stdio
+    command: node
+    args: ["${CI_BRAND_STUDIO_ROOT}/asset-engine/apps/dashboard/mcp.mjs", --start]
+    bind: loopback
+    clients: [claude, codex, opencode, vscode]
+    optional_clients: [hermes, openclaw, aider-desk, pi]
+    state: opt_in
+    notes: "The current origin/main MCP entrypoint is the Asset Engine dashboard server. It is local stdio, starts or attaches to a loopback dashboard, and requires confirmation for writes, approvals, services, and renders."
 
   ci-engineering:
     owner: companionintelligence/CI-Engineering
+    source_repository: https://github.com/companionintelligence/CI-Engineering
     transport: stdio
     command: node
     args: ["${CI_ENGINEERING_ROOT}/tools/mcp-server.mjs", --start]
@@ -31,6 +63,7 @@ servers:
     bind: loopback
     clients: [claude, codex, opencode, vscode]
     optional_clients: [hermes]
+    state: opt_in
     notes: Engineering and product-video MCP; confirmation remains server-side. Keep it opt-in for small local models.
 
   ci-common:
