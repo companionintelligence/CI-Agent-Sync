@@ -8,6 +8,8 @@ environment variables for paths that differ between machines:
 
 ```yaml
 ci_root: "${HOME}/devel/ci"
+ci_common_root: "${CI_ROOT}/CI-Common"
+ci_brand_studio_root: "${CI_ROOT}/CI-Brand-Studio"
 companion_hub_root: "${CI_ROOT}/CI-Hub"
 companion_memory_root: "${CI_ROOT}/CI-Memory"
 ci_engineering_root: "${CI_ROOT}/CI-Engineering"

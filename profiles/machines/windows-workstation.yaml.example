@@ -6,6 +6,8 @@ architecture: x86_64
 
 paths:
   ci_root: "${USERPROFILE}/devel/ci"
+  ci_common: "${CI_ROOT}/CI-Common"
+  ci_brand_studio: "${CI_ROOT}/CI-Brand-Studio"
   companion_hub: "${CI_ROOT}/CI-Hub"
   companion_memory: "${CI_ROOT}/CI-Memory"
   ci_engineering: "${CI_ROOT}/CI-Engineering"

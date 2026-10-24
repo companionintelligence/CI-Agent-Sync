@@ -37,3 +37,28 @@ plugins:
     observed: desktop config references a local plugin
     requires: [loopback-gateway, gateway-access-key]
     notes: Keep loopback binding; do not claim routing is operational until /v1/models returns 200.
+
+  - id: metricool
+    host: codex
+    source: codex-app-plugin
+    observed: available_not_connected
+    install: connect through the Codex plugin manager, or use the native Metricool MCP recipe
+    requires: [metricool-account-auth]
+    capabilities: [social-analytics, scheduling, publishing]
+    notes: Useful for the marketing feedback loop. Keep scheduling and publishing owner-approved.
+
+  - id: runway
+    host: codex
+    source: codex-app-plugin
+    observed: available_not_connected
+    install: connect through the Codex plugin manager after reviewing generation permissions
+    capabilities: [generative-video]
+    notes: Optional candidate for creative ideation and motion assets; not required for the deterministic product-video pipeline.
+
+  - id: heygen
+    host: codex
+    source: codex-app-plugin
+    observed: available_not_connected
+    install: connect through the Codex plugin manager after reviewing avatar and media permissions
+    capabilities: [avatar-video, voice-video]
+    notes: Optional candidate for presenter or avatar variants; not enabled by the portable workflow.
