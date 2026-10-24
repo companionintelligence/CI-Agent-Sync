@@ -22,7 +22,9 @@
       "watchFiles": true,
       "confirmBeforeEdit": false
     },
-    "preferredModels": [],
+    "preferredModels": [
+      "omlx-local/Qwen3.8-27B-oQ4e-fp16-mtp"
+    ],
     "llmProviders": {},
     "telemetryEnabled": false,
     "windowTitleTemplate": "AiderDesk - {project}",
@@ -67,7 +69,7 @@
       "worktreePostCreateCommand": "",
       "contextCompactingThreshold": {
         "percentage": 90,
-        "tokens": "<redacted>"
+        "tokens": 100000
       },
       "contextCompactionType": "compact",
       "defaultWorkingMode": "local",
@@ -91,8 +93,8 @@
       {
         "id": "default",
         "name": "Power Tools",
-        "provider": "ollama",
-        "model": "gemma3:1b",
+        "provider": "omlx-local",
+        "model": "Qwen3.8-27B-oQ4e-fp16-mtp",
         "maxIterations": 100,
         "minTimeBetweenToolCalls": 0,
         "toolApprovals": {
@@ -123,7 +125,10 @@
         "useTodoTools": true,
         "useSubagents": true,
         "customInstructions": "",
-        "enabledServers": [],
+        "enabledServers": [
+          "ci-common",
+          "ci-engineering"
+        ],
         "subagent": {
           "enabled": false,
           "systemPrompt": "You are a specialized subagent for code analysis and file manipulation. Focus on providing detailed technical insights and precise file operations.",
@@ -136,8 +141,8 @@
       {
         "id": "aider",
         "name": "Aider",
-        "provider": "ollama",
-        "model": "gemma3:1b",
+        "provider": "omlx-local",
+        "model": "Qwen3.8-27B-oQ4e-fp16-mtp",
         "maxIterations": 100,
         "minTimeBetweenToolCalls": 0,
         "toolApprovals": {
@@ -168,7 +173,10 @@
         "useTodoTools": true,
         "useSubagents": true,
         "customInstructions": "",
-        "enabledServers": [],
+        "enabledServers": [
+          "ci-common",
+          "ci-engineering"
+        ],
         "subagent": {
           "enabled": false,
           "systemPrompt": "You are a specialized subagent for AI-powered code generation and refactoring. Focus on providing high-quality code modifications based on the given requirements.",
@@ -181,8 +189,8 @@
       {
         "id": "aider-power-tools",
         "name": "Aider with Power Search",
-        "provider": "ollama",
-        "model": "gemma3:1b",
+        "provider": "omlx-local",
+        "model": "Qwen3.8-27B-oQ4e-fp16-mtp",
         "maxIterations": 100,
         "minTimeBetweenToolCalls": 0,
         "toolApprovals": {
@@ -213,7 +221,10 @@
         "useTodoTools": true,
         "useSubagents": true,
         "customInstructions": "",
-        "enabledServers": [],
+        "enabledServers": [
+          "ci-common",
+          "ci-engineering"
+        ],
         "subagent": {
           "enabled": false,
           "systemPrompt": "You are a specialized subagent for AI-powered code generation and advanced search. Focus on providing high-quality code modifications based on the given requirements and comprehensive codebase exploration.",
@@ -238,11 +249,14 @@
   },
   "providers": [
     {
-      "id": "ollama",
-      "name": "ollama",
+      "id": "omlx-local",
+      "name": "omlx-local",
       "provider": {
-        "name": "ollama",
-        "baseUrl": "http://localhost:11434/api"
+        "name": "openai-compatible",
+        "apiKey": "<redacted>",
+        "baseUrl": "http://127.0.0.1:8000/v1",
+        "reasoningEffort": "none",
+        "trackTokenUsage": true
       },
       "headers": {}
     }
@@ -251,7 +265,7 @@
     {
       "baseDir": "/Users/liam/devel/ci/CI-App-Store",
       "settings": {
-        "mainModel": "ollama/gemma3:1b",
+        "mainModel": "omlx-local/Qwen3.8-27B-oQ4e-fp16-mtp",
         "modelEditFormats": {},
         "currentMode": "code",
         "agentProfileId": "default"

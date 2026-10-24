@@ -28,8 +28,10 @@ this repository:
 ./bin/agent-store credentials set openai
 ./bin/agent-store credentials set openrouter
 ./bin/agent-store credentials set ollama
+./bin/agent-store credentials set omlx
 ./bin/agent-store credentials set companion-hub
 ./bin/agent-store credentials set omniroute
+./bin/agent-store credentials set android-mcp
 ```
 
 Use `./bin/agent-store with <provider> -- <command>` for one process when a
@@ -42,6 +44,16 @@ chosen reachable appliance address.
 The OmniRoute credential is intentionally only a Keychain helper. This store
 does not create a gateway key automatically; configure one locally, then use
 `OMNIROUTE_BASE_URL=http://127.0.0.1:20128` for the loopback gateway.
+
+The `omlx` provider is the preferred local route on this Mac. Its default
+OpenAI-compatible endpoint is `http://127.0.0.1:8000/v1`; use `ollama` as the
+alternate local route when oMLX is not installed or the model is unavailable.
+The endpoint key stays in the native secret store and is injected only for a
+process launched with `agent-store with omlx -- ...`.
+
+The `android-mcp` credential is stored as `ANDROID_MCP_TOKEN` and injected only
+when requested. Never copy a bearer token from a planning document or commit a
+device URL; use `adb forward` and the local MCP URL by default.
 
 ## What is portable
 
@@ -96,8 +108,9 @@ Generate safe, ignored artifacts without overwriting native client state:
 open local/rendered/workspace/companion-intelligence.local.code-workspace
 ```
 
-The render includes VS Code settings/MCP templates, extension IDs, client
-launch notes, and both full and local-only Companion Intelligence workspaces.
+The render includes VS Code settings/MCP templates, an Aider Desk MCP file with
+machine paths resolved from the local profile, extension IDs, client launch
+notes, and both full and local-only Companion Intelligence workspaces.
 
 Run the integrated health graph in human or machine-readable form:
 

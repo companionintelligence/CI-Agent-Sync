@@ -24,7 +24,7 @@ Commands:
   sync [--apply] [--target PATH]    Plan or apply reviewed config sync to repos
   doctor [--json]                   Run integrated machine health checks
 
-Providers: anthropic, openai, openrouter, ollama, companion-hub, omniroute
+Providers: anthropic, openai, openrouter, ollama, omlx, companion-hub, omniroute, android-mcp
 EOF
 }
 
@@ -34,8 +34,10 @@ normalize_provider() {
     codex|openai) print -r -- openai ;;
     openrouter) print -r -- openrouter ;;
     ollama|ollama-cloud) print -r -- ollama ;;
+    omlx|mlx|omlx-local) print -r -- omlx ;;
     companion_hub|companionhub|companion-hub) print -r -- companion-hub ;;
     omniroute|omni-route) print -r -- omniroute ;;
+    android|android-mcp|android-remote-control) print -r -- android-mcp ;;
     *) print -u2 "Unknown provider: $1"; return 2 ;;
   esac
 }
@@ -46,8 +48,10 @@ provider_env() {
     openai) print -r -- OPENAI_API_KEY ;;
     openrouter) print -r -- OPENROUTER_API_KEY ;;
     ollama) print -r -- OLLAMA_API_KEY ;;
+    omlx|mlx|omlx-local) print -r -- OMLX_API_KEY ;;
     companion-hub) print -r -- COMPANION_HUB_API_KEY ;;
     omniroute) print -r -- OMNIROUTE_API_KEY ;;
+    android-mcp) print -r -- ANDROID_MCP_TOKEN ;;
   esac
 }
 
@@ -122,7 +126,7 @@ inventory() {
 
 credentials_status() {
   print "Provider credentials ($(secret_store_label), values never printed):"
-  for provider in anthropic openai openrouter ollama companion-hub omniroute; do
+  for provider in anthropic openai openrouter ollama omlx companion-hub omniroute android-mcp; do
     if has_secret "$provider"; then
       print "  ✓ $provider ($(provider_env "$provider"))"
     else
@@ -289,6 +293,11 @@ audit_one() {
       ollama list 2>&1 | redact_output || true
       ollama ps 2>&1 | redact_output || true
       ;;
+    omlx)
+      typeset omlx_url="${OMLX_BASE_URL:-http://127.0.0.1:8000/v1}"
+      typeset omlx_status="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 3 "$omlx_url/models" 2>/dev/null || print 000)"
+      print "oMLX endpoint: HTTP $omlx_status"
+      ;;
     aider-desk)
       [[ -d "/Applications/aider-desk.app" ]] || { print "aider-desk: app not installed"; return 0; }
       /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' /Applications/aider-desk.app/Contents/Info.plist 2>&1 || true
@@ -302,10 +311,10 @@ audit_one() {
     pi)
       [[ -d "/Applications/pi-gui.app" ]] || { print "pi: app not installed"; return 0; }
       /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' /Applications/pi-gui.app/Contents/Info.plist 2>&1 || true
-      if ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); exit(j.is_a?(Hash) && j.empty? ? 1 : 0)' "$HOME/.pi/agent/models-store.json" 2>/dev/null; then
-        print "model store: non-empty"
+      if ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); exit(j.is_a?(Hash) && j.empty? ? 1 : 0)' "$HOME/.pi/agent/models.json" 2>/dev/null; then
+        print "model store: non-empty (models.json)"
       else
-        print "model store: empty"
+        print "model store: empty or missing (models.json)"
       fi
       if ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); exit(j.is_a?(Hash) && j.empty? ? 1 : 0)' "$HOME/.pi/agent/auth.json" 2>/dev/null; then
         print "auth store: non-empty"
@@ -333,7 +342,9 @@ snapshot() {
   [[ -f "$HOME/.config/opencode/opencode.jsonc" ]] && ruby "$STORE_ROOT/scripts/redact-text.rb" "$HOME/.config/opencode/opencode.jsonc" "$STORE_ROOT/agents/opencode/opencode.redacted.jsonc"
   [[ -f "$HOME/Library/Application Support/opencode/opencode.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/Library/Application Support/opencode/opencode.json" "$STORE_ROOT/agents/opencode/desktop-current.redacted.json"
   [[ -f "$HOME/Library/Application Support/aider-desk/config.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/Library/Application Support/aider-desk/config.json" "$STORE_ROOT/agents/aider-desk/config.redacted.json"
+  [[ -f "$HOME/Library/Application Support/aider-desk/mcp-servers.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/Library/Application Support/aider-desk/mcp-servers.json" "$STORE_ROOT/agents/aider-desk/mcp-servers.redacted.json"
   [[ -f "$HOME/.gemini/antigravity-ide/mcp_config.json" ]] && ruby "$STORE_ROOT/scripts/redact-text.rb" "$HOME/.gemini/antigravity-ide/mcp_config.json" "$STORE_ROOT/agents/antigravity/mcp_config.redacted.jsonc"
+  [[ -f "$HOME/.pi/agent/models.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.pi/agent/models.json" "$STORE_ROOT/agents/pi/models.redacted.json"
   [[ -f "$HOME/.pi/agent/models-store.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.pi/agent/models-store.json" "$STORE_ROOT/agents/pi/models-store.redacted.json"
   [[ -f "$HOME/Library/Application Support/Code/User/settings.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/Library/Application Support/Code/User/settings.json" "$STORE_ROOT/agents/vscode/settings.redacted.json"
   [[ -f "$HOME/Library/Application Support/Code/User/mcp.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/Library/Application Support/Code/User/mcp.json" "$STORE_ROOT/agents/vscode/mcp.redacted.json"
@@ -357,9 +368,9 @@ case "${1:-}" in
   with) with_provider "${2:?provider required}" "${@:3}" ;;
   audit)
     case "${2:-all}" in
-      hermes|openclaw|claude|codex|opencode|ollama|aider-desk|antigravity|pi|vscode) audit_one "$2" ;;
+      hermes|openclaw|claude|codex|opencode|ollama|omlx|aider-desk|antigravity|pi|vscode) audit_one "$2" ;;
       all)
-        for agent in hermes openclaw claude codex opencode ollama aider-desk antigravity pi vscode; do
+        for agent in hermes openclaw claude codex opencode ollama omlx aider-desk antigravity pi vscode; do
           print "\n===== $agent ====="
           if ! audit_one "$agent"; then
             print "audit failed: $agent"

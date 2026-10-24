@@ -43,8 +43,10 @@ file:
 ./bin/agent-store credentials set openai
 ./bin/agent-store credentials set openrouter
 ./bin/agent-store credentials set ollama
+./bin/agent-store credentials set omlx
 ./bin/agent-store credentials set companion-hub
 ./bin/agent-store credentials set omniroute
+./bin/agent-store credentials set android-mcp
 ```
 
 Run a client with a provider credential injected only into that process:
@@ -70,3 +72,9 @@ For the marketing stack, start with
 CI-Brand-Studio planning, CI-Common production, CI-Engineering evidence, and
 Metricool analytics across Claude, Codex, OpenCode, and VS Code, with opt-in
 recipes for lean local Hermes and OpenClaw.
+
+The mobile references are catalogued in
+[integrations/references.yaml](integrations/references.yaml). The Android
+remote-control MCP is deliberately opt-in and high-risk; the private Companion
+Scan document is stored as a link only, without importing its credentials or
+device-specific endpoints.

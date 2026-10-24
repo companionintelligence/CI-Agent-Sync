@@ -4,16 +4,17 @@ version: 1
 # by agent-store from Keychain or by each client's native OAuth store.
 policy:
   private_first: true
-  default_local_model: ollama
+  default_local_model: omlx
   gateway_binding: loopback_only
   gateway_requires_auth: true
   fallback_requires_explicit_enablement: true
 
 routes:
   local:
-    primary: ollama
-    endpoint_env: OLLAMA_HOST
-    default_endpoint: http://127.0.0.1:11434
+    primary: omlx
+    endpoint_env: OMLX_BASE_URL
+    default_endpoint: http://127.0.0.1:8000/v1
+    alternate: ollama
     clients: [hermes, openclaw, opencode, aider-desk, pi]
 
   gateway:
