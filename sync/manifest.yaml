@@ -61,6 +61,13 @@ items:
     groups: [shared]
     description: Portable Brand Studio, CI-Common, CI-Engineering, and Metricool workflow
 
+  - id: shared/references
+    version: 1
+    source: integrations/references.yaml
+    destination: .agent-configs/references.yaml
+    groups: [shared]
+    description: Reviewed private planning and public implementation references
+
 # Renames and removals are intentionally explicit. The sync command will not
 # delete target files unless --prune is supplied and an entry exists here.
 deletions: []

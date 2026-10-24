@@ -30,6 +30,7 @@ this repository:
 ./bin/agent-store credentials set ollama
 ./bin/agent-store credentials set companion-hub
 ./bin/agent-store credentials set omniroute
+./bin/agent-store credentials set android-mcp
 ```
 
 Use `./bin/agent-store with <provider> -- <command>` for one process when a
@@ -42,6 +43,10 @@ chosen reachable appliance address.
 The OmniRoute credential is intentionally only a Keychain helper. This store
 does not create a gateway key automatically; configure one locally, then use
 `OMNIROUTE_BASE_URL=http://127.0.0.1:20128` for the loopback gateway.
+
+The `android-mcp` credential is stored as `ANDROID_MCP_TOKEN` and injected only
+when requested. Never copy a bearer token from a planning document or commit a
+device URL; use `adb forward` and the local MCP URL by default.
 
 ## What is portable
 

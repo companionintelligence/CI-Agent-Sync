@@ -1,0 +1,17 @@
+version: 1
+
+references:
+  companion-scan-mobile-mcp:
+    title: Companion SCAN and Mobile MCP
+    kind: private-google-doc
+    url: https://docs.google.com/document/d/1ige6RttbZQoedl589-OXPmZ3kIZunat6PUzVnm4cCeU/edit?tab=t.0
+    use: Product and mobile-MCP planning reference for Companion Scan, spatial capture, and Android device connections.
+    policy: "Keep as a link-only reference. Never copy credentials, bearer tokens, private endpoints, or device-specific configuration into this store."
+
+  android-remote-control-mcp:
+    title: Android Remote Control MCP
+    kind: public-github-repository
+    url: https://github.com/danielealbano/android-remote-control-mcp
+    default_branch: main
+    use: Reviewed implementation reference for an Android-hosted Streamable HTTP MCP server.
+    policy: "Install and authorize explicitly. Review release provenance, permissions, network binding, tunnels, and enabled tools before use."

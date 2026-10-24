@@ -62,3 +62,12 @@ plugins:
     install: connect through the Codex plugin manager after reviewing avatar and media permissions
     capabilities: [avatar-video, voice-video]
     notes: Optional candidate for presenter or avatar variants; not enabled by the portable workflow.
+
+  - id: danielealbano/android-remote-control-mcp
+    host: android
+    source: github
+    observed: reviewed_not_installed
+    install: install the GMS or FOSS APK from a reviewed release, then configure the device locally
+    requires: [android-device, accessibility-service, explicit-device-auth]
+    capabilities: [android-ui-control, screenshots, files, apps, camera, notifications]
+    notes: High-risk remote-control surface. Do not enable automatically or copy bearer tokens from external documents.
