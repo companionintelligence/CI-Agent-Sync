@@ -32,8 +32,10 @@ machine overlay rather than encoding that path in shared config.
   state, fleet QA, and the product-video CLI. Its MCP server is
   `tools/mcp-server.mjs --start`.
 - **Metricool** is the remote analytics and scheduling surface at
-  `https://ai.metricool.com/mcp`. It must be authenticated in the client before
-  analytics or scheduling is useful.
+  `https://ai.metricool.com/mcp`. Follow the [official Metricool MCP connection
+  guide](https://help.metricool.com/how-to-connect-metricools-mcp-eqp9h) and use
+  URL-based OAuth where the client supports it. It must be authenticated in the
+  client before analytics or scheduling is useful.
 
 ## Standard loop
 
@@ -53,7 +55,10 @@ machine overlay rather than encoding that path in shared config.
    result.
 6. Use Metricool for the scheduled plan and realized metrics. Feed the useful
    results back into Brand Studio's insights/research loop instead of treating
-   a scheduled post as a completed campaign.
+   a scheduled post as a completed campaign. Metricool's connection grants
+   broad access to connected brands, metrics, posts, inboxes, and related
+   account surfaces, so authorize only trusted clients and revoke access from
+   the client when it is no longer needed.
 
 ## CLI fallback
 

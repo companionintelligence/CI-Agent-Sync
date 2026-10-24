@@ -15,4 +15,5 @@ servers:
     transport: http
     url: https://ai.metricool.com/mcp
     auth: native OAuth
+    setup_guide: https://help.metricool.com/how-to-connect-metricools-mcp-eqp9h
 policy: Native auth remains local; this is a reviewed inventory, not a client-state copy.
