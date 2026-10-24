@@ -54,6 +54,13 @@ items:
     groups: [shared]
     description: Per-target selection template
 
+  - id: shared/marketing-video-workflow
+    version: 1
+    source: workflows/marketing-video.md
+    destination: .agent-configs/workflows/marketing-video.md
+    groups: [shared]
+    description: Portable Brand Studio, CI-Common, CI-Engineering, and Metricool workflow
+
 # Renames and removals are intentionally explicit. The sync command will not
 # delete target files unless --prune is supplied and an entry exists here.
 deletions: []

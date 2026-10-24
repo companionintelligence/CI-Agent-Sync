@@ -6,8 +6,6 @@ service_tier = "default"
 personality = "pragmatic"
 model_verbosity = "low"
 
-
-
 [mcp_servers.gog]
 command = "gog"
 args = ["--account", "liam.broza@gmail.com", "--gmail-no-send", "mcp", "--allow-write"]
@@ -80,6 +78,20 @@ enabled = false
 
 [mcp_servers.sentry]
 url = "https://mcp.sentry.dev/mcp"
+
+[mcp_servers.ci-common]
+command = "node"
+args = ["/Users/liam/devel/ci/CI-Common/apps/dashboard/mcp.mjs", "--start"]
+
+[mcp_servers.ci-common.env]
+CI_WORKSPACE = "/Users/liam/devel/ci"
+
+[mcp_servers.ci-engineering]
+command = "node"
+args = ["/Users/liam/devel/ci/0-HUB/CI-Engineering/tools/mcp-server.mjs", "--start"]
+
+[mcp_servers.ci-engineering.env]
+CI_WORKSPACE = "/Users/liam/devel/ci"
 
 [projects."/Users/liam/devel"]
 trust_level = "trusted"
@@ -263,11 +275,12 @@ selected-avatar-id = "hoots"
 avatar-overlay-mascot-width-px = 80
 dock-icon-preference = "codex-system"
 enabled-reasoning-efforts = ["low","medium","high","xhigh","ultra","max"]
-conversationDetailMode = "STEPS_PROSE"
+conversationDetailMode = "STEPS_COMMANDS"
 defaultTerminalLocation = "bottom"
 external-agent-import-sync-enabled = false
 usePointerCursors = true
 worktree-upstream-refresh-mode = "best-effort"
+appearanceTheme = "system"
 
 [desktop.open-in-target-preferences]
 global = "iterm2"
@@ -276,6 +289,21 @@ global = "iterm2"
 "/Users/liam/devel/ci/sandbox/screenpipe" = "vscode"
 "/Users/liam/devel/3d/CI-Web-XR-Scan" = "vscode"
 "/Users/liam/devel/ci/CI-Server" = "iterm2"
+
+[desktop.appearanceDarkChromeTheme]
+accent = "#bb0000"
+accentSource = "custom"
+contrast = 60
+ink = "#ffffff"
+opaqueWindows = false
+surface = "#181818"
+
+[desktop.appearanceDarkChromeTheme.fonts]
+
+[desktop.appearanceDarkChromeTheme.semanticColors]
+diffAdded = "#40c977"
+diffRemoved = "#fa423e"
+skill = "#ad7bf9"
 
 [tui.model_availability_nux]
 "gpt-5.5" = 4

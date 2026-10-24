@@ -42,6 +42,32 @@
       "url": "https://huggingface.co/mcp?login",
       "gallery": "https://api.mcp.github.com",
       "version": "1.0.0"
+    },
+    "companionintelligence/ci-common": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/Users/liam/devel/ci/CI-Common/apps/dashboard/mcp.mjs",
+        "--start"
+      ],
+      "env": {
+        "CI_WORKSPACE": "/Users/liam/devel/ci"
+      }
+    },
+    "companionintelligence/ci-engineering": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/Users/liam/devel/ci/0-HUB/CI-Engineering/tools/mcp-server.mjs",
+        "--start"
+      ],
+      "env": {
+        "CI_WORKSPACE": "/Users/liam/devel/ci"
+      }
+    },
+    "metricool": {
+      "type": "http",
+      "url": "https://ai.metricool.com/mcp"
     }
   }
 }

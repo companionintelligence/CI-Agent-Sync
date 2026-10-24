@@ -49,6 +49,8 @@ does not create a gateway key automatically; configure one locally, then use
 - reviewed repository manifest and branch conventions;
 - MCP server recipes with pinned package versions and no secrets;
 - skill and plugin sources, validation commands, and trust notes;
+- the provider-neutral marketing-video workflow spanning Brand Studio,
+  CI-Common, CI-Engineering, and Metricool;
 - VS Code extension list and safe baseline settings;
 - redacted snapshots and repair/audit helpers.
 
@@ -138,6 +140,12 @@ does not.
 
 For the local CI Engineering server, the MCP process is only a thin client of
 the loopback dashboard; confirmation and write guards remain on the dashboard.
+
+The marketing workflow is documented in
+[workflows/marketing-video.md](../workflows/marketing-video.md). Use its
+environment variables and client recipes rather than copying native MCP state;
+that keeps the same campaign loop usable from any supported harness or model
+backend.
 
 ## VS Code
 
