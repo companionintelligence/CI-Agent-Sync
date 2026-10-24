@@ -3,9 +3,10 @@
 This is the local, versionable home for Liam's agent configuration templates,
 provider mappings, helper commands, redacted audits, and setup notes.
 
-The upstream reference URL supplied for this project was unavailable on
-2026-10-24, so this store is intentionally self-contained and records that
-provenance rather than pretending to be a mirror.
+The store is maintained in [mrhegemon/agent-configs](https://github.com/mrhegemon/agent-configs).
+It is a portable control plane, not a mirror of native app state: secrets stay
+in Keychain or the client’s native auth store, while reviewed recipes and
+redacted audits live here.
 
 ## Secret policy
 
@@ -23,6 +24,9 @@ Start here:
 ./bin/agent-store audit openclaw
 ./bin/agent-store audit all
 ./bin/agent-store snapshot
+./bin/agent-store vscode audit
+./bin/agent-store repos inventory
+./scripts/bootstrap-machine.zsh
 ```
 
 Add a provider credential locally, without putting it in chat or a tracked
@@ -45,4 +49,6 @@ Run a client with a Keychain credential injected only into that process:
 
 See [docs/audit-checklist.md](docs/audit-checklist.md) for the full review
 scope and [reports/2026-10-24-hermes-openclaw.md](reports/2026-10-24-hermes-openclaw.md)
-for the first completed phase.
+for the first completed phase. The portable setup and Companion Intelligence
+repository map are in [docs/portable-setup.md](docs/portable-setup.md) and
+[repos/companionintelligence.yaml](repos/companionintelligence.yaml).
