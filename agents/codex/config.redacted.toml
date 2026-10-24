@@ -39,6 +39,7 @@ CI_SOCIAL_TOOLS_BIN = "/Users/liam/devel/ci/CI-Marketing/dist/mcp-server.js"
 [mcp_servers.McpPlugin]
 command = "/Users/liam/devel/ci/xr/CI-Unity-XR/Library/mcp-server/osx-arm64/unity-mcp-server"
 args = ["--port=51360", "--plugin-timeout=10000", "--client-transport=stdio"]
+enabled = false
 
 [mcp_servers.blender-mcp]
 command = "uvx"

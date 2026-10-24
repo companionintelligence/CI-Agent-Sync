@@ -21,6 +21,7 @@ Start here:
 ./bin/agent-store credentials status
 ./bin/agent-store audit hermes
 ./bin/agent-store audit openclaw
+./bin/agent-store audit all
 ./bin/agent-store snapshot
 ```
 

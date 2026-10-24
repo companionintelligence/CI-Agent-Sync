@@ -33,6 +33,10 @@ agents:
     command: opencode
     config: ~/.config/opencode/opencode.jsonc
     audit: opencode --help
+  ollama:
+    command: ollama
+    config: ~/.ollama
+    audit: ollama list
   aider-desk:
     command: desktop app
     app: /Applications/aider-desk.app
