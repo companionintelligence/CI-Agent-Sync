@@ -35,6 +35,11 @@ been physically exercised. Desktop-only state is marked separately.
   MCP environment policy, and handle rollout database cleanup only after a
   recoverable backup.
 
+The stale Unity MCP entry is now disabled with a timestamped local backup of
+`~/.codex/config.toml`. The browser MCP environment warning remains because
+those values are injected by the desktop runtime and are absent in this
+standalone CLI context.
+
 ## Antigravity
 
 - Antigravity 2.25.0 and Antigravity IDE 2.5.5 are installed.
@@ -57,6 +62,9 @@ been physically exercised. Desktop-only state is marked separately.
 - Follow-up: validate the OmniRoute access-key/provider path and decide whether
   OpenCode should use the shared store's provider launcher or its native auth.
 
+OmniRoute 3.8.52 currently reports healthy on loopback, while its protected
+model endpoint returns HTTP 401. The access key was intentionally not created.
+
 ## Aider Desk
 
 - Aider Desk 0.88.0 is installed.
@@ -65,6 +73,8 @@ been physically exercised. Desktop-only state is marked separately.
   are configured.
 - Follow-up: inspect the desktop provider UI and run one local-model smoke test.
 
+The local Ollama endpoint generated a successful `OK` response with `gemma3:1b`.
+
 ## Pi
 
 - Pi GUI 1.0.1 is installed; no `pi` CLI is currently on PATH.
@@ -72,6 +82,7 @@ been physically exercised. Desktop-only state is marked separately.
   objects, so no configured model or auth was inferred.
 - Follow-up: open the GUI, identify whether its bundled runtime is intended to
   replace the missing CLI, and configure providers through the shared store.
+
 
 ## Shared risks
 
