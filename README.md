@@ -19,6 +19,19 @@ Audits and config snapshots redact credential-bearing fields.
 Start here:
 
 ```sh
+./bin/agentctl inventory
+./bin/agentctl doctor --json
+./bin/agentctl test
+./bin/agentctl backup
+./bin/agentctl repair openclaw
+./bin/agentctl render
+./bin/agentctl sync
+./bin/agentctl install
+```
+
+The underlying commands remain available for compatibility:
+
+```sh
 ./bin/agent-store inventory
 ./bin/agent-store credentials status
 ./bin/agent-store audit hermes
@@ -36,12 +49,23 @@ Start here:
 ./scripts/bootstrap-machine.zsh
 ```
 
+The control-plane lifecycle, separation of policy/secrets/native state, and
+portable recovery model are documented in
+[docs/control-plane.md](docs/control-plane.md). Harness readiness is tested in
+tiers described by [docs/harness-parity.md](docs/harness-parity.md).
+
 Provider order and safety rules are in
 [integrations/providers/fallbacks.yaml](integrations/providers/fallbacks.yaml).
 The compact context that travels with each target is in
 [context/agent-operating-context.md](context/agent-operating-context.md).
 Fallbacks are local-first and health-gated; remote providers require explicit
 enablement, and no fallback is allowed after a mutation begins.
+
+Reviewed MCPs are grouped in
+[integrations/capability-bundles.yaml](integrations/capability-bundles.yaml):
+`core`, `development`, `marketing`, and high-risk `mobile`. Bundles describe
+what can be enabled; they do not copy credentials or silently enable remote or
+device-control tools.
 
 Add a provider credential locally, without putting it in chat or a tracked
 file:
@@ -84,6 +108,9 @@ recipes for lean local Hermes and OpenClaw.
 
 The latest fallback and cross-harness evidence is recorded in
 [reports/2026-10-24-fallbacks-history-test.md](reports/2026-10-24-fallbacks-history-test.md).
+The portable control-plane, OpenClaw repair, and live local-model evidence are
+recorded in
+[reports/2026-10-24-control-plane-hardening.md](reports/2026-10-24-control-plane-hardening.md).
 The internal MCP source review is in
 [reports/2026-10-24-internal-mcp-registry.md](reports/2026-10-24-internal-mcp-registry.md).
 

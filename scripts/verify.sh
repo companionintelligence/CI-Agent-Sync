@@ -14,6 +14,11 @@ ruby -c scripts/doctor.rb >/dev/null
 ruby -c scripts/render.rb >/dev/null
 ruby -c scripts/sync.rb >/dev/null
 ruby -c scripts/test_sync.rb >/dev/null
+ruby -c scripts/validate.rb >/dev/null
+ruby -c scripts/test.rb >/dev/null
+ruby -c scripts/harness-smoke.rb >/dev/null
+ruby -c scripts/backup.rb >/dev/null
+ruby -c scripts/repair-openclaw.rb >/dev/null
 git diff --check
 
 while IFS= read -r file; do
@@ -23,6 +28,7 @@ done < <(rg --files integrations profiles repos | rg '\.ya?ml$')
 ruby -ryaml -e 'YAML.safe_load_file(ARGV[0], aliases: false)' sync/manifest.yaml
 ruby -ryaml -e 'YAML.safe_load_file(ARGV[0], aliases: false)' sync/targets.yaml.example
 ruby -ryaml -e 'YAML.safe_load_file(ARGV[0], aliases: false)' .agent-configs/sync.yml.example
+ruby scripts/validate.rb >/dev/null
 
 ruby -ryaml -e '
   data = YAML.safe_load_file(ARGV[0], aliases: false)

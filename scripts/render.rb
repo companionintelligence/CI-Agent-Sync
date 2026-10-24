@@ -91,6 +91,7 @@ profile_root = expand_path(profile_root, File.join(Dir.home, "devel", "ci")) if 
 ci_root = ENV.fetch("CI_ROOT", profile_root || File.join(Dir.home, "devel", "ci"))
 repos = read_yaml(File.join(root, "repos", "companionintelligence.yaml")).fetch("repositories")
 workspace = read_yaml(File.join(root, "repos", "workspace.yaml"))
+capability_bundles = read_yaml(File.join(root, "integrations", "capability-bundles.yaml"))
 all_workspace_names = workspace.fetch("layers").values.flatten.uniq
 repo_by_name = repos.each_with_object({}) { |repo, memo| memo[repo.fetch("name")] = repo }
 
@@ -199,6 +200,7 @@ if requested == "all"
     "pi" => ["~/.pi", "configure provider in the desktop UI"],
   }
   clients.each do |name, (config_path, launch) |
+    default_bundles = Array(capability_bundles.dig("client_defaults", name))
     body = <<~MARKDOWN
       # #{name}
 
@@ -206,12 +208,18 @@ if requested == "all"
 
       Provider launch example: `#{launch}`
 
+      Default reviewed MCP bundles: `#{default_bundles.empty? ? "none (opt in)" : default_bundles.join(", ")}`
+
       Native OAuth/session files and app databases are intentionally not
       generated or copied. Run `./bin/agent-store audit #{name}` after setup.
     MARKDOWN
     write_file(File.join(client_root, "#{name}.md"), body)
     record.call("clients/#{name}.md")
   end
+  copy_file(File.join(root, "integrations", "capability-bundles.yaml"), File.join(client_root, "capability-bundles.yaml"))
+  copy_file(File.join(root, "integrations", "harnesses.yaml"), File.join(client_root, "harnesses.yaml"))
+  record.call("clients/capability-bundles.yaml")
+  record.call("clients/harnesses.yaml")
 end
 
 metadata = {
