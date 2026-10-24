@@ -24,6 +24,15 @@ ruby -ryaml -e 'YAML.safe_load_file(ARGV[0], aliases: false)' sync/manifest.yaml
 ruby -ryaml -e 'YAML.safe_load_file(ARGV[0], aliases: false)' sync/targets.yaml.example
 ruby -ryaml -e 'YAML.safe_load_file(ARGV[0], aliases: false)' .agent-configs/sync.yml.example
 
+ruby -ryaml -e '
+  data = YAML.safe_load_file(ARGV[0], aliases: false)
+  abort "fallback policy has no chains" unless data.fetch("chains").is_a?(Hash) && !data.fetch("chains").empty?
+  abort "fallback policy has no client chains" unless data.fetch("client_chains").is_a?(Hash) && !data.fetch("client_chains").empty?
+  data.fetch("chains").each do |name, chain|
+    abort "fallback chain #{name} has no steps" unless chain.fetch("steps").is_a?(Array) && !chain.fetch("steps").empty?
+  end
+' integrations/providers/fallbacks.yaml
+
 ruby scripts/test_sync.rb >/dev/null
 
 while IFS= read -r file; do

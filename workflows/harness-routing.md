@@ -42,6 +42,13 @@ Every client should receive the same short context in this order:
 5. A compact handoff containing changed files, tests, links/artifacts, and
    remaining gates.
 
+Fallback behavior is defined in
+`integrations/providers/fallbacks.yaml`: prefer authenticated oMLX, then
+Ollama, then an explicitly enabled gateway or remote provider. The selected
+provider and model must be visible, tool capability must be preserved, and a
+fallback must stop before publishing, scheduling, device control, account
+changes, or destructive repository operations.
+
 Keep mutations approval-gated: publishing, scheduling, device control,
 account changes, and destructive repository operations always require explicit
 confirmation in the client that performs them.

@@ -1,0 +1,130 @@
+version: 1
+
+# Fallbacks are deliberately declarative. A client may implement this order
+# natively, through a gateway, or through an adapter. No credential, session,
+# or provider account state belongs in this file.
+policy:
+  automatic_fallback: true
+  require_health_check: true
+  expose_selected_provider: true
+  preserve_tool_capability: true
+  max_attempts_per_request: 2
+  no_fallback_after_mutation: true
+  no_silent_external_fallback: true
+  approval_required_for:
+    - publishing
+    - scheduling
+    - device_control
+    - account_changes
+    - destructive_repository_operations
+
+providers:
+  omlx:
+    class: local
+    endpoint_env: OMLX_BASE_URL
+    default_endpoint: http://127.0.0.1:8000/v1
+    model: Qwen3.8-27B-oQ4e-fp16-mtp
+    health: /models
+    auth: keychain:agent-configs/omlx
+  ollama:
+    class: local
+    endpoint_env: OLLAMA_HOST
+    default_endpoint: http://127.0.0.1:11434
+    model: qwen3.8:27b-mlx
+    health: /api/tags
+    auth: none
+  omniroute:
+    class: loopback_gateway
+    endpoint_env: OMNIROUTE_BASE_URL
+    default_endpoint: http://127.0.0.1:20128
+    model: native_default
+    health: /v1/models
+    auth: keychain:agent-configs/omniroute
+  anthropic:
+    class: remote
+    model: native_default
+    auth: native_or_keychain:agent-configs/anthropic
+  openai:
+    class: remote
+    model: native_default
+    auth: native_or_keychain:agent-configs/openai
+  openrouter:
+    class: remote
+    model: explicit_selection_required
+    auth: keychain:agent-configs/openrouter
+
+chains:
+  local_coding:
+    purpose: private coding, analysis, and drafts
+    steps:
+      - provider: omlx
+        capabilities: [chat, coding, json]
+        fallback_on: [unreachable, timeout, overload, invalid_response]
+      - provider: ollama
+        capabilities: [chat, coding]
+        fallback_on: [unreachable, timeout, overload, invalid_response]
+      - provider: omniroute
+        capabilities: [chat, coding, tools]
+        requires: [explicit_gateway_enablement, authenticated]
+        fallback_on: [unreachable, timeout, overload, invalid_response]
+      - provider: openai
+        capabilities: [chat, coding, tools]
+        requires: [explicit_remote_enablement, authenticated]
+        fallback_on: [unreachable, timeout, overload, invalid_response]
+
+  reasoning:
+    purpose: longer analysis when local capacity or quality is insufficient
+    steps:
+      - provider: omlx
+        capabilities: [chat, reasoning]
+      - provider: anthropic
+        capabilities: [chat, reasoning, tools]
+        requires: [explicit_remote_enablement, authenticated]
+      - provider: openai
+        capabilities: [chat, reasoning, tools]
+        requires: [explicit_remote_enablement, authenticated]
+      - provider: openrouter
+        capabilities: [chat, reasoning, tools]
+        requires: [explicit_remote_enablement, authenticated, explicit_model]
+
+  marketing_draft:
+    purpose: local-first marketing copy and video planning
+    steps:
+      - provider: omlx
+        capabilities: [chat, copy, planning]
+      - provider: ollama
+        capabilities: [chat, copy, planning]
+      - provider: anthropic
+        capabilities: [chat, copy, planning, tools]
+        requires: [explicit_remote_enablement, authenticated]
+      - provider: openai
+        capabilities: [chat, copy, planning, tools]
+        requires: [explicit_remote_enablement, authenticated]
+    downstream_mutations:
+      - metricool_publish
+      - metricool_schedule
+    mutation_rule: stop_and_confirm_before_downstream_mutation
+
+  tool_calling:
+    purpose: tasks that depend on MCP or function calls
+    steps:
+      - provider: omniroute
+        capabilities: [chat, tools]
+        requires: [explicit_gateway_enablement, authenticated]
+      - provider: anthropic
+        capabilities: [chat, tools]
+        requires: [explicit_remote_enablement, authenticated]
+      - provider: openai
+        capabilities: [chat, tools]
+        requires: [explicit_remote_enablement, authenticated]
+    capability_rule: never_fallback_to_a_model_without_required_tools
+
+client_chains:
+  hermes: [local_coding, tool_calling, reasoning]
+  openclaw: [local_coding, tool_calling, reasoning]
+  aider-desk: [local_coding, reasoning]
+  pi: [local_coding, reasoning]
+  claude: [tool_calling, reasoning, local_coding]
+  codex: [tool_calling, local_coding, reasoning]
+  opencode: [local_coding, tool_calling, reasoning]
+  vscode: [tool_calling, local_coding, reasoning]

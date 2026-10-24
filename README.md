@@ -30,10 +30,18 @@ Start here:
 ./bin/agent-store repos sync
 ./bin/agent-store render
 ./bin/agent-store sync
+./bin/agent-store fallbacks
 ./bin/agent-store doctor
 ./bin/agent-store doctor --json
 ./scripts/bootstrap-machine.zsh
 ```
+
+Provider order and safety rules are in
+[integrations/providers/fallbacks.yaml](integrations/providers/fallbacks.yaml).
+The compact context that travels with each target is in
+[context/agent-operating-context.md](context/agent-operating-context.md).
+Fallbacks are local-first and health-gated; remote providers require explicit
+enablement, and no fallback is allowed after a mutation begins.
 
 Add a provider credential locally, without putting it in chat or a tracked
 file:
@@ -72,6 +80,9 @@ For the marketing stack, start with
 CI-Brand-Studio planning, CI-Common production, CI-Engineering evidence, and
 Metricool analytics across Claude, Codex, OpenCode, and VS Code, with opt-in
 recipes for lean local Hermes and OpenClaw.
+
+The latest fallback and cross-harness evidence is recorded in
+[reports/2026-10-24-fallbacks-history-test.md](reports/2026-10-24-fallbacks-history-test.md).
 
 The mobile references are catalogued in
 [integrations/references.yaml](integrations/references.yaml). The Android
