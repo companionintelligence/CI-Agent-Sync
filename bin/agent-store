@@ -21,6 +21,7 @@ Commands:
   repos inventory                   Compare the portable repo map to local checkouts
   repos sync [--apply]              Fetch and fast-forward only clean checkouts
   render [--agent NAME]             Generate safe client/workspace artifacts
+  sync [--apply] [--target PATH]    Plan or apply reviewed config sync to repos
   doctor [--json]                   Run integrated machine health checks
 
 Providers: anthropic, openai, openrouter, ollama, companion-hub, omniroute
@@ -229,6 +230,10 @@ render_store() {
   ruby "$STORE_ROOT/scripts/render.rb" "$@"
 }
 
+sync_store() {
+  ruby "$STORE_ROOT/scripts/sync.rb" "$@"
+}
+
 doctor_store() {
   ruby "$STORE_ROOT/scripts/doctor.rb" "$@"
 }
@@ -374,6 +379,7 @@ case "${1:-}" in
     esac
     ;;
   render) render_store "${@:2}" ;;
+  sync) sync_store "${@:2}" ;;
   doctor) doctor_store "${@:2}" ;;
   *) usage; exit 2 ;;
 esac

@@ -1,0 +1,59 @@
+version: 1
+
+# The distribution catalog is deliberately separate from native client state.
+# Only files listed here may be copied into a target repository.
+policy:
+  default_groups: [shared]
+  mode: plan_then_apply
+  target_policy_file: .agent-configs/sync.yml
+  preserve_dirty_checkouts: true
+  copy_native_state: false
+  copy_credentials: false
+  prune_requires_explicit_deletion: true
+
+items:
+  - id: shared/provider-routing
+    version: 1
+    source: integrations/providers/routing.yaml
+    destination: .agent-configs/providers/routing.yaml
+    groups: [shared]
+    description: Provider routing policy without credentials
+
+  - id: shared/mcp-registry
+    version: 1
+    source: integrations/mcp/registry.yaml
+    destination: .agent-configs/mcp/registry.yaml
+    groups: [shared]
+    description: Reviewed MCP recipes and safety policy
+
+  - id: shared/skills-registry
+    version: 1
+    source: integrations/skills.yaml
+    destination: .agent-configs/skills.yaml
+    groups: [shared]
+    description: Reviewed skill sources and validation commands
+
+  - id: shared/plugins-registry
+    version: 1
+    source: integrations/plugins.yaml
+    destination: .agent-configs/plugins.yaml
+    groups: [shared]
+    description: Reviewed plugin inventory and install notes
+
+  - id: shared/portable-setup
+    version: 1
+    source: sync/target-README.md
+    destination: .agent-configs/README.md
+    groups: [shared]
+    description: Target-side distribution and safety contract
+
+  - id: shared/target-policy-template
+    version: 1
+    source: .agent-configs/sync.yml.example
+    destination: .agent-configs/sync.yml.example
+    groups: [shared]
+    description: Per-target selection template
+
+# Renames and removals are intentionally explicit. The sync command will not
+# delete target files unless --prune is supplied and an entry exists here.
+deletions: []

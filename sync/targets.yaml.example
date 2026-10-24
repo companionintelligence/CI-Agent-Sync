@@ -1,0 +1,25 @@
+version: 1
+
+# Copy this file to sync/targets.yaml for machine-local targets.
+# It is ignored by git because paths are machine-specific.
+targets:
+  - name: CI-Hub
+    path: ${CI_ROOT}/CI-Hub
+    policy:
+      enabled: true
+      groups: [shared]
+
+  - name: CI-Hermes
+    path: ${CI_ROOT}/CI-Hermes
+    policy:
+      enabled: true
+      groups: [shared]
+
+  - name: CI-OpenClaw
+    path: ${CI_ROOT}/CI-OpenClaw
+    policy:
+      enabled: true
+      groups: [shared]
+
+# A target repository can override this central default by adding
+# .agent-configs/sync.yml. See .agent-configs/sync.yml.example.

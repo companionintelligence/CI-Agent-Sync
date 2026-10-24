@@ -1,0 +1,14 @@
+version: 1
+
+# Place this file at .agent-configs/sync.yml in a target repository when that
+# repository needs a different selection than sync/targets.yaml.
+enabled: true
+groups: [shared]
+
+# Exclude inherited group items or include an opt-in item explicitly.
+exclude: []
+include: []
+
+# Boolean overrides are supported. A future breaking item can be pinned by
+# version once an archived version is registered in sync/manifest.yaml.
+overrides: {}
