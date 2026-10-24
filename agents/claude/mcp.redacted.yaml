@@ -16,4 +16,14 @@ servers:
     url: https://ai.metricool.com/mcp
     auth: native OAuth
     setup_guide: https://help.metricool.com/how-to-connect-metricools-mcp-eqp9h
+  companion-hub:
+    transport: http
+    url: ${COMPANION_HUB_BASE_URL}/api/mcp
+    auth: "native secret store: agent-configs/companion-hub"
+    scopes: [mcp]
+  companion-memory:
+    transport: http
+    url: ${COMPANION_MEMORY_BASE_URL}/api/mcp
+    auth: "native secret store: agent-configs/companion-memory"
+    scopes: [mcp, intents]
 policy: Native auth remains local; this is a reviewed inventory, not a client-state copy.
