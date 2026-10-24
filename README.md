@@ -4,15 +4,15 @@ This is the local, versionable home for Liam's agent configuration templates,
 provider mappings, helper commands, redacted audits, and setup notes.
 
 The store is maintained in [mrhegemon/agent-configs](https://github.com/mrhegemon/agent-configs).
-It is a portable control plane, not a mirror of native app state: secrets stay
-in Keychain or the client’s native auth store, while reviewed recipes and
-redacted audits live here.
+It is a portable control plane, not a mirror of native app state: credential
+values stay in the shared 1Password vault, while reviewed recipes and redacted
+audits live here. Client-native OAuth state remains local to each app.
 
 ## Secret policy
 
 Secrets are never copied into this repository. Provider credentials use the
-machine's supported secret store under the `agent-configs` namespace; on
-Windows, use each client's native auth until a shared backend is selected.
+shared 1Password `Agent Configs` vault through `op://` references; Keychain and
+Secret Service are migration fallbacks only.
 Tool-specific OAuth files remain in their native application directories.
 Audits and config snapshots redact credential-bearing fields.
 
@@ -24,6 +24,7 @@ Start here:
 ./bin/agentctl test
 ./bin/agentctl backup
 ./bin/agentctl repair openclaw
+./bin/agentctl credentials op status
 ./bin/agentctl render
 ./bin/agentctl sync
 ./bin/agentctl install
@@ -67,8 +68,20 @@ Reviewed MCPs are grouped in
 what can be enabled; they do not copy credentials or silently enable remote or
 device-control tools.
 
-Add a provider credential locally, without putting it in chat or a tracked
-file:
+Set up the portable 1Password backend first:
+
+```sh
+./bin/agentctl credentials op setup
+./bin/agentctl credentials op import
+./bin/agentctl credentials op status
+```
+
+The import keeps native migration copies until verification. See
+[docs/onepassword.md](docs/onepassword.md) for the desktop integration,
+headless service-account, rotation, and fallback policy.
+
+For a provider credential that is not yet migrated, add it locally without
+putting it in chat or a tracked file:
 
 ```sh
 ./bin/agent-store credentials set anthropic

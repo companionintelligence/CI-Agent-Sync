@@ -19,6 +19,13 @@ items:
     groups: [shared]
     description: Provider routing policy without credentials
 
+  - id: shared/onepassword-references
+    version: 1
+    source: providers/onepassword.yaml
+    destination: .agent-configs/providers/onepassword.yaml
+    groups: [shared]
+    description: Portable 1Password references and migration policy without values
+
   - id: shared/provider-fallbacks
     version: 1
     source: integrations/providers/fallbacks.yaml
@@ -130,6 +137,13 @@ items:
     destination: .agent-configs/docs/control-plane.md
     groups: [shared]
     description: Portable control-plane lifecycle and store separation
+
+  - id: shared/onepassword-guide
+    version: 1
+    source: docs/onepassword.md
+    destination: .agent-configs/docs/onepassword.md
+    groups: [shared]
+    description: Cross-machine 1Password setup and migration guide
 
   - id: shared/aider-desk-mcp-template
     version: 1

@@ -1,6 +1,13 @@
 version: 1
 
-# Non-secret provider metadata. Credentials are resolved from macOS Keychain.
+# Non-secret provider metadata. Credentials are resolved from 1Password first,
+# with native stores retained only as an explicit migration fallback.
+credential_backend:
+  primary: 1password
+  reference_catalog: providers/onepassword.yaml
+  native_migration_source: macos-keychain-or-linux-secret-service
+  never_copy_to_git: true
+
 providers:
   anthropic:
     aliases: [claude]
@@ -57,3 +64,9 @@ providers:
     keychain_service: agent-configs/omniroute
     endpoint_env: OMNIROUTE_BASE_URL
     primary_clients: [opencode, claude, codex, hermes, openclaw, vscode]
+
+  android-mcp:
+    aliases: [android, android-remote-control]
+    env: ANDROID_MCP_TOKEN
+    keychain_service: agent-configs/android-mcp
+    primary_clients: [claude, codex, opencode, vscode, hermes, openclaw, antigravity]

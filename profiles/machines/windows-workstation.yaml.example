@@ -22,9 +22,10 @@ capabilities:
   vscode: true
 
 credential_store:
-  type: windows-native-client-stores
-  helper: native-client-auth
-  note: agent-store shared secret injection is not enabled until a reviewed Windows backend is selected
+  type: 1password-cli
+  helper: op
+  vault_env: AGENT_CONFIGS_OP_VAULT
+  fallback: native-client-auth-during-migration-only
 
 # Copy to profiles/machines/local.yaml and adjust locally. Never commit the
 # resulting file; it may contain private paths and capability choices.
