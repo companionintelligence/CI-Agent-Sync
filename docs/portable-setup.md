@@ -20,7 +20,8 @@ cp profiles/machines/macos-laptop.yaml.example profiles/machines/local.yaml
 ```
 
 Set only the providers you intend to use. The prompt is hidden and the value is
-written to the macOS Keychain; it is never written to this repository:
+written to the machine's supported native secret store; it is never written to
+this repository:
 
 ```sh
 ./bin/agent-store credentials set anthropic
@@ -28,6 +29,7 @@ written to the macOS Keychain; it is never written to this repository:
 ./bin/agent-store credentials set openrouter
 ./bin/agent-store credentials set ollama
 ./bin/agent-store credentials set companion-hub
+./bin/agent-store credentials set omniroute
 ```
 
 Use `./bin/agent-store with <provider> -- <command>` for one process when a
@@ -36,6 +38,10 @@ Claude, Codex, VS Code, and the desktop apps. The `companion-hub` provider
 also injects the `CI_SERVER_TOKEN` alias used by the OpenClaw Companion Memory
 plugin; set `COMPANION_HUB_BASE_URL` and `CI_SERVER_URL` separately for the
 chosen reachable appliance address.
+
+The OmniRoute credential is intentionally only a Keychain helper. This store
+does not create a gateway key automatically; configure one locally, then use
+`OMNIROUTE_BASE_URL=http://127.0.0.1:20128` for the loopback gateway.
 
 ## What is portable
 
@@ -74,6 +80,33 @@ it does not automatically clone, install, push, or promote anything.
 For an intentional machine preparation pass, use
 `./scripts/bootstrap-machine.zsh --apply`. To also clone missing canonical
 repositories, add `--clone-reviewed-repos`; existing checkouts are preserved.
+
+`./bin/agent-store repos sync` is plan-only. Add `--apply` to fetch and
+fast-forward clean checkouts. Dirty or detached repositories are reported and
+skipped, matching the parent workspace safety policy.
+
+## Render and health
+
+Generate safe, ignored artifacts without overwriting native client state:
+
+```sh
+./bin/agent-store render
+open local/rendered/workspace/companion-intelligence.local.code-workspace
+```
+
+The render includes VS Code settings/MCP templates, extension IDs, client
+launch notes, and both full and local-only Companion Intelligence workspaces.
+
+Run the integrated health graph in human or machine-readable form:
+
+```sh
+./bin/agent-store doctor
+./bin/agent-store doctor --json
+```
+
+Warnings are expected when optional agents, provider credentials, Companion
+Memory, or the OmniRoute access key are not configured. The doctor never prints
+secret values and does not create credentials.
 
 ## MCP safety
 

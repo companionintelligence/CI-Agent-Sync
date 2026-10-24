@@ -16,21 +16,23 @@ repositories:
     package_manager: pnpm
 
   - name: Companion-Memory
+    aliases: [CI-Server, CI-Memory]
     remote: https://github.com/companionintelligence/Companion-Memory.git
     default_branch: main
     visibility: private
     role: personal memory appliance and MCP server
-    local_path: "${CI_ROOT}/Companion-Memory"
+    local_path: "${CI_ROOT}/CI-Memory"
     package_manager: yarn
     skills:
       - .cursor/skills
 
   - name: Companion-Hub
+    aliases: [CI-Hub]
     remote: https://github.com/companionintelligence/Companion-Hub.git
     default_branch: dev
     visibility: public
     role: appliance runtime, desktop app, marketplace app lifecycle, MCP bridge
-    local_path: "${CI_ROOT}/Companion-Hub"
+    local_path: "${CI_ROOT}/CI-Hub"
     package_manager: pnpm
     prerequisites: [node-22, pnpm-11, docker]
     skills:

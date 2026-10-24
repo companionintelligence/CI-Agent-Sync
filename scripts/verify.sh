@@ -7,8 +7,11 @@ cd "$STORE_ROOT"
 
 zsh -n bin/agent-store
 zsh -n scripts/bootstrap-machine.zsh
+zsh -n scripts/sync-repos.zsh
 ruby -c scripts/redact-config.rb >/dev/null
 ruby -c scripts/redact-text.rb >/dev/null
+ruby -c scripts/doctor.rb >/dev/null
+ruby -c scripts/render.rb >/dev/null
 git diff --check
 
 while IFS= read -r file; do
