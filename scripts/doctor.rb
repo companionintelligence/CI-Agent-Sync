@@ -98,7 +98,7 @@ config_paths.each do |name, path|
   add_check(checks, "config.#{name}", File.exist?(path) ? "ok" : "warn", File.exist?(path) ? "present" : "missing")
 end
 
-providers = %w[anthropic openai openrouter ollama omlx companion-hub omniroute android-mcp]
+providers = %w[anthropic openai openrouter ollama omlx companion-hub companion-memory omniroute android-mcp]
 if RUBY_PLATFORM.include?("darwin") && system("command -v security >/dev/null 2>&1")
   providers.each do |provider|
     service = "agent-configs/#{provider}"
@@ -175,12 +175,24 @@ gateway_code = http_status(omniroute_url, "/v1/models", omniroute_headers)
 gateway_detail = gateway_code == 401 ? "HTTP 401; gateway is protected and needs its access key" : "HTTP #{gateway_code}"
 add_check(checks, "runtime.omniroute.models", gateway_code == 200 ? "ok" : "warn", gateway_detail)
 
-memory_url = ENV["COMPANION_HUB_BASE_URL"] || ENV["CI_SERVER_URL"]
+hub_url = ENV["COMPANION_HUB_BASE_URL"] || ENV["CI_SERVER_URL"]
+if hub_url && !hub_url.empty?
+  hub_key = secret_value("companion-hub")
+  hub_headers = hub_key ? { "Authorization" => "Bearer #{hub_key}" } : {}
+  hub_code = http_status(hub_url, "/api/health", hub_headers)
+  add_check(checks, "runtime.companion-hub", hub_code == 200 ? "ok" : "warn", "HTTP #{hub_code}")
+else
+  add_check(checks, "runtime.companion-hub", "warn", "COMPANION_HUB_BASE_URL/CI_SERVER_URL is not configured")
+end
+
+memory_url = ENV["COMPANION_MEMORY_BASE_URL"]
 if memory_url && !memory_url.empty?
-  memory_code = http_status(memory_url, "/api/health")
+  memory_key = secret_value("companion-memory")
+  memory_headers = memory_key ? { "Authorization" => "Bearer #{memory_key}" } : {}
+  memory_code = http_status(memory_url, "/api/health", memory_headers)
   add_check(checks, "runtime.companion-memory", memory_code == 200 ? "ok" : "warn", "HTTP #{memory_code}")
 else
-  add_check(checks, "runtime.companion-memory", "warn", "COMPANION_HUB_BASE_URL/CI_SERVER_URL is not configured")
+  add_check(checks, "runtime.companion-memory", "warn", "COMPANION_MEMORY_BASE_URL is not configured")
 end
 
 ci_root = ENV.fetch("CI_ROOT", File.join(Dir.home, "devel", "ci"))

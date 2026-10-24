@@ -53,6 +53,7 @@ file:
 ./bin/agent-store credentials set ollama
 ./bin/agent-store credentials set omlx
 ./bin/agent-store credentials set companion-hub
+./bin/agent-store credentials set companion-memory
 ./bin/agent-store credentials set omniroute
 ./bin/agent-store credentials set android-mcp
 ```
@@ -83,6 +84,8 @@ recipes for lean local Hermes and OpenClaw.
 
 The latest fallback and cross-harness evidence is recorded in
 [reports/2026-10-24-fallbacks-history-test.md](reports/2026-10-24-fallbacks-history-test.md).
+The internal MCP source review is in
+[reports/2026-10-24-internal-mcp-registry.md](reports/2026-10-24-internal-mcp-registry.md).
 
 The mobile references are catalogued in
 [integrations/references.yaml](integrations/references.yaml). The Android

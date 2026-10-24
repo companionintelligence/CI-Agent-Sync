@@ -25,7 +25,7 @@ Commands:
   fallbacks [CHAIN]                 Show portable fallback chains and models
   doctor [--json]                   Run integrated machine health checks
 
-Providers: anthropic, openai, openrouter, ollama, omlx, companion-hub, omniroute, android-mcp
+Providers: anthropic, openai, openrouter, ollama, omlx, companion-hub, companion-memory, omniroute, android-mcp
 EOF
 }
 
@@ -37,6 +37,7 @@ normalize_provider() {
     ollama|ollama-cloud) print -r -- ollama ;;
     omlx|mlx|omlx-local) print -r -- omlx ;;
     companion_hub|companionhub|companion-hub) print -r -- companion-hub ;;
+    companion_memory|companionmemory|ci-memory|memory|companion-memory) print -r -- companion-memory ;;
     omniroute|omni-route) print -r -- omniroute ;;
     android|android-mcp|android-remote-control) print -r -- android-mcp ;;
     *) print -u2 "Unknown provider: $1"; return 2 ;;
@@ -51,6 +52,7 @@ provider_env() {
     ollama) print -r -- OLLAMA_API_KEY ;;
     omlx|mlx|omlx-local) print -r -- OMLX_API_KEY ;;
     companion-hub) print -r -- COMPANION_HUB_API_KEY ;;
+    companion-memory) print -r -- COMPANION_MEMORY_API_KEY ;;
     omniroute) print -r -- OMNIROUTE_API_KEY ;;
     android-mcp) print -r -- ANDROID_MCP_TOKEN ;;
   esac
@@ -127,7 +129,7 @@ inventory() {
 
 credentials_status() {
   print "Provider credentials ($(secret_store_label), values never printed):"
-  for provider in anthropic openai openrouter ollama omlx companion-hub omniroute android-mcp; do
+  for provider in anthropic openai openrouter ollama omlx companion-hub companion-memory omniroute android-mcp; do
     if has_secret "$provider"; then
       print "  ✓ $provider ($(provider_env "$provider"))"
     else
