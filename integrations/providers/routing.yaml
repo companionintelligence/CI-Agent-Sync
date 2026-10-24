@@ -1,7 +1,7 @@
 version: 1
 
 # Provider routing is policy, not a credential file. Credentials are resolved
-# by agent-store from Keychain or by each client's native OAuth store.
+# by agent-store from 1Password; client-native OAuth stores remain local.
 policy:
   private_first: true
   default_local_model: omlx

@@ -47,6 +47,17 @@ for requirement in git ruby; do
   fi
 done
 
+if command -v op >/dev/null 2>&1; then
+  print "  ✓ 1Password CLI (op)"
+else
+  print "  ! 1Password CLI (op) not found"
+  case "$(uname -s)" in
+    Darwin) print "    install with: brew install 1password-cli" ;;
+    Linux) print "    install from: https://developer.1password.com/docs/cli/get-started/" ;;
+    *) print "    install the 1Password CLI for this platform" ;;
+  esac
+fi
+
 if command -v code >/dev/null 2>&1; then
   print "  ✓ code"
 else
@@ -98,7 +109,11 @@ fi
 
 print ""
 print "Next steps:"
+print "  ./bin/agentctl credentials op status"
 print "  ./bin/agent-store credentials status"
+print "  ./bin/agentctl doctor --json"
+print "  ./bin/agentctl test"
+print "  ./bin/agentctl backup"
 print "  ./bin/agent-store audit all"
 print "  ./bin/agent-store vscode audit"
 print "  ./bin/agent-store repos inventory"

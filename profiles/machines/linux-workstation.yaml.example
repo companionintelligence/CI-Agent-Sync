@@ -27,8 +27,10 @@ capabilities:
   hermes: true
 
 credential_store:
-  type: linux-secret-service
-  helper: secret-tool
+  type: 1password-cli
+  helper: op
+  vault_env: AGENT_CONFIGS_OP_VAULT
+  fallback: linux-secret-service-during-migration-only
 
 # Copy to profiles/machines/local.yaml and adjust locally. Never commit the
 # resulting file; it may contain private paths and capability choices.

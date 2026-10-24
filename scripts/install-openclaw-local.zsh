@@ -29,11 +29,13 @@ tmp_wrapper="$wrapper.tmp.$$"
 cat > "$tmp_wrapper" <<EOF
 #!/bin/zsh
 set -euo pipefail
-exec "$STORE_ROOT/bin/agent-store" with omlx -- /bin/sh -c '
-  bin="\$1"; shift
-  export OPENAI_API_KEY="\$OMLX_API_KEY"
-  exec "\$bin" "\$@"
-' sh "$OPENCLAW_BIN" "\$@"
+store_root="$STORE_ROOT"
+bundled_runtime='/Applications/OpenClaw.app/Contents/Resources/runtime'
+bundled_openclaw="\$bundled_runtime/lib/node_modules/openclaw/openclaw.mjs"
+if [[ -x "\$bundled_runtime/bin/bun" && -f "\$bundled_openclaw" ]]; then
+  exec "\$store_root/bin/agent-store" with omlx -- "\$bundled_runtime/bin/bun" "\$bundled_openclaw" "\$@"
+fi
+exec "\$store_root/bin/agent-store" with omlx -- "$OPENCLAW_BIN" "\$@"
 EOF
 chmod 755 "$tmp_wrapper"
 mv "$tmp_wrapper" "$wrapper"
