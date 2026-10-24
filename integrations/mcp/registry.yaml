@@ -26,9 +26,34 @@ servers:
     transport: stdio
     command: node
     args: ["${CI_ENGINEERING_ROOT}/tools/mcp-server.mjs", --start]
+    env:
+      CI_WORKSPACE: "${CI_ROOT}"
     bind: loopback
-    clients: [claude, codex, vscode]
-    notes: Thin client of the local engineering dashboard; confirmation remains server-side.
+    clients: [claude, codex, opencode, vscode]
+    optional_clients: [hermes]
+    notes: Engineering and product-video MCP; confirmation remains server-side. Keep it opt-in for small local models.
+
+  ci-common:
+    owner: companionintelligence/CI-Common
+    transport: stdio
+    command: node
+    args: ["${CI_COMMON_ROOT}/apps/dashboard/mcp.mjs", --start]
+    env:
+      CI_WORKSPACE: "${CI_ROOT}"
+    bind: loopback
+    clients: [claude, codex, opencode, vscode]
+    optional_clients: [hermes]
+    notes: "Shared dashboard, campaign, social, and product-video surface. Mutations require confirm: true; keep the Hermes profile lean unless explicitly enabled."
+
+  metricool:
+    owner: metricool
+    transport: streamable-http
+    url: https://ai.metricool.com/mcp
+    auth: host_oauth
+    setup_guide: https://help.metricool.com/how-to-connect-metricools-mcp-eqp9h
+    clients: [claude, codex, opencode, vscode]
+    optional_clients: [hermes]
+    notes: "Use the URL/OAuth flow for supported clients and authorize only trusted tools. Metricool grants broad account access within plan limits; publishing and scheduling remain approval-gated."
 
   markitdown:
     transport: stdio

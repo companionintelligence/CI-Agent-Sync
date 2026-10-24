@@ -14,4 +14,5 @@ state/raw/
 reports/raw/
 work/
 profiles/machines/local.yaml
+sync/targets.yaml
 .DS_Store

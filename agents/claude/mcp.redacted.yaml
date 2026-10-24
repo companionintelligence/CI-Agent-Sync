@@ -1,0 +1,19 @@
+version: 1
+source: native user MCP registry
+servers:
+  ci-common:
+    transport: stdio
+    command: node
+    args: ["${CI_COMMON_ROOT}/apps/dashboard/mcp.mjs", --start]
+    env: {CI_WORKSPACE: "<local CI root>"}
+  ci-engineering:
+    transport: stdio
+    command: node
+    args: ["${CI_ENGINEERING_ROOT}/tools/mcp-server.mjs", --start]
+    env: {CI_WORKSPACE: "<local CI root>"}
+  metricool:
+    transport: http
+    url: https://ai.metricool.com/mcp
+    auth: native OAuth
+    setup_guide: https://help.metricool.com/how-to-connect-metricools-mcp-eqp9h
+policy: Native auth remains local; this is a reviewed inventory, not a client-state copy.

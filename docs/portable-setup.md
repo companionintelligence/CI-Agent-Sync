@@ -49,6 +49,8 @@ does not create a gateway key automatically; configure one locally, then use
 - reviewed repository manifest and branch conventions;
 - MCP server recipes with pinned package versions and no secrets;
 - skill and plugin sources, validation commands, and trust notes;
+- the provider-neutral marketing-video workflow spanning Brand Studio,
+  CI-Common, CI-Engineering, and Metricool;
 - VS Code extension list and safe baseline settings;
 - redacted snapshots and repair/audit helpers.
 
@@ -108,6 +110,26 @@ Warnings are expected when optional agents, provider credentials, Companion
 Memory, or the OmniRoute access key are not configured. The doctor never prints
 secret values and does not create credentials.
 
+## Distribute reviewed config to repositories
+
+The store also supports a local, plan-first distribution layer for shared
+agent policy. It borrows the useful parts of the AI Harness pattern—manifested
+items, target-local selection, include/exclude overrides, and explicit cleanup
+records—without copying native app state or credentials.
+
+```sh
+cp sync/targets.yaml.example sync/targets.yaml
+# edit machine-local target paths
+./bin/agent-store sync
+./bin/agent-store sync --apply
+```
+
+The default is a dry-run plan. Dirty or detached Git checkouts are skipped, and
+only files in [sync/manifest.yaml](../sync/manifest.yaml) can be copied. A
+target can add `.agent-configs/sync.yml` to disable sync or select a narrower
+set of groups. Deletions require both an explicit manifest entry and
+`--prune --apply`.
+
 ## MCP safety
 
 Start with the registry in `integrations/mcp/registry.yaml`. Keep network
@@ -118,6 +140,12 @@ does not.
 
 For the local CI Engineering server, the MCP process is only a thin client of
 the loopback dashboard; confirmation and write guards remain on the dashboard.
+
+The marketing workflow is documented in
+[workflows/marketing-video.md](../workflows/marketing-video.md). Use its
+environment variables and client recipes rather than copying native MCP state;
+that keeps the same campaign loop usable from any supported harness or model
+backend.
 
 ## VS Code
 

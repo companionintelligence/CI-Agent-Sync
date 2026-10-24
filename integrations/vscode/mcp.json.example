@@ -34,6 +34,26 @@
       "headers": {
         "Authorization": "Bearer ${env:COMPANION_HUB_API_KEY}"
       }
+    },
+    "companionintelligence/ci-common": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${env:CI_COMMON_ROOT}/apps/dashboard/mcp.mjs", "--start"],
+      "env": {
+        "CI_WORKSPACE": "${env:CI_ROOT}"
+      }
+    },
+    "companionintelligence/ci-engineering": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${env:CI_ENGINEERING_ROOT}/tools/mcp-server.mjs", "--start"],
+      "env": {
+        "CI_WORKSPACE": "${env:CI_ROOT}"
+      }
+    },
+    "metricool": {
+      "type": "http",
+      "url": "https://ai.metricool.com/mcp"
     }
   }
 }
