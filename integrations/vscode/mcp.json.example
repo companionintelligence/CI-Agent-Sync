@@ -28,11 +28,18 @@
       "type": "http",
       "url": "https://huggingface.co/mcp?login"
     },
-    "companion-memory": {
+    "companion-hub": {
       "type": "http",
       "url": "${env:COMPANION_HUB_BASE_URL}/api/mcp",
       "headers": {
         "Authorization": "Bearer ${env:COMPANION_HUB_API_KEY}"
+      }
+    },
+    "companion-memory": {
+      "type": "http",
+      "url": "${env:COMPANION_MEMORY_BASE_URL}/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${env:COMPANION_MEMORY_API_KEY}"
       }
     },
     "companionintelligence/ci-common": {

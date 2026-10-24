@@ -19,6 +19,13 @@ items:
     groups: [shared]
     description: Provider routing policy without credentials
 
+  - id: shared/provider-fallbacks
+    version: 1
+    source: integrations/providers/fallbacks.yaml
+    destination: .agent-configs/providers/fallbacks.yaml
+    groups: [shared]
+    description: Explicit local-first fallback chains and mutation safety rules
+
   - id: shared/mcp-registry
     version: 1
     source: integrations/mcp/registry.yaml
@@ -67,6 +74,13 @@ items:
     destination: .agent-configs/workflows/harness-routing.md
     groups: [shared]
     description: Provider and handoff contract shared by local harnesses
+
+  - id: shared/agent-operating-context
+    version: 1
+    source: context/agent-operating-context.md
+    destination: .agent-configs/context/agent-operating-context.md
+    groups: [shared]
+    description: Distilled cross-harness workspace and validation context
 
   - id: shared/aider-desk-mcp-template
     version: 1

@@ -26,10 +26,18 @@ routes:
     health: /v1/models
 
   appliance_memory:
+    primary: companion-memory
+    endpoint_env: COMPANION_MEMORY_BASE_URL
+    credential: COMPANION_MEMORY_API_KEY
+    clients: [claude, codex, hermes, openclaw, vscode]
+    health: /api/health
+    mcp: /api/mcp
+
+  hub_control_plane:
     primary: companion-hub
     endpoint_env: COMPANION_HUB_BASE_URL
     credential: COMPANION_HUB_API_KEY
-    clients: [claude, codex, hermes, openclaw, vscode]
+    clients: [claude, codex, hermes, openclaw, opencode, vscode]
     health: /api/health
     mcp: /api/mcp
 

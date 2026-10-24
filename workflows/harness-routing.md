@@ -42,6 +42,24 @@ Every client should receive the same short context in this order:
 5. A compact handoff containing changed files, tests, links/artifacts, and
    remaining gates.
 
+Fallback behavior is defined in
+`integrations/providers/fallbacks.yaml`: prefer authenticated oMLX, then
+Ollama, then an explicitly enabled gateway or remote provider. The selected
+provider and model must be visible, tool capability must be preserved, and a
+fallback must stop before publishing, scheduling, device control, account
+changes, or destructive repository operations.
+
+The internal MCP set is also portable:
+
+- `ci-brand-studio` — local Asset Engine dashboard MCP over stdio.
+- `ci-engineering` — local engineering and product-video MCP over stdio.
+- `companion-hub` — Hub control-plane MCP at `/api/mcp`, with a scoped Hub key.
+- `companion-memory` — Memory MCP at `/api/mcp`, with a key carrying `mcp` and
+  `intents` scopes.
+
+All four are opt-in in the registry. Native clients should only enable the
+HTTP services after their endpoint and key are configured locally.
+
 Keep mutations approval-gated: publishing, scheduling, device control,
 account changes, and destructive repository operations always require explicit
 confirmation in the client that performs them.

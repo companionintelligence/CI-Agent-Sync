@@ -31,17 +31,33 @@ rescue Errno::ENOENT
   ["", false]
 end
 
+def secret_value(provider)
+  service = "agent-configs/#{provider}"
+  if RUBY_PLATFORM.include?("darwin") && system("which", "security", out: File::NULL, err: File::NULL)
+    output, _error, status = Open3.capture3("security", "find-generic-password", "-a", ENV.fetch("USER", ""), "-s", service, "-w")
+    return output.strip if status.success? && !output.strip.empty?
+  elsif RUBY_PLATFORM.include?("linux") && system("which", "secret-tool", out: File::NULL, err: File::NULL)
+    output, _error, status = Open3.capture3("secret-tool", "lookup", "service", service, "account", ENV.fetch("USER", ""))
+    return output.strip if status.success? && !output.strip.empty?
+  end
+  nil
+rescue StandardError
+  nil
+end
+
 def expand_path(value, ci_root)
   value.to_s.gsub("${CI_ROOT}", ci_root).gsub("${HOME}", Dir.home)
 end
 
-def http_status(url, path)
+def http_status(url, path, headers = {})
   uri = URI.join(url.end_with?("/") ? url : "#{url}/", path.delete_prefix("/"))
   http = Net::HTTP.new(uri.host, uri.port)
   http.use_ssl = uri.scheme == "https"
   http.open_timeout = 2
   http.read_timeout = 3
-  response = http.get(uri.request_uri)
+  request = Net::HTTP::Get.new(uri.request_uri)
+  headers.each { |key, value| request[key] = value }
+  response = http.request(request)
   response.code.to_i
 rescue StandardError => error
   "unreachable: #{error.class}"
@@ -82,7 +98,7 @@ config_paths.each do |name, path|
   add_check(checks, "config.#{name}", File.exist?(path) ? "ok" : "warn", File.exist?(path) ? "present" : "missing")
 end
 
-providers = %w[anthropic openai openrouter ollama omlx companion-hub omniroute android-mcp]
+providers = %w[anthropic openai openrouter ollama omlx companion-hub companion-memory omniroute android-mcp]
 if RUBY_PLATFORM.include?("darwin") && system("command -v security >/dev/null 2>&1")
   providers.each do |provider|
     service = "agent-configs/#{provider}"
@@ -105,7 +121,7 @@ begin
     File.join(STORE_ROOT, "integrations", "vscode", "mcp.json.example"),
   ]
   examples.each { |path| JSON.parse(File.read(path)) }
-  %w[providers/providers.yaml integrations/mcp/registry.yaml integrations/providers/routing.yaml repos/companionintelligence.yaml repos/workspace.yaml].each do |relative|
+  %w[providers/providers.yaml integrations/mcp/registry.yaml integrations/providers/routing.yaml integrations/providers/fallbacks.yaml repos/companionintelligence.yaml repos/workspace.yaml].each do |relative|
     YAML.safe_load_file(File.join(STORE_ROOT, relative), aliases: true)
   end
   add_check(checks, "store.manifests", "ok", "YAML and JSON templates parse")
@@ -138,23 +154,45 @@ omlx_url = ENV.fetch("OMLX_BASE_URL", "http://127.0.0.1:8000").sub(%r{/v1\z}, ""
 omniroute_url = ENV.fetch("OMNIROUTE_BASE_URL", "http://127.0.0.1:20128")
 ollama_code = http_status(ollama_url, "/api/tags")
 add_check(checks, "runtime.ollama", ollama_code == 200 ? "ok" : "warn", "HTTP #{ollama_code}")
-omlx_code = http_status(omlx_url, "/v1/models")
-omlx_detail = omlx_code == 401 ? "HTTP 401; local oMLX endpoint is up and needs its access key" : "HTTP #{omlx_code}"
+omlx_key = secret_value("omlx")
+omlx_headers = omlx_key ? { "Authorization" => "Bearer #{omlx_key}" } : {}
+omlx_code = http_status(omlx_url, "/v1/models", omlx_headers)
+omlx_detail = if omlx_code == 401
+                "HTTP 401; local oMLX endpoint is up and needs its access key"
+              elsif omlx_key && omlx_code == 200
+                "HTTP 200; authenticated with the native secret store"
+              else
+                "HTTP #{omlx_code}"
+              end
 add_check(checks, "runtime.omlx", [200, 401].include?(omlx_code) ? "ok" : "warn", omlx_detail)
 
 gateway_host = URI.parse(omniroute_url).host rescue nil
 gateway_binding = %w[127.0.0.1 localhost].include?(gateway_host)
 add_check(checks, "runtime.omniroute.binding", gateway_binding ? "ok" : "error", gateway_host ? "bound to #{gateway_host}" : "invalid endpoint")
-gateway_code = http_status(omniroute_url, "/v1/models")
+omniroute_key = secret_value("omniroute")
+omniroute_headers = omniroute_key ? { "Authorization" => "Bearer #{omniroute_key}" } : {}
+gateway_code = http_status(omniroute_url, "/v1/models", omniroute_headers)
 gateway_detail = gateway_code == 401 ? "HTTP 401; gateway is protected and needs its access key" : "HTTP #{gateway_code}"
 add_check(checks, "runtime.omniroute.models", gateway_code == 200 ? "ok" : "warn", gateway_detail)
 
-memory_url = ENV["COMPANION_HUB_BASE_URL"] || ENV["CI_SERVER_URL"]
+hub_url = ENV["COMPANION_HUB_BASE_URL"] || ENV["CI_SERVER_URL"]
+if hub_url && !hub_url.empty?
+  hub_key = secret_value("companion-hub")
+  hub_headers = hub_key ? { "Authorization" => "Bearer #{hub_key}" } : {}
+  hub_code = http_status(hub_url, "/api/health", hub_headers)
+  add_check(checks, "runtime.companion-hub", hub_code == 200 ? "ok" : "warn", "HTTP #{hub_code}")
+else
+  add_check(checks, "runtime.companion-hub", "warn", "COMPANION_HUB_BASE_URL/CI_SERVER_URL is not configured")
+end
+
+memory_url = ENV["COMPANION_MEMORY_BASE_URL"]
 if memory_url && !memory_url.empty?
-  memory_code = http_status(memory_url, "/api/health")
+  memory_key = secret_value("companion-memory")
+  memory_headers = memory_key ? { "Authorization" => "Bearer #{memory_key}" } : {}
+  memory_code = http_status(memory_url, "/api/health", memory_headers)
   add_check(checks, "runtime.companion-memory", memory_code == 200 ? "ok" : "warn", "HTTP #{memory_code}")
 else
-  add_check(checks, "runtime.companion-memory", "warn", "COMPANION_HUB_BASE_URL/CI_SERVER_URL is not configured")
+  add_check(checks, "runtime.companion-memory", "warn", "COMPANION_MEMORY_BASE_URL is not configured")
 end
 
 ci_root = ENV.fetch("CI_ROOT", File.join(Dir.home, "devel", "ci"))
