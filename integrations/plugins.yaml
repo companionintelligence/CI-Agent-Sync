@@ -1,0 +1,39 @@
+version: 1
+
+policy:
+  install: review_source_and_capabilities_before_install
+  credentials: native_store_or_agent-store_keychain_injection
+  copy_native_state: false
+
+plugins:
+  - id: github/awesome-copilot/skill-image-gen
+    host: vscode
+    source: vscode-agent-plugin
+    observed: installed
+    install: review in the VS Code agent plugin UI
+
+  - id: github/awesome-copilot/ai-team-orchestration
+    host: vscode
+    source: vscode-agent-plugin
+    observed: installed
+    install: review in the VS Code agent plugin UI
+
+  - id: codex@openai-codex
+    host: claude
+    source: claude-plugin
+    observed: enabled
+    validation: claude plugin validate ~/.claude/skills
+
+  - id: "@companionintelligence/openclaw-memory"
+    host: openclaw
+    source: npm
+    owner: companionintelligence/CI-OpenClaw
+    install: openclaw plugins install npm:@companionintelligence/openclaw-memory --accept-capabilities
+    requires: [companion-memory-url, companion-memory-api-key]
+
+  - id: omniroute
+    host: opencode
+    source: local
+    observed: desktop config references a local plugin
+    requires: [loopback-gateway, gateway-access-key]
+    notes: Keep loopback binding; do not claim routing is operational until /v1/models returns 200.

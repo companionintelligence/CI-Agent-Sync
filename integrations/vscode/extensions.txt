@@ -1,0 +1,40 @@
+# Agent clients
+anthropic.claude-code
+openai.chatgpt
+openai.codex-audio
+sst-dev.opencode
+ltmoerdani.opencode-copilot-chat
+
+# Repository and language tooling
+dbaeumer.vscode-eslint
+esbenp.prettier-vscode
+denoland.vscode-deno
+ms-python.vscode-python-envs
+christian-kohler.npm-intellisense
+mhutchie.git-graph
+ms-vscode-remote.remote-containers
+ms-vscode-remote.remote-ssh
+ms-vscode-remote.remote-ssh-edit
+ms-vscode.remote-explorer
+ms-vscode.remote-server
+ms-azuretools.vscode-containers
+
+# Data and docs
+mtxr.sqltools
+mtxr.sqltools-driver-pg
+mtxr.sqltools-driver-sqlite
+qwtel.sqlite-viewer
+bierner.markdown-mermaid
+davidanson.vscode-markdownlint
+tomoki1207.pdf
+yzane.markdown-pdf
+
+# Project-specific visual and file formats
+cesium.gltf-vscode
+arcanis.vscode-zipfs
+ducphamngoc.codevisualizer
+james-yu.latex-workshop
+mathematic.vscode-latex
+ritwickdey.liveserver
+vishalraut.vscode-toon
+joaophalcsik.simple-red-theme

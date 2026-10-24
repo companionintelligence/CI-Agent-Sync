@@ -1,0 +1,124 @@
+version: 1
+
+# Canonical Companion Intelligence repositories. This is a checkout manifest,
+# not a command to clone or push anything. Keep local paths machine-relative.
+organization: companionintelligence
+root_env: CI_ROOT
+default_root: "${HOME}/devel/ci"
+
+repositories:
+  - name: CI-Common
+    remote: https://github.com/companionintelligence/CI-Common.git
+    default_branch: main
+    visibility: private
+    role: shared design system, packages, content, assets
+    local_path: "${CI_ROOT}/CI-Common"
+    package_manager: pnpm
+
+  - name: Companion-Memory
+    aliases: [CI-Server, CI-Memory]
+    remote: https://github.com/companionintelligence/Companion-Memory.git
+    default_branch: main
+    visibility: private
+    role: personal memory appliance and MCP server
+    local_path: "${CI_ROOT}/CI-Memory"
+    package_manager: yarn
+    skills:
+      - .cursor/skills
+
+  - name: Companion-Hub
+    aliases: [CI-Hub]
+    remote: https://github.com/companionintelligence/Companion-Hub.git
+    default_branch: dev
+    visibility: public
+    role: appliance runtime, desktop app, marketplace app lifecycle, MCP bridge
+    local_path: "${CI_ROOT}/CI-Hub"
+    package_manager: pnpm
+    prerequisites: [node-22, pnpm-11, docker]
+    skills:
+      - .cursor/skills
+      - .claude/skills
+
+  - name: CI-Portal
+    remote: https://github.com/companionintelligence/CI-Portal.git
+    default_branch: dev
+    visibility: private
+    role: cloud control plane, identity, entitlements, marketplace distribution
+    local_path: "${CI_ROOT}/CI-Portal"
+    package_manager: pnpm
+    branch_flow: dev -> staging -> main (fast-forward promotion only)
+
+  - name: CI-Engineering
+    remote: https://github.com/companionintelligence/CI-Engineering.git
+    default_branch: main
+    visibility: private
+    role: architecture, operations, fleet QA, engineering MCP server
+    local_path: "${CI_ROOT}/CI-Engineering"
+    package_manager: mixed
+    mcp:
+      command: node
+      args: [tools/mcp-server.mjs, --start]
+      bind: loopback
+    skills:
+      - .cursor/skills
+      - tools/fleet-qa/skills
+
+  - name: CI-Docs
+    remote: https://github.com/companionintelligence/CI-Docs.git
+    default_branch: main
+    visibility: private
+    role: product and operator documentation
+    local_path: "${CI_ROOT}/CI-Docs"
+    package_manager: pnpm
+
+  - name: CI-Hermes
+    remote: https://github.com/companionintelligence/CI-Hermes.git
+    default_branch: master
+    visibility: private
+    role: Hermes marketplace packaging and runtime context
+    local_path: "${CI_ROOT}/CI-Hermes"
+    package_manager: pnpm
+    skills:
+      - ci-context/skills
+
+  - name: CI-OpenClaw
+    remote: https://github.com/companionintelligence/CI-OpenClaw.git
+    default_branch: master
+    visibility: private
+    role: OpenClaw marketplace packaging, runtime context, Companion Memory plugin
+    local_path: "${CI_ROOT}/CI-OpenClaw"
+    package_manager: pnpm
+    skills:
+      - openclaw-context/plugins/ci-runtime/skills
+    plugins:
+      - openclaw-context/plugins/companionintelligence
+
+  - name: CI-Marketplace
+    remote: https://github.com/companionintelligence/CI-Marketplace.git
+    default_branch: dev
+    visibility: private
+    role: app catalog, manifests, marketplace integration tests
+    local_path: "${CI_ROOT}/CI-Marketplace"
+    package_manager: pnpm
+
+  - name: CI-Spellbook
+    remote: https://github.com/companionintelligence/CI-Spellbook.git
+    default_branch: main
+    visibility: private
+    role: curated agent and MCP documentation
+    local_path: "${CI_ROOT}/CI-Spellbook"
+    package_manager: pnpm
+
+  - name: CI-Local-CICD
+    remote: https://github.com/companionintelligence/CI-Local-CICD.git
+    default_branch: main
+    visibility: private
+    role: local app packaging and CI helpers
+    local_path: "${CI_ROOT}/CI-Local-CICD"
+    package_manager: mixed
+
+excluded:
+  - name: CompanionHub
+    reason: legacy private repository; use Companion-Hub
+  - name: ZARCHIVED-Ci-Hub-Private-History
+    reason: archived private history; never clone into a portable agent profile

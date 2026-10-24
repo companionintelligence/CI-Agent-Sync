@@ -21,6 +21,8 @@ visible instead of being hidden behind a successful launch.
    status, dependency advisories, backups, and reproducible repair commands.
 9. Smoke tests: one safe local command, one configured provider check when
    credentials are present, and one tool/skill check appropriate to the agent.
+10. Portability: machine-relative paths, native secret stores, pinned MCP
+    dependencies, reviewed skill/plugin sources, and no copied app databases.
 
 ## Phases
 
@@ -28,3 +30,5 @@ visible instead of being hidden behind a successful launch.
 - Phase 2: Claude, Codex, Antigravity, OpenCode, Aider Desk, and Pi inventory.
 - Phase 3: normalize shared providers, skills, helper commands, and docs.
 - Phase 4: repeatable smoke tests and maintenance/update checks.
+- Phase 5: VS Code, Companion Intelligence repository map, and transplantable
+  machine profiles.

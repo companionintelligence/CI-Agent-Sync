@@ -1,0 +1,32 @@
+version: 1
+name: linux-workstation
+
+platform: linux
+architecture: x86_64
+
+paths:
+  ci_root: "${HOME}/devel/ci"
+  companion_hub: "${CI_ROOT}/CI-Hub"
+  companion_memory: "${CI_ROOT}/CI-Memory"
+  ci_engineering: "${CI_ROOT}/CI-Engineering"
+
+capabilities:
+  docker: true
+  node: true
+  pnpm: true
+  yarn: true
+  python: true
+  uv: true
+  ollama: true
+  vscode: true
+  claude: true
+  codex: true
+  openclaw: true
+  hermes: true
+
+credential_store:
+  type: linux-secret-service
+  helper: secret-tool
+
+# Copy to profiles/machines/local.yaml and adjust locally. Never commit the
+# resulting file; it may contain private paths and capability choices.

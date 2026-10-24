@@ -1,0 +1,70 @@
+version: 1
+
+policy:
+  source: reviewed_repository_or_native_agent_store
+  install_mode: audit_then_explicit_install
+  copy_native_state: false
+  trust: read_skill_instructions_before_execution
+
+sources:
+  - id: companion-hub-agent-skills
+    repository: companionintelligence/Companion-Hub
+    ref: dev
+    paths:
+      - .claude/skills
+      - .cursor/skills
+    skills: [agent-workflow, agent-loop, agent-sweep, test-audit, visual-regression, hot-swap]
+    validation: bin/agent-validate-shift
+
+  - id: companion-memory-agent-skills
+    repository: companionintelligence/Companion-Memory
+    ref: main
+    paths: [.cursor/skills]
+    skills: [hot-swap]
+    validation: make check
+
+  - id: common-design-skills
+    repository: companionintelligence/CI-Common
+    ref: main
+    paths: [.claude/skills, content/skills]
+    skills: [ci-design-canon, uncloud-voice]
+    validation: pnpm lint
+
+  - id: engineering-skills
+    repository: companionintelligence/CI-Engineering
+    ref: main
+    paths: [.cursor/skills, tools/fleet-qa/skills]
+    skills: [ci-engineering, latex-pdf, run-fleet-qa]
+    validation: repository-specific
+
+  - id: hermes-runtime-skill
+    repository: companionintelligence/CI-Hermes
+    ref: master
+    paths: [ci-context/skills]
+    skills: [ci]
+    validation: hermes doctor
+
+  - id: openclaw-runtime-and-memory
+    repository: companionintelligence/CI-OpenClaw
+    ref: master
+    paths: [openclaw-context/plugins/ci-runtime/skills]
+    skills: [ci]
+    validation: openclaw doctor --deep --non-interactive
+
+native_stores:
+  claude:
+    path: ~/.claude/skills
+    validation: claude plugin validate ~/.claude/skills
+    observed_count: 22
+  codex:
+    path: managed by Codex desktop
+    sync: do_not_copy_app_state
+  openclaw:
+    path: ~/.openclaw/skills
+    sync: use plugin/package installation, not raw state copies
+  hermes:
+    path: ~/.hermes/skills
+    sync: use Hermes registry and reviewed local entries
+  vscode:
+    path: ~/.vscode/agent-plugins
+    sync: use the agent plugin UI; record reviewed sources here
