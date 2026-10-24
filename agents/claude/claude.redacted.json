@@ -14,7 +14,11 @@
       "lastUsedAt": 1790561451388,
       "lastUsedNumStartups": 0
     },
-    "cc-plugin-plugin-authoring@builtin": "<redacted>",
+    "cc-plugin-plugin-authoring@builtin": {
+      "usageCount": 0,
+      "lastUsedAt": 1791222608547,
+      "lastUsedNumStartups": 0
+    },
     "cc-plugin-diff@builtin": {
       "usageCount": 0,
       "lastUsedAt": 1792379908179,

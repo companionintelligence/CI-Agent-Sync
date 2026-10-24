@@ -27,6 +27,14 @@ providers:
     endpoint_env: OLLAMA_HOST
     primary_clients: [hermes, openclaw, opencode, aider-desk, pi]
 
+  omlx:
+    aliases: [mlx, omlx-local]
+    env: OMLX_API_KEY
+    keychain_service: agent-configs/omlx
+    endpoint_env: OMLX_BASE_URL
+    default_endpoint: http://127.0.0.1:8000/v1
+    primary_clients: [hermes, openclaw, opencode, aider-desk, pi]
+
   companion-hub:
     aliases: [companion_hub, companionhub]
     env: COMPANION_HUB_API_KEY

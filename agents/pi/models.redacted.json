@@ -1,0 +1,15 @@
+{
+  "providers": {
+    "omlx-local": {
+      "baseUrl": "http://127.0.0.1:8000/v1",
+      "api": "openai-completions",
+      "apiKey": "<redacted>",
+      "piGuiCustomEndpoint": true,
+      "models": [
+        {
+          "id": "Qwen3.8-27B-oQ4e-fp16-mtp"
+        }
+      ]
+    }
+  }
+}
