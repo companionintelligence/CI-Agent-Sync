@@ -1,0 +1,55 @@
+#!/usr/bin/env ruby
+
+# Stable, portable entry point for this repository. Keep orchestration here
+# and leave provider-specific behavior in the existing scripts.
+root = File.expand_path("..", __dir__)
+store = File.join(root, "bin", "agent-store")
+
+def usage
+  puts <<~USAGE
+    agentctl — portable agent control plane
+
+    Usage:
+      agentctl inventory
+      agentctl doctor [--json] [--strict]
+      agentctl health [--json] [--strict]
+      agentctl test [--json] [--live-local]
+      agentctl backup [--dry-run] [--output PATH]
+      agentctl repair openclaw
+      agentctl render [options]
+      agentctl sync [options]
+      agentctl install [--apply] [--clone-reviewed-repos]
+      agentctl credentials ...
+      agentctl audit ...
+      agentctl fallbacks [CHAIN]
+
+    Secrets stay in native stores. This command never prints credential values.
+  USAGE
+end
+
+command = ARGV.shift
+case command
+when nil, "help", "--help", "-h"
+  usage
+when "inventory", "doctor", "credentials", "audit", "fallbacks", "render", "sync", "vscode", "repos"
+  exec store, command, *ARGV
+when "health"
+  exec RbConfig.ruby, File.join(root, "scripts", "doctor.rb"), *ARGV
+when "test"
+  exec RbConfig.ruby, File.join(root, "scripts", "test.rb"), *ARGV
+when "backup"
+  exec RbConfig.ruby, File.join(root, "scripts", "backup.rb"), *ARGV
+when "repair"
+  target = ARGV.shift
+  if target == "openclaw"
+    exec RbConfig.ruby, File.join(root, "scripts", "repair-openclaw.rb"), *ARGV
+  end
+  warn "Supported repair target: openclaw"
+  exit 2
+when "install", "bootstrap"
+  exec "zsh", File.join(root, "scripts", "bootstrap-machine.zsh"), *ARGV
+else
+  warn "Unknown agentctl command: #{command}"
+  usage
+  exit 2
+end

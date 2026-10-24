@@ -97,11 +97,20 @@ secret_store_label() {
   esac
 }
 
+hermes_config_path() {
+  if command -v hermes >/dev/null 2>&1; then
+    typeset resolved="$(hermes config path 2>/dev/null || true)"
+    [[ -n "$resolved" ]] && { print -r -- "$resolved"; return; }
+  fi
+  print -r -- "$HOME/.hermes/config.yaml"
+}
+
 inventory() {
   print "Agent config store: $STORE_ROOT"
   print ""
+  typeset hermes_config="$(hermes_config_path)"
   typeset -a rows=(
-    "hermes|hermes|$HOME/.hermes/config.yaml"
+    "hermes|hermes|$hermes_config"
     "openclaw|openclaw|$HOME/.openclaw/openclaw.json"
     "claude|claude|$HOME/.claude"
     "codex|codex|$HOME/.codex"
@@ -298,7 +307,11 @@ audit_one() {
       ;;
     openclaw)
       command -v openclaw >/dev/null 2>&1 || { print "openclaw: not installed"; return 0; }
-      openclaw doctor --deep --non-interactive 2>&1 | redact_output || true
+      if [[ -x "$HOME/.local/bin/openclaw-gateway-with-omlx" ]]; then
+        "$HOME/.local/bin/openclaw-gateway-with-omlx" doctor --deep --non-interactive 2>&1 | redact_output || true
+      else
+        openclaw doctor --deep --non-interactive 2>&1 | redact_output || true
+      fi
       ;;
     claude)
       command -v claude >/dev/null 2>&1 || { print "claude: not installed"; return 0; }
@@ -356,7 +369,8 @@ audit_one() {
 
 snapshot() {
   mkdir -p "$STORE_ROOT/agents/hermes" "$STORE_ROOT/agents/openclaw" "$STORE_ROOT/agents/vscode"
-  [[ -f "$HOME/.hermes/config.yaml" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.hermes/config.yaml" "$STORE_ROOT/agents/hermes/current.redacted.yaml"
+  typeset hermes_config="$(hermes_config_path)"
+  [[ -f "$hermes_config" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$hermes_config" "$STORE_ROOT/agents/hermes/current.redacted.yaml"
   [[ -f "$HOME/.openclaw/openclaw.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.openclaw/openclaw.json" "$STORE_ROOT/agents/openclaw/current.redacted.json"
   [[ -f "$HOME/.claude/settings.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.claude/settings.json" "$STORE_ROOT/agents/claude/settings.redacted.json"
   # Claude's root file contains project/session metadata as well as MCP state;

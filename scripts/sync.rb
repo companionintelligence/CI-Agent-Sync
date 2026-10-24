@@ -14,6 +14,7 @@ DEFAULT_TARGETS_PATH = File.join(STORE_ROOT, "sync", "targets.yaml")
 
 options = {
   apply: false,
+  backup: true,
   json: false,
   prune: false,
   targets: DEFAULT_TARGETS_PATH,
@@ -21,9 +22,11 @@ options = {
 }
 
 OptionParser.new do |parser|
-  parser.banner = "Usage: sync.rb [--apply] [--prune] [--target PATH ...] [--targets FILE] [--json]"
+  parser.banner = "Usage: sync.rb [--apply] [--prune] [--no-backup] [--backup-dir PATH] [--target PATH ...] [--targets FILE] [--json]"
   parser.on("--apply", "Apply the reviewed plan") { options[:apply] = true }
   parser.on("--prune", "Apply explicit manifest deletions") { options[:prune] = true }
+  parser.on("--no-backup", "Do not create a rollback backup before applying") { options[:backup] = false }
+  parser.on("--backup-dir PATH", "Write rollback backups under PATH") { |value| options[:backup_dir] = File.expand_path(value) }
   parser.on("--target PATH", "Sync one target repository") { |value| options[:explicit_targets] << value }
   parser.on("--targets FILE", "Read machine-local targets from FILE") { |value| options[:targets] = File.expand_path(value) }
   parser.on("--json", "Print machine-readable results") { options[:json] = true }
@@ -64,6 +67,14 @@ end
 
 def sha256(path)
   Digest::SHA256.file(path).hexdigest
+end
+
+def backup_existing!(source, destination, seen)
+  return if seen.include?(source) || !File.exist?(source)
+
+  FileUtils.mkdir_p(File.dirname(destination))
+  FileUtils.cp_r(source, destination)
+  seen << source
 end
 
 def target_policy(target_root, target_entry, manifest)
@@ -169,6 +180,11 @@ target_entries.each do |entry|
     next
   end
 
+  target_id = name.gsub(/[^A-Za-z0-9_.-]/, "_")
+  backup_root = options[:backup_dir] || File.join(STORE_ROOT, "local", "sync-backups", Time.now.utc.strftime("%Y%m%d-%H%M%S"))
+  backup_seen = []
+  result["backup"] = File.join(backup_root, target_id) if options[:apply] && options[:backup]
+
   select_items(manifest, policy).each do |item|
     source = File.join(STORE_ROOT, item.fetch("source"))
     destination = File.join(target_root, item.fetch("destination"))
@@ -188,6 +204,10 @@ target_entries.each do |entry|
     }
     next unless options[:apply]
 
+    if options[:backup] && File.exist?(destination)
+      backup_destination = File.join(backup_root, target_id, item.fetch("destination"))
+      backup_existing!(destination, backup_destination, backup_seen)
+    end
     FileUtils.mkdir_p(File.dirname(destination))
     FileUtils.cp(source, destination)
   end
@@ -205,6 +225,10 @@ target_entries.each do |entry|
         "destination" => destination,
         "reason" => deletion["reason"],
       }
+      if options[:backup] && File.exist?(target)
+        backup_destination = File.join(backup_root, target_id, destination)
+        backup_existing!(target, backup_destination, backup_seen)
+      end
       FileUtils.rm_rf(target) if options[:apply]
     end
   end

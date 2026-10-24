@@ -8,15 +8,22 @@ providers:
 integrations:
   routing: integrations/providers/routing.yaml
   mcp_registry: integrations/mcp/registry.yaml
+  capability_bundles: integrations/capability-bundles.yaml
+  harness_inventory: integrations/harnesses.yaml
   skills_registry: integrations/skills.yaml
   plugins_registry: integrations/plugins.yaml
   repository_manifest: repos/companionintelligence.yaml
   workspace_manifest: repos/workspace.yaml
 
 operations:
+  control_plane: ./bin/agentctl
   render: ./bin/agent-store render
   doctor: ./bin/agent-store doctor
   doctor_json: ./bin/agent-store doctor --json
+  test: ./bin/agentctl test
+  test_live_local: ./bin/agentctl test --live-local
+  backup: ./bin/agentctl backup
+  install: ./bin/agentctl install
   repository_sync_plan: ./bin/agent-store repos sync
   repository_sync_apply: ./bin/agent-store repos sync --apply
 

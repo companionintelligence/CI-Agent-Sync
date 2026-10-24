@@ -19,12 +19,14 @@ application remains safe and useful without remote credentials.
 ```sh
 cp sync/targets.yaml.example sync/targets.yaml
 # edit machine-local paths and targets
-./bin/agent-store sync
-./bin/agent-store sync --apply
+./bin/agentctl sync
+./bin/agentctl sync --apply
 ```
 
 The default is a plan. `--apply` copies only manifest-listed files. Existing
-dirty or detached Git checkouts are skipped. A target may add
+dirty or detached Git checkouts are skipped. Applying creates a timestamped
+rollback copy under `local/sync-backups/` before replacing an existing file;
+use `--no-backup` only for a deliberate exception. A target may add
 `.agent-configs/sync.yml` to disable sync, select groups, or override items.
 
 ## Target policy

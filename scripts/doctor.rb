@@ -94,8 +94,19 @@ config_paths = {
   "antigravity" => File.join(Dir.home, ".gemini", "antigravity"),
   "pi" => File.join(Dir.home, ".pi"),
 }
+if system("command", "-v", "hermes", out: File::NULL, err: File::NULL)
+  hermes_path, _error, hermes_status = Open3.capture3("hermes", "config", "path")
+  config_paths["hermes"] = hermes_path.strip if hermes_status.success? && !hermes_path.strip.empty?
+end
 config_paths.each do |name, path|
   add_check(checks, "config.#{name}", File.exist?(path) ? "ok" : "warn", File.exist?(path) ? "present" : "missing")
+end
+
+if command = `command -v openclaw 2>/dev/null`.strip
+  gateway_command = File.join(Dir.home, ".local", "bin", "openclaw-gateway-with-omlx")
+  gateway_command = command unless File.executable?(gateway_command)
+  gateway_probe, gateway_ok = run_command(gateway_command, "gateway", "health", "--json")
+  add_check(checks, "runtime.openclaw.gateway", gateway_ok ? "ok" : "warn", gateway_ok ? "gateway health responded" : "gateway probe failed; use the desktop-matched runtime when installed")
 end
 
 providers = %w[anthropic openai openrouter ollama omlx companion-hub companion-memory omniroute android-mcp]
@@ -121,7 +132,7 @@ begin
     File.join(STORE_ROOT, "integrations", "vscode", "mcp.json.example"),
   ]
   examples.each { |path| JSON.parse(File.read(path)) }
-  %w[providers/providers.yaml integrations/mcp/registry.yaml integrations/providers/routing.yaml integrations/providers/fallbacks.yaml repos/companionintelligence.yaml repos/workspace.yaml].each do |relative|
+  %w[providers/providers.yaml integrations/mcp/registry.yaml integrations/capability-bundles.yaml integrations/harnesses.yaml integrations/providers/routing.yaml integrations/providers/fallbacks.yaml repos/companionintelligence.yaml repos/workspace.yaml].each do |relative|
     YAML.safe_load_file(File.join(STORE_ROOT, relative), aliases: true)
   end
   add_check(checks, "store.manifests", "ok", "YAML and JSON templates parse")

@@ -1,115 +1,174 @@
 {
-  "meta": {
-    "lastTouchedVersion": "2026.2.12",
-    "lastTouchedAt": "2026-10-24T22:55:00.000Z"
-  },
-  "wizard": {
-    "lastRunAt": "2026-10-24T22:55:00.000Z",
-    "lastRunVersion": "2026.2.12",
-    "lastRunCommand": "doctor",
-    "lastRunMode": "local"
-  },
-  "auth": "<redacted>",
   "agents": {
     "defaults": {
-      "model": {
-        "primary": "openai/Qwen3.8-27B-oQ4e-fp16-mtp",
-        "fallbacks": [
-          "github-copilot/claude-opus-4.6"
-        ]
-      },
-      "models": {
-        "github-copilot/claude-opus-4.6": {},
-        "github-copilot/gpt-5.2-codex": {},
-        "openai/Qwen3.8-27B-oQ4e-fp16-mtp": {}
-      },
-      "workspace": "/Users/liam/.openclaw/workspace",
       "compaction": {
         "mode": "safeguard"
       },
       "maxConcurrent": 4,
-      "subagents": {
-        "maxConcurrent": 8
+      "model": {
+        "primary": "openai/Qwen3.8-27B-oQ4e-fp16-mtp"
       },
       "sandbox": {
         "mode": "all"
+      },
+      "subagents": {
+        "maxConcurrent": 8
+      },
+      "workspace": "/Users/liam/.openclaw/workspace",
+      "modelPolicy": {
+        "allow": [
+          "openai/Qwen3.8-27B-oQ4e-fp16-mtp"
+        ]
       }
+    },
+    "entries": {
+      "main": {}
     }
   },
-  "messages": {
-    "ackReactionScope": "group-mentions"
+  "auth": "<redacted>",
+  "channels": {
+    "imessage": {
+      "cliPath": "imsg",
+      "dmPolicy": "pairing",
+      "enabled": false,
+      "groupPolicy": "allowlist"
+    }
   },
   "commands": {
     "native": "auto",
     "nativeSkills": "auto"
   },
-  "channels": {
-    "imessage": {
-      "enabled": false,
-      "cliPath": "imsg",
-      "dmPolicy": "pairing",
-      "groupPolicy": "allowlist"
-    }
-  },
   "gateway": {
-    "port": 18789,
-    "mode": "local",
-    "bind": "loopback",
     "auth": "<redacted>",
+    "bind": "loopback",
+    "mode": "local",
+    "port": 18789,
     "tailscale": {
       "mode": "off"
-    },
-    "remote": {}
+    }
   },
-  "skills": {
-    "install": {
-      "nodeManager": "pnpm"
-    },
-    "entries": {
-      "nano-banana-pro": {
-        "apiKey": "<redacted>"
-      },
-      "openai-image-gen": {
-        "apiKey": "<redacted>"
-      },
-      "openai-whisper-api": {
-        "apiKey": "<redacted>"
-      }
+  "messages": {
+    "ackReactionScope": "group-mentions"
+  },
+  "meta": {
+    "lastTouchedVersion": "2026.10.6",
+    "migrations": {
+      "modelPolicyAllowlist": true,
+      "utilityModelSeparation": true
     }
   },
   "models": {
     "mode": "merge",
     "providers": {
       "openai": {
-        "baseUrl": "http://127.0.0.1:8000/v1",
         "api": "openai-completions",
-        "apiKey": "OPENAI_API_KEY",
+        "apiKey": "<redacted>",
         "authHeader": true,
+        "baseUrl": "http://127.0.0.1:8000/v1",
         "models": [
           {
-            "id": "Qwen3.8-27B-oQ4e-fp16-mtp",
-            "name": "Qwen3.8 27B oMLX",
-            "reasoning": true,
-            "input": ["text"],
             "contextWindow": 32768,
-            "maxTokens": 8192
+            "cost": {
+              "cacheRead": 0,
+              "cacheWrite": 0,
+              "input": 0,
+              "output": 0
+            },
+            "id": "Qwen3.8-27B-oQ4e-fp16-mtp",
+            "input": [
+              "text"
+            ],
+            "maxTokens": 8192,
+            "name": "Qwen3.8 27B oMLX",
+            "reasoning": true
           }
         ]
       }
     }
   },
-  "tools": {
-    "deny": ["group:web", "browser"]
-  },
   "plugins": {
     "allow": [
       "imessage",
-      "memory-core"
+      "memory-core",
+      "openai"
     ],
     "entries": {
       "imessage": {
         "enabled": true
+      },
+      "openai": {
+        "enabled": true
       }
     }
+  },
+  "skills": {
+    "entries": {
+      "1password": "<redacted>",
+      "bear-notes": {
+        "enabled": false
+      },
+      "coding-agent": {
+        "enabled": false
+      },
+      "goplaces": {
+        "enabled": false
+      },
+      "himalaya": {
+        "enabled": false
+      },
+      "mcporter": {
+        "enabled": false
+      },
+      "model-usage": {
+        "enabled": false
+      },
+      "obsidian": {
+        "enabled": false
+      },
+      "openai-image-gen": {},
+      "openai-whisper-api": {},
+      "openhue": {
+        "enabled": false
+      },
+      "oracle": {
+        "enabled": false
+      },
+      "ordercli": {
+        "enabled": false
+      },
+      "sherpa-onnx-tts": {
+        "enabled": false
+      },
+      "sonoscli": {
+        "enabled": false
+      },
+      "spotify-player": {
+        "enabled": false
+      },
+      "things-mac": {
+        "enabled": false
+      },
+      "trello": {
+        "enabled": false
+      },
+      "xurl": {
+        "enabled": false
+      }
+    },
+    "install": {
+      "nodeManager": "pnpm"
+    }
+  },
+  "tools": {
+    "deny": [
+      "group:web",
+      "browser"
+    ]
+  },
+  "wizard": {
+    "lastRunAt": "2026-10-24T23:42:41.442Z",
+    "lastRunCommand": "doctor",
+    "lastRunMode": "local",
+    "lastRunVersion": "2026.10.6"
   }
 }
