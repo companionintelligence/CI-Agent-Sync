@@ -50,9 +50,10 @@ servers:
     transport: streamable-http
     url: https://ai.metricool.com/mcp
     auth: host_oauth
+    setup_guide: https://help.metricool.com/how-to-connect-metricools-mcp-eqp9h
     clients: [claude, codex, opencode, vscode]
     optional_clients: [hermes]
-    notes: Analytics and scheduling bridge. Authenticate in the native client before use; publishing and scheduling remain approval-gated.
+    notes: "Use the URL/OAuth flow for supported clients and authorize only trusted tools. Metricool grants broad account access within plan limits; publishing and scheduling remain approval-gated."
 
   markitdown:
     transport: stdio
