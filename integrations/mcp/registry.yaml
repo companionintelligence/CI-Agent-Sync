@@ -1,0 +1,66 @@
+version: 1
+
+policy:
+  default_state: disabled_until_reviewed
+  credentials: keychain_or_native_oauth
+  network: loopback_or_explicitly_approved_remote
+  stdio: pin_package_versions_and_executable_paths
+  destructive_tools: require_client_approval
+
+servers:
+  companion-memory:
+    owner: companionintelligence/Companion-Memory
+    transport: streamable-http
+    url: "${COMPANION_HUB_BASE_URL}/api/mcp"
+    auth:
+      provider: companion-hub
+      header: Authorization
+      format: "Bearer ${COMPANION_HUB_API_KEY}"
+      scopes: [mcp, intents]
+      capability: read
+    clients: [vscode, claude, codex, openclaw, hermes]
+    notes: The endpoint is /api/mcp at the appliance edge, not bare /mcp.
+
+  ci-engineering:
+    owner: companionintelligence/CI-Engineering
+    transport: stdio
+    command: node
+    args: ["${CI_ENGINEERING_ROOT}/tools/mcp-server.mjs", --start]
+    bind: loopback
+    clients: [claude, codex, vscode]
+    notes: Thin client of the local engineering dashboard; confirmation remains server-side.
+
+  markitdown:
+    transport: stdio
+    command: uvx
+    args: [markitdown-mcp@0.0.1a4]
+    clients: [vscode]
+
+  chrome-devtools:
+    transport: stdio
+    command: npx
+    args: [--yes, --registry, https://registry.npmjs.org, chrome-devtools-mcp@1.12.0]
+    clients: [vscode]
+
+  playwright:
+    transport: stdio
+    command: npx
+    args: [--yes, "@playwright/mcp@0.0.83"]
+    clients: [vscode, codex]
+
+  github:
+    transport: streamable-http
+    url: https://api.githubcopilot.com/mcp/
+    auth: host_oauth
+    clients: [vscode]
+
+  huggingface:
+    transport: streamable-http
+    url: "https://huggingface.co/mcp?login"
+    auth: host_oauth
+    clients: [vscode]
+
+  unity:
+    state: disabled_on_macos_until_local_install_is_verified
+    reason: Do not transplant Windows paths or placeholder commands.
+    clients: [vscode, codex]

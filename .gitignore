@@ -13,4 +13,5 @@ local/
 state/raw/
 reports/raw/
 work/
+profiles/machines/local.yaml
 .DS_Store

@@ -1,0 +1,14 @@
+{
+  "git.autofetch": true,
+  "git.confirmSync": true,
+  "git.enableSmartCommit": false,
+  "files.associations": {
+    "wrangler.json": "jsonc",
+    "*.mjs": "javascript"
+  },
+  "chat.viewSessions.orientation": "stacked",
+  "claudeCode.hideOnboarding": true,
+  "extensions.supportAgentsWindow": {
+    "ltmoerdani.opencode-copilot-chat": true
+  }
+}

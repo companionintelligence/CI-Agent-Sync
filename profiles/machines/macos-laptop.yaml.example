@@ -1,0 +1,32 @@
+version: 1
+name: macos-laptop
+
+platform: darwin
+architecture: arm64
+
+paths:
+  ci_root: "${HOME}/devel/ci"
+  companion_hub: "${CI_ROOT}/Companion-Hub"
+  companion_memory: "${CI_ROOT}/Companion-Memory"
+  ci_engineering: "${CI_ROOT}/CI-Engineering"
+
+capabilities:
+  docker: true
+  node: true
+  pnpm: true
+  yarn: true
+  python: true
+  uv: true
+  ollama: true
+  vscode: true
+  claude: true
+  codex: true
+  openclaw: true
+  hermes: true
+
+credential_store:
+  type: macos-keychain
+  namespace: agent-configs
+
+# Copy to profiles/machines/local.yaml and adjust locally. Never commit the
+# resulting file; it may contain private paths and capability choices.

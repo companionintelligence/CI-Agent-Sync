@@ -1,0 +1,28 @@
+version: 1
+name: windows-workstation
+
+platform: windows
+architecture: x86_64
+
+paths:
+  ci_root: "${USERPROFILE}/devel/ci"
+  companion_hub: "${CI_ROOT}/CI-Hub"
+  companion_memory: "${CI_ROOT}/CI-Memory"
+  ci_engineering: "${CI_ROOT}/CI-Engineering"
+
+capabilities:
+  docker: true
+  node: true
+  pnpm: true
+  yarn: true
+  python: true
+  ollama: true
+  vscode: true
+
+credential_store:
+  type: windows-native-client-stores
+  helper: native-client-auth
+  note: agent-store shared secret injection is not enabled until a reviewed Windows backend is selected
+
+# Copy to profiles/machines/local.yaml and adjust locally. Never commit the
+# resulting file; it may contain private paths and capability choices.

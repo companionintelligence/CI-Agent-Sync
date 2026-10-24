@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "installed": [
+    {
+      "pluginUri": "file:///Users/liam/.vscode/agent-plugins/github.com/github/awesome-copilot/plugins/skill-image-gen",
+      "marketplace": "github/awesome-copilot"
+    },
+    {
+      "pluginUri": "file:///Users/liam/.vscode/agent-plugins/github.com/github/awesome-copilot/plugins/ai-team-orchestration",
+      "marketplace": "github/awesome-copilot"
+    }
+  ]
+}
