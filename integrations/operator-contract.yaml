@@ -10,6 +10,7 @@ schemas:
 
 readiness:
   command: ./bin/agentctl readiness --json
+  companion_cli_command: ./bin/agentctl companion status --json
   strict_means: no warnings or errors
   default_surfaces: [agent_store, companion_hub, companion_memory, tailscale_fleet]
   optional_surfaces: [cloudflare, fleet_qa]

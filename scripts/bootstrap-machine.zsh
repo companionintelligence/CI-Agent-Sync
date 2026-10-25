@@ -17,6 +17,8 @@ Default: print a plan only.
 
 Credentials, OAuth state, skills, plugins, and MCP servers remain explicit
 follow-up actions because their trust and auth requirements differ by client.
+The primary control plane runs on Node 22; Ruby is retained only for
+specialized compatibility commands during the migration.
 EOF
 }
 
@@ -39,13 +41,26 @@ print "CI root: $ci_root"
 print "Mode: $([[ "$apply" == true ]] && print apply || print plan)"
 print ""
 
-for requirement in git ruby; do
+for requirement in git node npm; do
   if command -v "$requirement" >/dev/null 2>&1; then
     print "  ✓ $requirement"
   else
     print "  ! missing prerequisite: $requirement"
   fi
 done
+
+if command -v node >/dev/null 2>&1; then
+  node_major="$(node --version | sed -E 's/^v([0-9]+).*/\1/')"
+  if (( node_major < 22 )); then
+    print "  ! Node 22+ is required for the TypeScript control plane (found $(node --version))"
+  fi
+fi
+
+if command -v ruby >/dev/null 2>&1; then
+  print "  · ruby — legacy compatibility commands available"
+else
+  print "  · ruby — optional; legacy compatibility commands unavailable"
+fi
 
 if command -v op >/dev/null 2>&1; then
   print "  ✓ 1Password CLI (op)"
@@ -88,7 +103,7 @@ if [[ "$apply" == true ]]; then
 fi
 
 if [[ "$clone" == true ]]; then
-  command -v ruby >/dev/null 2>&1 || { print -u2 "Ruby is required to read the repository manifest"; exit 2; }
+  command -v ruby >/dev/null 2>&1 || { print -u2 "Ruby is required only for the legacy repository clone helper; install Ruby or clone the reviewed repositories manually"; exit 2; }
   mkdir -p "$ci_root"
   ruby -ryaml -e '
     data = YAML.load_file(ARGV[0])
