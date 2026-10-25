@@ -196,7 +196,7 @@ export async function doctor(options: { json?: boolean; strict?: boolean } = {})
   const ollamaCode = await httpStatus(ollama, "/api/tags");
   add(checks, "runtime.ollama", ollamaCode.status === 200 ? "ok" : "warn", `${ollamaCode.path} HTTP ${ollamaCode.status} (${ollamaCode.attempts} attempts, ${ollamaCode.durationMs}ms)`);
   const omlxCode = await httpStatus(omlx, "/v1/models");
-  add(checks, "runtime.omlx", omlxCode.status === 200 || omlxCode.status === 401 ? "ok" : "warn", omlxCode.status === 401 ? `${omlxCode.path} HTTP 401; local oMLX endpoint is up and needs its access key` : `${omlxCode.path} HTTP ${omlxCode.status} (${omlxCode.attempts} attempts, ${omlxCode.durationMs}ms)`);
+  add(checks, "runtime.omlx", omlxCode.status === 200 ? "ok" : "warn", omlxCode.status === 401 ? `${omlxCode.path} HTTP 401; local oMLX endpoint is reachable but needs its access key` : `${omlxCode.path} HTTP ${omlxCode.status} (${omlxCode.attempts} attempts, ${omlxCode.durationMs}ms)`);
   let gatewayHost = "";
   try { gatewayHost = new URL(omniroute).hostname; } catch { /* handled below */ }
   add(checks, "runtime.omniroute.binding", ["127.0.0.1", "localhost"].includes(gatewayHost) ? "ok" : "error", gatewayHost ? `bound to ${gatewayHost}` : "invalid endpoint");
