@@ -13,6 +13,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Install ripgrep for repository verification
+        run: brew install ripgrep
       - name: Install TypeScript control-plane dependencies
         run: npm ci
       - name: Build TypeScript control plane and browser bundle
