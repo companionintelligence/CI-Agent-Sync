@@ -7,11 +7,13 @@ import {
   isoNow,
   parseArgs,
   parsePayload,
+  redactSecrets,
   runCommand,
+  runCommandAsync,
   safeDetail,
 } from "./core.ts";
 
-type Surface = { id: "companion-hub" | "companion-memory"; command: string[]; cwd?: string; executable: string; description: string };
+type Surface = { id: "companion-hub" | "companion-memory"; command: string[]; cwd?: string; env?: NodeJS.ProcessEnv; executable: string; description: string };
 
 function splitCommand(value: string): string[] {
   return value.match(/(?:[^\s"]+|"[^"]*")+/g)?.map((token) => token.replace(/^"|"$/g, "")) || [];
@@ -56,43 +58,84 @@ function memorySurface(): Surface | undefined {
   const repo = findRepo(["CI-Memory", "Companion-Memory"], ["backend/apps/cli/package.json"]);
   const node = commandPath("node");
   const built = repo && join(repo, "backend", "apps", "cli", "dist", "ci.cjs");
-  return repo && node && built && existsSync(built) ? { id: "companion-memory", command: [node, built], cwd: repo, executable: built, description: "built Companion-Memory CLI" } : undefined;
+  if (repo && node && built && existsSync(built)) return { id: "companion-memory", command: [node, built], cwd: repo, executable: built, description: "built Companion-Memory CLI" };
+
+  // A source checkout is a valid development surface. The previous bridge
+  // only recognized a globally installed `ci` binary or a built bundle, which
+  // made a healthy local Memory API look unavailable during development.
+  const source = repo && join(repo, "backend", "apps", "cli", "src", "main.ts");
+  const yarn = commandPath("yarn");
+  if (repo && source && existsSync(source) && yarn) {
+    return {
+      id: "companion-memory",
+      command: [yarn, "workspace", "@ci/cli", "dev"],
+      cwd: repo,
+      executable: source,
+      description: "Companion-Memory source CLI via Yarn",
+    };
+  }
+  const tsxCandidates = [
+    repo && join(repo, "node_modules", ".bin", "tsx"),
+    repo && join(repo, "backend", "apps", "cli", "node_modules", ".bin", "tsx"),
+  ].filter(Boolean) as string[];
+  const tsx = tsxCandidates.find((candidate) => existsSync(candidate));
+  return repo && source && tsx && existsSync(source) ? {
+    id: "companion-memory",
+    command: [tsx, source],
+    cwd: repo,
+    executable: source,
+    description: "Companion-Memory source CLI via tsx",
+  } : undefined;
 }
 
 function missingMessage(id: Surface["id"]): string {
   return id === "companion-hub" ? "cihub is not installed; install Companion Hub or set CIHUB_BIN/COMPANION_HUB_CLI" : "ci is not installed and no Companion-Memory checkout was found; set CI_MEMORY_ROOT or CI_MEMORY_CLI";
 }
 
-function runSurface(surface: Surface, args: string[], timeoutMs: number): any {
-  const result = runCommand(surface.command[0], [...surface.command.slice(1), ...args], { cwd: surface.cwd, timeoutMs });
+function displayCommand(command: string[]): string {
+  return command.map((part, index) => {
+    const previous = command[index - 1] || "";
+    return /^(--?(?:api-key|token|secret|password|credential)|(?:api[_-]?key|token|secret|password|credential)=)/i.test(previous) || /^(?:api[_-]?key|token|secret|password|credential)=/i.test(part)
+      ? "[REDACTED]"
+      : part;
+  }).join(" ");
+}
+
+async function runSurface(surface: Surface, args: string[], timeoutMs: number): Promise<any> {
+  const command = [...surface.command, ...args];
+  const result = await runCommandAsync(surface.command[0], [...surface.command.slice(1), ...args], { cwd: surface.cwd, env: surface.env, timeoutMs });
   const payload = parsePayload(result.stdout);
+  const status = result.exitCode === 0 ? "ok" : result.timedOut ? "error" : result.exitCode === 2 ? "warn" : "error";
   return {
     id: surface.id,
-    status: result.exitCode === 0 ? "ok" : "error",
+    status,
     ...(result.exitCode === null ? {} : { exit_code: result.exitCode }),
-    command: [surface.command[0], ...surface.command.slice(1), ...args].join(" "),
+    ...(result.errorCode ? { error_code: result.errorCode } : {}),
+    ...(result.durationMs === undefined ? {} : { duration_ms: result.durationMs }),
+    command: displayCommand(command),
     executable: surface.executable,
     description: surface.description,
-    detail: safeDetail(result.stdout || result.stderr) || (result.timedOut ? `timed out after ${timeoutMs / 1000}s` : "command failed"),
-    ...(payload === undefined ? {} : { payload }),
+    detail: safeDetail(result.stdout || result.stderr) || (result.timedOut ? `timed out after ${timeoutMs / 1000}s` : result.exitCode === 2 ? "command needs attention (authentication or user-fixable error)" : "command failed"),
+    ...(payload === undefined ? {} : { payload: redactSecrets(payload) }),
   };
 }
 
-function statusCommand(args: string[]): number {
+async function statusCommand(args: string[]): Promise<number> {
   const parsed = parseArgs(args);
   const env = parsed.values.get("--env") || process.env.CI_HUB_ENV || "local";
   const timeout = Math.max(1, Math.min(Number(parsed.values.get("--timeout") || 30), 300)) * 1_000;
-  const services: any[] = [];
+  const checks: Array<Promise<any> | any> = [];
   if (!parsed.flags.has("--no-hub")) {
     const surface = hubSurface();
-    services.push(surface ? runSurface(surface, ["status", env], timeout) : { id: "companion-hub", status: "warn", detail: missingMessage("companion-hub"), suggested_action: "Install cihub or set CIHUB_BIN" });
+    checks.push(surface ? runSurface(surface, ["status", env], timeout) : { id: "companion-hub", status: "warn", detail: missingMessage("companion-hub"), suggested_action: "Install cihub or set CIHUB_BIN" });
   }
   if (!parsed.flags.has("--no-memory")) {
     const surface = memorySurface();
     const server = parsed.values.get("--memory-server") || process.env.COMPANION_MEMORY_BASE_URL || process.env.CI_SERVER_URL || "";
     const memoryArgs = [...(server ? ["--server", server] : []), "doctor", "--graphql", "--json"];
-    services.push(surface ? runSurface(surface, memoryArgs, timeout) : { id: "companion-memory", status: "warn", detail: missingMessage("companion-memory"), suggested_action: "Install @ci/cli or set CI_MEMORY_ROOT" });
+    checks.push(surface ? runSurface(surface, memoryArgs, timeout) : { id: "companion-memory", status: "warn", detail: missingMessage("companion-memory"), suggested_action: "Install @ci/cli or set CI_MEMORY_ROOT" });
   }
+  const services = await Promise.all(checks);
   const summary = { ok: services.filter((service) => service.status === "ok").length, warn: services.filter((service) => service.status === "warn").length, error: services.filter((service) => service.status === "error").length };
   const result = { schema_version: 1, observed_at: isoNow(), mode: "native_cli_bridge", hub_environment: env, summary, services };
   if (parsed.flags.has("--json")) console.log(JSON.stringify(result, null, 2));
@@ -115,7 +158,10 @@ function passthrough(kind: "hub" | "memory", args: string[]): number {
     if (normalized.length === 1 && normalized[0] === "status") normalized.splice(0, 1, ...(server ? ["--server", server] : []), "doctor", "--graphql");
     if (normalized.length === 1 && ["llm", "inference"].includes(normalized[0])) normalized.splice(0, 1, ...(server ? ["--server", server] : []), "memory", "status");
   }
-  return runCommand(surface.command[0], [...surface.command.slice(1), ...normalized], { cwd: surface.cwd, timeoutMs: 120_000 }).exitCode ?? 1;
+  const result = runCommand(surface.command[0], [...surface.command.slice(1), ...normalized], { cwd: surface.cwd, env: surface.env, timeoutMs: 120_000 });
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
+  return result.exitCode ?? 1;
 }
 
 export async function companionCommand(args: string[]): Promise<number> {
@@ -132,7 +178,7 @@ export async function companionCommand(args: string[]): Promise<number> {
     process.stdout.write("Select: ");
     const input = await new Promise<string>((resolve) => { process.stdin.once("data", (data) => resolve(String(data).trim())); });
     if (input.toLowerCase() === "q") return 0;
-    const code = input === "1" ? statusCommand(["--env", parsed.values.get("--env") || "local"]) : input === "2" ? passthrough("hub", ["status", parsed.values.get("--env") || "local"]) : input === "3" ? passthrough("hub", ["pool", "status", parsed.values.get("--env") || "local"]) : input === "4" ? passthrough("memory", ["status"]) : input === "5" ? passthrough("memory", ["llm"]) : 2;
+    const code = input === "1" ? await statusCommand(["--env", parsed.values.get("--env") || "local"]) : input === "2" ? passthrough("hub", ["status", parsed.values.get("--env") || "local"]) : input === "3" ? passthrough("hub", ["pool", "status", parsed.values.get("--env") || "local"]) : input === "4" ? passthrough("memory", ["status"]) : input === "5" ? passthrough("memory", ["llm"]) : 2;
     return code;
   }
   console.log("agentctl companion — bridge CI Agent Sync with Companion Hub and Memory");
