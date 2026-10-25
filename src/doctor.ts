@@ -177,7 +177,7 @@ export async function doctor(options: { json?: boolean; strict?: boolean } = {})
     add(checks, "credential-backend.onepassword", vault.exitCode === 0 ? "ok" : "warn", vault.exitCode === 0 ? "1Password CLI authenticated; values are never printed" : "1Password CLI installed but not authenticated");
   } else add(checks, "credential-backend.onepassword", "warn", "1Password CLI is not installed");
 
-  for (const provider of ["anthropic", "openai", "openrouter", "ollama", "omlx", "companion-hub", "companion-memory", "cloudflare"]) {
+  for (const provider of ["anthropic", "openai", "openrouter", "ollama", "omlx", "companion-hub", "companion-memory", "companion-memory-cli", "cloudflare"]) {
     const source = secretPresence(provider);
     add(checks, `credential.${provider}`, source === "1Password" ? "ok" : "warn", source === "not set" ? "not set; values are never printed" : `present in ${source}`);
   }

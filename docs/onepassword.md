@@ -55,6 +55,7 @@ agent-configs-companion-hub-qa
 agent-configs-companion-hub-inference
 agent-configs-companion-hub-fleet-qa
 agent-configs-companion-memory
+agent-configs-companion-memory-cli
 agent-configs-omniroute
 agent-configs-android-mcp
 agent-configs-cloudflare

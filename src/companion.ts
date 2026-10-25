@@ -101,9 +101,14 @@ function displayCommand(command: string[]): string {
   }).join(" ");
 }
 
-async function runSurface(surface: Surface, args: string[], timeoutMs: number): Promise<any> {
-  const command = [...surface.command, ...args];
-  const result = await runCommandAsync(surface.command[0], [...surface.command.slice(1), ...args], { cwd: surface.cwd, env: surface.env, timeoutMs });
+function commandWithCredentials(surface: Surface, args: string[], from1Password: boolean): string[] {
+  if (!from1Password || surface.id !== "companion-memory") return [...surface.command, ...args];
+  return [join(ROOT, "bin", "agent-store"), "with", "companion-memory-cli", "--", ...surface.command, ...args];
+}
+
+async function runSurface(surface: Surface, args: string[], timeoutMs: number, from1Password = false): Promise<any> {
+  const command = commandWithCredentials(surface, args, from1Password);
+  const result = await runCommandAsync(command[0], command.slice(1), { cwd: surface.cwd, env: surface.env, timeoutMs });
   const payload = parsePayload(result.stdout);
   const status = result.exitCode === 0 ? "ok" : result.timedOut ? "error" : result.exitCode === 2 ? "warn" : "error";
   return {
@@ -133,7 +138,7 @@ async function statusCommand(args: string[]): Promise<number> {
     const surface = memorySurface();
     const server = parsed.values.get("--memory-server") || process.env.COMPANION_MEMORY_BASE_URL || process.env.CI_SERVER_URL || "";
     const memoryArgs = [...(server ? ["--server", server] : []), "doctor", "--graphql", "--json"];
-    checks.push(surface ? runSurface(surface, memoryArgs, timeout) : { id: "companion-memory", status: "warn", detail: missingMessage("companion-memory"), suggested_action: "Install @ci/cli or set CI_MEMORY_ROOT" });
+    checks.push(surface ? runSurface(surface, memoryArgs, timeout, parsed.flags.has("--from-1password")) : { id: "companion-memory", status: "warn", detail: missingMessage("companion-memory"), suggested_action: "Install @ci/cli or set CI_MEMORY_ROOT" });
   }
   const services = await Promise.all(checks);
   const summary = { ok: services.filter((service) => service.status === "ok").length, warn: services.filter((service) => service.status === "warn").length, error: services.filter((service) => service.status === "error").length };
@@ -151,6 +156,7 @@ function passthrough(kind: "hub" | "memory", args: string[]): number {
   const surface = kind === "hub" ? hubSurface() : memorySurface();
   const id = kind === "hub" ? "companion-hub" : "companion-memory";
   if (!surface) { console.error(missingMessage(id)); return 127; }
+  const from1Password = kind === "memory" && args.includes("--from-1password");
   const filtered = args.filter((arg) => arg !== "--from-1password");
   const normalized = filtered.length ? filtered : ["--help"];
   if (kind === "memory") {
@@ -158,7 +164,8 @@ function passthrough(kind: "hub" | "memory", args: string[]): number {
     if (normalized.length === 1 && normalized[0] === "status") normalized.splice(0, 1, ...(server ? ["--server", server] : []), "doctor", "--graphql");
     if (normalized.length === 1 && ["llm", "inference"].includes(normalized[0])) normalized.splice(0, 1, ...(server ? ["--server", server] : []), "memory", "status");
   }
-  const result = runCommand(surface.command[0], [...surface.command.slice(1), ...normalized], { cwd: surface.cwd, env: surface.env, timeoutMs: 120_000 });
+  const command = commandWithCredentials(surface, normalized, from1Password);
+  const result = runCommand(command[0], command.slice(1), { cwd: surface.cwd, env: surface.env, timeoutMs: 120_000 });
   if (result.stdout) process.stdout.write(result.stdout);
   if (result.stderr) process.stderr.write(result.stderr);
   return result.exitCode ?? 1;
