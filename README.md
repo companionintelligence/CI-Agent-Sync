@@ -1,8 +1,8 @@
-# Agent Atlas
+# CI Agent Sync
 
 > A portable map for every agent, model, and mission.
 
-Agent Atlas is the user-facing name for this repository, which remains
+CI Agent Sync is the user-facing name for this repository, which remains
 `agent-configs` for Git and automation compatibility. It is the local,
 versionable home for Companion Intelligence harness recipes, provider routes,
 MCP bundles, workflow packs, redacted audits, and safe operator helpers.
@@ -14,7 +14,7 @@ stay in the shared 1Password vault, while reviewed recipes and redacted audits
 live here. Client-native OAuth state, sessions, model caches, and device
 identity remain local to each app.
 
-![Agent Atlas logo](web/assets/agent-atlas-logo.png)
+![CI Agent Sync logo](web/assets/agent-atlas-logo.png)
 
 ## TL;DR
 
@@ -22,7 +22,7 @@ identity remain local to each app.
 | --- | --- | --- |
 | Prepare a new machine | `./scripts/bootstrap-machine.zsh` | Installs the safe local shell of the store |
 | Connect credentials | `./bin/agentctl credentials op setup` then `./bin/agentctl credentials op import` | Uses 1Password without copying values into Git |
-| Open the GUI | `./bin/agent-atlas --open` or `./bin/agentctl atlas --open` | Starts the loopback-only Agent Atlas console |
+| Open the GUI | `./bin/agent-atlas --open` or `./bin/agentctl atlas --open` | Starts the loopback-only CI Agent Sync console |
 | Check the machine | `./bin/agentctl doctor --json` | Reports commands, configs, endpoints, and credential backend status |
 | Check the fleet | `./bin/agentctl fleet smoke --json --strict` | Verifies Tailscale and Hub liveness for named targets |
 | Audit Marketplace apps | `./bin/agentctl marketplace audit --strict` | Checks release tags, Hub/Memory wiring, and image pins |
@@ -42,7 +42,7 @@ cp profiles/machines/macos-laptop.yaml.example profiles/machines/local.yaml
 
 ## Open the local console
 
-Agent Atlas is a zero-dependency Ruby web console backed by the real YAML store.
+CI Agent Sync is a zero-dependency Ruby web console backed by the real YAML store.
 It binds to `127.0.0.1:8787`, serves a responsive dashboard, and exposes only
 read-only inventory and evidence checks:
 
@@ -75,7 +75,7 @@ recommended and supported default.
 
 ```mermaid
 flowchart LR
-  Atlas[Agent Atlas<br/>portable policy] --> Vault[1Password<br/>credential values]
+  Atlas[CI Agent Sync<br/>portable policy] --> Vault[1Password<br/>credential values]
   Atlas --> Harnesses[Claude · Codex · Hermes<br/>OpenClaw · OpenCode · VS Code]
   Atlas --> Providers[OpenAI · Anthropic · OpenRouter<br/>Ollama · oMLX · Hub]
   Atlas --> MCP[MCP registry<br/>reviewed bundles]
@@ -90,7 +90,7 @@ write crosses an explicit approval boundary.
 
 ## What is portable
 
-| Layer | Stored in Agent Atlas | Deliberately left outside Git |
+| Layer | Stored in CI Agent Sync | Deliberately left outside Git |
 | --- | --- | --- |
 | Policy | Provider names, fallback chains, MCP recipes, capability bundles, workflows | Secret values and one-off machine overrides |
 | Credentials | 1Password item references and environment mappings | API keys, OAuth refresh tokens, cookies, private keys |
@@ -139,7 +139,7 @@ Audits and config snapshots redact credential-bearing fields.
 
 ```mermaid
 flowchart TD
-  Store[Agent Atlas Git store] --> Sync[Plan-first sync manifest]
+  Store[CI Agent Sync Git store] --> Sync[Plan-first sync manifest]
   Sync --> Clients[Claude · Codex · Hermes · OpenClaw<br/>OpenCode · VS Code · Pi · Aider Desk]
   Store --> Contract[Marketplace harness contract]
   Contract --> Catalog[CI-Marketplace manifests]
