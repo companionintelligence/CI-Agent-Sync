@@ -8,6 +8,7 @@ require "timeout"
 require "uri"
 require "yaml"
 require_relative "process_helpers"
+require_relative "harness_probe"
 
 ROOT = File.expand_path("..", __dir__)
 options = { json: false, timeout: 15 }
@@ -157,7 +158,7 @@ harnesses.each do |name, metadata|
   result = { "installed" => false, "configured" => false, "checks" => [] }
   if metadata["command"]
     command = metadata["command"] == "openclaw" ? File.join(ROOT, "bin", "openclaw-runtime") : metadata["command"]
-    probe = command_result([command, "--version"], options[:timeout])
+    probe = command_result(AgentConfigHarnessProbe.command_for(metadata, command), options[:timeout])
     result["checks"] << { "id" => "version", **probe }
     result["installed"] = probe["status"] == "ok" || system("which", metadata["command"], out: File::NULL, err: File::NULL)
   else
