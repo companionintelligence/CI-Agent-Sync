@@ -27,8 +27,16 @@ module AgentConfigHarnessProbe
       # A binary or unreadable wrapper falls back to the normal probe.
     end
 
-    candidates.compact.uniq.each do |candidate|
+    # Hermes' venv launcher is a POSIX shell/Python polyglot whose first line
+    # is `#!/bin/sh`, so its Python interpreter is embedded on the next line.
+    # Prefer sibling Python executables before falling back to shebang parsing.
+    candidates = candidates.compact.uniq.flat_map do |candidate|
+      [candidate, File.join(File.dirname(candidate), "python3"), File.join(File.dirname(candidate), "python")]
+    end.uniq
+
+    candidates.each do |candidate|
       next unless File.file?(candidate)
+      return candidate if File.basename(candidate).match?(/\Apython(?:[0-9]+(?:\.[0-9]+)?)?\z/) && File.executable?(candidate)
 
       first_line = File.foreach(candidate).first
       next unless first_line&.start_with?("#!")

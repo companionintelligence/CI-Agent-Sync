@@ -23,6 +23,7 @@ identity remain local to each app.
 | Connect credentials | `./bin/agentctl credentials op setup` then `./bin/agentctl credentials op import` | Uses 1Password without copying values into Git |
 | Open the GUI | `./bin/agent-atlas --open` or `./bin/agentctl atlas --open` | Starts the loopback-only CI Agent Sync setup wizard |
 | Check the machine | `./bin/agentctl doctor --json` | Reports commands, configs, endpoints, and credential backend status |
+| Check reliability boundaries | `npm test` | Exercises bounded child processes, wizard failure responses, and action-size limits |
 | Check Hub + Memory CLIs | `./bin/agentctl companion status --json` | Runs the native `cihub` and `ci` checks through one stable bridge |
 | Use a terminal menu | `./bin/agentctl companion tui` | Launches a small read-oriented TUI for Hub, Memory, readiness, and backup |
 | Check the fleet | `./bin/agentctl fleet smoke --json --strict` | Verifies Tailscale and Hub liveness for named targets |
@@ -81,6 +82,8 @@ or deploy applications. Read-only Doctor, fleet, and Marketplace evidence
 remains available through the CLI and the wizard's local API.
 
 Full route and safety details are in [docs/agent-atlas.md](docs/agent-atlas.md).
+The bounded process, service discovery, and recovery contract is in
+[docs/reliability.md](docs/reliability.md).
 
 To expose the console beyond the laptop, you must opt in explicitly with
 `--allow-remote`; the console adds no authentication, so loopback is the
