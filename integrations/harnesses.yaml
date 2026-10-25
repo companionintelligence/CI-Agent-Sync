@@ -30,6 +30,17 @@ harnesses:
       windows: "${USERPROFILE}/.claude"
     capabilities: [chat, coding, mcp, skills, plugins]
     smoke: version
+  chatgpt:
+    app_paths: ["/Applications/ChatGPT.app", "${HOME}/Applications/ChatGPT.app"]
+    config_paths:
+      macos: "${HOME}/Library/Application Support/com.openai.chat"
+      linux: "${HOME}/.config/chatgpt"
+      windows: "${APPDATA}/ChatGPT"
+    capabilities: [chat, coding, mcp, cloud-account]
+    smoke: app
+    native_auth: hosted_chatgpt_account
+    portable_state: context_and_reviewed_recipes_only
+    notes: "ChatGPT desktop keeps its hosted account and app state locally; use Codex CLI or another harness when a task must consume the portable local/provider credential chain."
   codex:
     command: codex
     config_paths:

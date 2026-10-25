@@ -22,7 +22,7 @@ servers:
     clients: [vscode, claude, codex, opencode, hermes, openclaw]
     optional_clients: [aider-desk, pi]
     state: opt_in
-    notes: "Companion Hub control-plane MCP. Enable MCP in Hub, mint a scoped key, and use read capability by default; write and full keys are for explicitly approved lifecycle or configuration work."
+    notes: "Companion Hub control-plane MCP. Enable MCP in Hub, mint a scoped mcp key, and use read capability by default. Pair it with the separate qa:read and inference keys for the operator control room; write and full keys are never default."
 
   companion-memory:
     owner: companionintelligence/Companion-Memory

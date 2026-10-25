@@ -27,16 +27,28 @@ def expand_path(value)
     .gsub("${APPDATA}", ENV.fetch("APPDATA", File.join(Dir.home, "Library", "Application Support")))
 end
 
+$agent_config_op_items = nil
+
+def onepassword_item_names
+  return $agent_config_op_items unless $agent_config_op_items.nil?
+
+  binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
+  vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
+  output, _error, status = capture_with_timeout([binary, "item", "list", "--vault", vault, "--format=json"], 12)
+  parsed = JSON.parse(output) rescue []
+  $agent_config_op_items = status&.success? ? Array(parsed).filter_map { |item| item["title"] || item["id"] } : []
+rescue StandardError
+  $agent_config_op_items = []
+end
+
 def op_secret_value(provider)
   return nil if ENV["AGENT_CONFIGS_SECRET_BACKEND"] == "native"
   binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
   return nil unless system("which", binary, out: File::NULL, err: File::NULL)
-  _vaults, _vaults_error, whoami_status = capture_with_timeout([binary, "vault", "list", "--format=json"], 30)
-  return nil if whoami_status.nil?
-  return nil unless whoami_status.success?
   vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
+  return nil unless onepassword_item_names.include?("agent-configs-#{provider}")
   reference = "op://#{vault}/agent-configs-#{provider}/credential"
-  output, _error, status = capture_with_timeout([binary, "read", "--no-newline", reference], 30)
+  output, _error, status = capture_with_timeout([binary, "read", "--no-newline", reference], 12)
   return nil if status.nil?
   output.strip if status.success? && !output.strip.empty?
 rescue Timeout::Error, StandardError

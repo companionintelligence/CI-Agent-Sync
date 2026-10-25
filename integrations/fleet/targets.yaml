@@ -1,0 +1,155 @@
+version: 1
+
+# Tailnet names are the portable identifiers. IPs are intentionally omitted;
+# Tailscale DNS is the source of truth and can change between machines.
+observed_at: "2026-10-24"
+tailnet:
+  dns_suffix: capybara-ulmer.ts.net
+  required: true
+  health_path: /api/health/live
+  hub_port: 5002
+
+policy:
+  default_selection: verified_hub_targets
+  probe_is_read_only: true
+  anonymous_health_does_not_prove_api_key_or_mcp_access: true
+  per_target_credentials: true
+  preserve_operator_exclusions: true
+
+targets:
+  local:
+    kind: laptop
+    tailscale_name: local
+    base_url: http://127.0.0.1:5002
+    enabled: true
+    verified: true
+    role: local_hub
+
+  beta-1:
+    kind: beta
+    tailscale_name: beta-1
+    base_url: http://beta-1:5002
+    enabled: true
+    verified: true
+    role: hub_and_inference
+    credential_namespace: beta-1
+
+  beta-max:
+    kind: beta
+    tailscale_name: beta-max
+    base_url: http://beta-max:5002
+    enabled: true
+    verified: true
+    role: hub_and_inference
+    credential_namespace: beta-max
+
+  core-3:
+    kind: core
+    tailscale_name: core-3
+    base_url: http://core-3:5002
+    enabled: true
+    verified: true
+    role: hub_and_inference
+    credential_namespace: core-3
+
+  core-4:
+    kind: core
+    tailscale_name: core-4
+    base_url: http://core-4:5002
+    enabled: true
+    verified: true
+    role: hub_and_inference
+    credential_namespace: core-4
+
+  core-1:
+    kind: core
+    tailscale_name: demo-1
+    base_url: http://demo-1:5002
+    enabled: false
+    verified: false
+    role: candidate
+    reason: "Tailscale identity is demo-1; the core-1 alias did not resolve during the audit."
+
+  beta-3-glass:
+    kind: beta
+    tailscale_name: beta-glass
+    base_url: http://beta-glass:5002
+    enabled: false
+    verified: false
+    role: candidate
+
+  beta-ms-a2:
+    kind: beta
+    tailscale_name: beta-ms-a2
+    base_url: http://beta-ms-a2:5002
+    enabled: false
+    verified: false
+    role: candidate
+
+  beta-nas:
+    kind: beta
+    tailscale_name: beta-nas
+    base_url: http://beta-nas:5002
+    enabled: false
+    verified: false
+    role: candidate
+
+  beta-red:
+    kind: beta
+    tailscale_name: beta-red
+    base_url: http://beta-red:5002
+    enabled: false
+    verified: false
+    role: candidate
+
+  core-6:
+    kind: core
+    tailscale_name: core-6
+    base_url: http://core-6:5002
+    enabled: false
+    verified: false
+    role: candidate
+
+  core-17:
+    kind: core
+    tailscale_name: core-17
+    base_url: http://core-17:5002
+    enabled: false
+    verified: false
+    role: candidate
+
+  core-5:
+    kind: core
+    tailscale_name: core-5
+    base_url: http://core-5:5002
+    enabled: false
+    verified: false
+    role: blocked
+    reason: SSH host key changed; strict verification blocked administration.
+
+  core-7:
+    kind: core
+    tailscale_name: core-7
+    base_url: http://core-7:5002
+    enabled: false
+    verified: false
+    role: excluded
+    reason: Explicit operator exclusion from the current repair pass.
+
+  fzzy:
+    kind: core
+    tailscale_name: fzzy
+    base_url: http://fzzy:5002
+    enabled: false
+    verified: false
+    role: excluded
+    reason: Explicit operator exclusion from the current repair pass.
+
+  ci-core:
+    kind: core
+    tailscale_name: ci-core
+    base_url: http://ci-core:5002
+    enabled: false
+    verified: false
+    role: expired
+    reason: Tailscale node key expired during the audit.

@@ -15,6 +15,7 @@ integrations:
   harness_inventory: integrations/harnesses.yaml
   skills_registry: integrations/skills.yaml
   plugins_registry: integrations/plugins.yaml
+  hub_operator: integrations/hub-operator.yaml
   repository_manifest: repos/companionintelligence.yaml
   workspace_manifest: repos/workspace.yaml
 
@@ -29,6 +30,10 @@ operations:
   install: ./bin/agentctl install
   repository_sync_plan: ./bin/agent-store repos sync
   repository_sync_apply: ./bin/agent-store repos sync --apply
+  hub_control_room: ./bin/agentctl hub smoke --json --strict --from-1password
+  memory_control_room: ./bin/agentctl memory smoke --json --strict --from-1password
+  fleet_smoke: ./bin/agentctl fleet smoke --json --strict
+  deployment_doctor: ./bin/agentctl deploy doctor --json
 
 agents:
   hermes:
@@ -45,6 +50,11 @@ agents:
     command: claude
     config: ~/.claude
     audit: claude --help
+  chatgpt:
+    command: desktop app
+    app: /Applications/ChatGPT.app
+    config: ~/Library/Application Support/com.openai.chat
+    audit: desktop-only; hosted account state stays native
   codex:
     command: codex
     config: ~/.codex
