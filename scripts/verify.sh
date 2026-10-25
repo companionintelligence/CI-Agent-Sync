@@ -6,6 +6,7 @@ STORE_ROOT="${0:A:h:h}"
 cd "$STORE_ROOT"
 
 zsh -n bin/agent-store
+zsh -n bin/openclaw-runtime
 zsh -n scripts/bootstrap-machine.zsh
 zsh -n scripts/sync-repos.zsh
 ruby -c scripts/redact-config.rb >/dev/null
@@ -20,6 +21,8 @@ ruby -c scripts/harness-smoke.rb >/dev/null
 ruby -c scripts/backup.rb >/dev/null
 ruby -c scripts/repair-openclaw.rb >/dev/null
 ruby -c scripts/onepassword.rb >/dev/null
+ruby -c scripts/process_helpers.rb >/dev/null
+ruby -c scripts/conformance.rb >/dev/null
 git diff --check
 
 while IFS= read -r file; do

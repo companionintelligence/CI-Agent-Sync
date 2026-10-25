@@ -1,0 +1,53 @@
+version: 1
+
+# OpenClaw's static scanner intentionally errs on the side of caution. Keep
+# every flagged skill reviewable and preserve the operational rule that skill
+# text is guidance, not permission to disclose secrets or execute installers.
+policy:
+  require_human_review_for_critical_findings: true
+  never_execute_install_commands_from_skill_text: true
+  never_forward_environment_values_without_explicit_task_scope: true
+  quarantine_unreviewed_skills: true
+
+reviewed_documentation_findings:
+  - id: agents-sdk-env-example
+    skill: agents-sdk
+    path: ~/.openclaw/skills/agents-sdk/SKILL.md
+    finding: secret-exfiltration
+    disposition: documentation-example
+    rationale: The flagged text documents Cloudflare bindings and does not execute a network transfer.
+
+  - id: sandbox-migrate-env-example
+    skill: sandbox-migrate-to-next
+    path: ~/.openclaw/skills/sandbox-migrate-to-next/SKILL.md
+    finding: secret-exfiltration
+    disposition: documentation-example
+    rationale: The flagged text is a documentation table linking to environment-variable guidance.
+
+  - id: sandbox-next-env-example
+    skill: sandbox-next
+    path: ~/.openclaw/skills/sandbox-next/SKILL.md
+    finding: secret-exfiltration
+    disposition: documentation-example
+    rationale: The flagged text is a documentation table linking to environment-variable guidance.
+
+  - id: sandbox-stable-env-example
+    skill: sandbox-stable
+    path: ~/.openclaw/skills/sandbox-stable/SKILL.md
+    finding: secret-exfiltration
+    disposition: documentation-example
+    rationale: The flagged text is a documentation table linking to environment-variable guidance.
+
+  - id: sentry-cli-installer-example
+    skill: sentry-cli
+    path: ~/.agents/skills/sentry-cli/SKILL.md
+    finding: shell-pipe-to-shell
+    disposition: documentation-example
+    rationale: The flagged text documents an upstream installer; agents must not run it without explicit approval.
+
+  - id: turnstile-secret-verification-example
+    skill: turnstile-spin
+    path: ~/.openclaw/skills/turnstile-spin/SKILL.md
+    finding: env-harvesting
+    disposition: documentation-example
+    rationale: The flagged text is a server-side Turnstile verification example using a named secret input.

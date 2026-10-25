@@ -1,4 +1,6 @@
-# Safe starter overlay. Keep live credentials in ~/.hermes/.env or Keychain.
+# Safe starter overlay. Resolve provider credentials through the shared
+# 1Password mapping in onepassword-secrets.example.yaml; native stores are
+# migration fallbacks only.
 model:
   provider: custom
   base_url: http://127.0.0.1:8000/v1

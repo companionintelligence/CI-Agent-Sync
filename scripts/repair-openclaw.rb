@@ -15,9 +15,12 @@ removed = []
 
 [
   [data.dig("agents"), "defaults", "mediaModels"],
+  [data.dig("agents", "defaults"), "modelPolicy"],
+  [data.dig("agents"), "entries"],
   [data.dig("auth", "profiles"), "github-copilot:github"],
   [data.dig("plugins", "entries"), "github-copilot"],
   [data.dig("plugins", "entries"), "google"],
+  [data.dig("meta"), "migrations"],
 ].each do |parent, *keys|
   next unless parent.is_a?(Hash)
   cursor = parent

@@ -1,0 +1,68 @@
+version: 1
+
+# Capability metadata prevents a fallback from silently losing the context,
+# tool, or privacy properties required by a task.
+policy:
+  local_preferred: true
+  require_health_before_selection: true
+  require_capability_match: true
+  remote_requires_explicit_enablement: true
+  mutation_tasks_never_auto_fallback: true
+
+providers:
+  omlx:
+    class: local
+    privacy: local
+    endpoint_env: OMLX_BASE_URL
+    default_endpoint: http://127.0.0.1:8000/v1
+    models:
+      Qwen3.8-27B-oQ4e-fp16-mtp:
+        context_window: 65536
+        max_output_tokens: 8192
+        capabilities: [chat, coding, reasoning, json]
+        tool_calling: harness-mediated
+
+  ollama:
+    class: local
+    privacy: local
+    endpoint_env: OLLAMA_HOST
+    default_endpoint: http://127.0.0.1:11434
+    models:
+      qwen3.8:27b-mlx:
+        context_window: 32768
+        capabilities: [chat, coding]
+        tool_calling: harness-mediated
+
+  omniroute:
+    class: loopback_gateway
+    privacy: gateway-defined
+    endpoint_env: OMNIROUTE_BASE_URL
+    default_endpoint: http://127.0.0.1:20128
+    models:
+      native_default:
+        capabilities: [chat, coding, reasoning, tools]
+        tool_calling: native
+
+  anthropic:
+    class: remote
+    privacy: remote
+    models:
+      native_default:
+        capabilities: [chat, coding, reasoning, tools]
+        tool_calling: native
+
+  openai:
+    class: remote
+    privacy: remote
+    models:
+      native_default:
+        capabilities: [chat, coding, reasoning, tools]
+        tool_calling: native
+
+  openrouter:
+    class: remote
+    privacy: remote
+    models:
+      explicit_selection_required:
+        capabilities: [chat, coding, reasoning, tools]
+        tool_calling: provider-defined

@@ -19,11 +19,11 @@ servers:
   companion-hub:
     transport: http
     url: ${COMPANION_HUB_BASE_URL}/api/mcp
-    auth: "native secret store: agent-configs/companion-hub"
+    auth: "1Password item: agent-configs-companion-hub"
     scopes: [mcp]
   companion-memory:
     transport: http
     url: ${COMPANION_MEMORY_BASE_URL}/api/mcp
-    auth: "native secret store: agent-configs/companion-memory"
+    auth: "1Password item: agent-configs-companion-memory"
     scopes: [mcp, intents]
 policy: Native auth remains local; this is a reviewed inventory, not a client-state copy.

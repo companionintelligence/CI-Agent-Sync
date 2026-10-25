@@ -7,6 +7,7 @@ require "optparse"
 require "timeout"
 require "uri"
 require "yaml"
+require_relative "process_helpers"
 
 ROOT = File.expand_path("..", __dir__)
 options = { json: false, live_local: false, agent: nil, timeout: 12 }
@@ -30,13 +31,15 @@ def op_secret_value(provider)
   return nil if ENV["AGENT_CONFIGS_SECRET_BACKEND"] == "native"
   binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
   return nil unless system("which", binary, out: File::NULL, err: File::NULL)
-  _whoami, _whoami_error, whoami_status = Open3.capture3(binary, "whoami", "--format=json")
+  _whoami, _whoami_error, whoami_status = capture_with_timeout([binary, "whoami", "--format=json"], 3)
+  return nil if whoami_status.nil?
   return nil unless whoami_status.success?
   vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
   reference = "op://#{vault}/agent-configs-#{provider}/credential"
-  output, _error, status = Open3.capture3(binary, "read", "--no-newline", reference)
+  output, _error, status = capture_with_timeout([binary, "read", "--no-newline", reference], 3)
+  return nil if status.nil?
   output.strip if status.success? && !output.strip.empty?
-rescue StandardError
+rescue Timeout::Error, StandardError
   nil
 end
 
@@ -58,21 +61,22 @@ rescue StandardError
 end
 
 def command_probe(command, timeout_seconds)
-  output = nil
-  status = nil
-  Timeout.timeout(timeout_seconds) { output, _error, status = Open3.capture3(*command) }
+  output, _error, status = capture_with_timeout(command, timeout_seconds)
+  return { "status" => "warn", "detail" => "timed out" } if status.nil?
   detail = output.to_s.lines.map(&:strip).find { |line| !line.empty? }.to_s
   if output.to_s.lstrip.start_with?("{")
     parsed = JSON.parse(output) rescue nil
     detail = parsed["ok"] == true ? "healthy" : detail if parsed.is_a?(Hash)
   end
   { "status" => status.success? ? "ok" : "warn", "detail" => detail }
-rescue Timeout::Error
-  { "status" => "warn", "detail" => "timed out" }
 rescue Errno::ENOENT
   { "status" => "not-installed", "detail" => "command not found" }
 rescue StandardError => error
   { "status" => "warn", "detail" => error.class.to_s }
+end
+
+def capture_with_timeout(command, timeout_seconds)
+  AgentConfigProcess.capture_with_timeout(command, timeout_seconds)
 end
 
 def http_probe(base, path, headers = {})
@@ -94,7 +98,8 @@ selected = options[:agent] ? { options[:agent] => harnesses.fetch(options[:agent
 checks = []
 selected.each do |name, metadata|
   if metadata["command"]
-    probe = command_probe([metadata["command"], "--version"], options[:timeout])
+    command = metadata["command"] == "openclaw" ? File.join(ROOT, "bin", "openclaw-runtime") : metadata["command"]
+    probe = command_probe([command, "--version"], options[:timeout])
     checks << { "id" => "harness.#{name}.command", "status" => probe["status"], "detail" => probe["detail"] }
   elsif Array(metadata["app_paths"]).any? { |path| File.exist?(expand_path(path)) }
     checks << { "id" => "harness.#{name}.app", "status" => "ok", "detail" => "desktop app present" }
