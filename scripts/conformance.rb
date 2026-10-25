@@ -51,7 +51,7 @@ def onepassword_item_names
 
   binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
   vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
-  output, _error, status = capture_with_timeout([binary, "item", "list", "--vault", vault, "--format=json"], 12)
+  output, _error, status = capture_with_timeout([binary, "item", "list", "--vault", vault, "--format=json"], AgentConfigProcess.onepassword_timeout)
   parsed = JSON.parse(output) rescue []
   $agent_config_op_items = status&.success? ? Array(parsed).filter_map { |item| item["title"] || item["id"] } : []
 rescue StandardError
@@ -113,7 +113,7 @@ def secret_available?(provider)
   return false unless system("which", binary, out: File::NULL, err: File::NULL)
   vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
   return false unless onepassword_item_names.include?("agent-configs-#{provider}")
-  _value, _error, read_status = capture_with_timeout([binary, "read", "--no-newline", "op://#{vault}/agent-configs-#{provider}/credential"], 12)
+  _value, _error, read_status = capture_with_timeout([binary, "read", "--no-newline", "op://#{vault}/agent-configs-#{provider}/credential"], AgentConfigProcess.onepassword_timeout(:read))
   return false if read_status.nil?
   read_status.success?
 rescue Timeout::Error, StandardError
@@ -156,8 +156,15 @@ results = {}
 harnesses.each do |name, metadata|
   result = { "installed" => false, "configured" => false, "checks" => [] }
   if metadata["command"]
-    command = metadata["command"] == "openclaw" ? File.join(ROOT, "bin", "openclaw-runtime") : metadata["command"]
-    probe = command_result([command, "--version"], options[:timeout])
+    command = if metadata["command"] == "openclaw"
+                File.join(ROOT, "bin", "openclaw-runtime")
+              elsif metadata["command"] == "hermes"
+                AgentConfigProcess.hermes_version_command
+              else
+                metadata["command"]
+              end
+    version_command = command.is_a?(Array) ? command + ["--version"] : [command, "--version"]
+    probe = command_result(version_command, options[:timeout])
     result["checks"] << { "id" => "version", **probe }
     result["installed"] = probe["status"] == "ok" || system("which", metadata["command"], out: File::NULL, err: File::NULL)
   else
@@ -171,8 +178,9 @@ harnesses.each do |name, metadata|
 
   case name
   when "openclaw"
-    wrapper = File.join(Dir.home, ".local", "bin", "openclaw-gateway-with-omlx")
-    gateway = File.executable?(wrapper) ? wrapper : File.join(ROOT, "bin", "openclaw-runtime")
+    # Gateway health is a control-plane probe; it does not need an inference
+    # credential. Keep 1Password injection for actual model requests only.
+    gateway = File.join(ROOT, "bin", "openclaw-runtime")
     result["checks"] << { "id" => "gateway", **command_result([gateway, "gateway", "health", "--json"], options[:timeout]) }
   when "claude"
     skills = File.join(Dir.home, ".claude", "skills")

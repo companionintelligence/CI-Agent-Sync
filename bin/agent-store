@@ -121,9 +121,10 @@ op_session_available() {
   op_cli_available || return 1
   ruby -rtimeout -ropen3 -e '
     pid = nil
+    timeout_seconds = Integer(ENV.fetch("AGENT_CONFIGS_OP_SESSION_TIMEOUT_SECONDS", "5"), 10)
     begin
       pid = Process.spawn(*ARGV, in: File::NULL, out: File::NULL, err: File::NULL, pgroup: true)
-      _pid, status = Timeout.timeout(30) { Process.waitpid2(pid) }
+      _pid, status = Timeout.timeout(timeout_seconds) { Process.waitpid2(pid) }
       exit status.success? ? 0 : 1
     rescue StandardError
       Process.kill("TERM", -pid) rescue Process.kill("TERM", pid) rescue nil if pid
@@ -146,13 +147,14 @@ op_secret_lookup() {
   ruby -rtimeout -ropen3 -e '
     pid = nil
     output_reader = output_writer = error_reader = error_writer = nil
+    timeout_seconds = Integer(ENV.fetch("AGENT_CONFIGS_OP_READ_TIMEOUT_SECONDS", "15"), 10)
     begin
       output_reader, output_writer = IO.pipe
       error_reader, error_writer = IO.pipe
       pid = Process.spawn(*ARGV, in: File::NULL, out: output_writer, err: error_writer, pgroup: true)
       output_writer.close
       error_writer.close
-      _pid, status = Timeout.timeout(30) { Process.waitpid2(pid) }
+      _pid, status = Timeout.timeout(timeout_seconds) { Process.waitpid2(pid) }
       print output_reader.read if status.success?
       exit status.success? ? 0 : 1
     rescue StandardError
