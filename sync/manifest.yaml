@@ -33,6 +33,20 @@ items:
     groups: [shared]
     description: Explicit local-first fallback chains and mutation safety rules
 
+  - id: shared/model-catalog
+    version: 1
+    source: integrations/models.yaml
+    destination: .agent-configs/models.yaml
+    groups: [shared]
+    description: Provider and model capability metadata used by conformance checks
+
+  - id: shared/skills-security
+    version: 1
+    source: integrations/skills-security.yaml
+    destination: .agent-configs/skills-security.yaml
+    groups: [shared]
+    description: Reviewed skill scanner findings and portable execution guardrails
+
   - id: shared/mcp-registry
     version: 1
     source: integrations/mcp/registry.yaml

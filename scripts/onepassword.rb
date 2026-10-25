@@ -6,6 +6,8 @@
 require "json"
 require "open3"
 require "optparse"
+require "timeout"
+require_relative "process_helpers"
 
 ROOT = File.expand_path("..", __dir__)
 PROVIDERS = %w[anthropic openai openrouter ollama omlx companion-hub companion-memory omniroute android-mcp].freeze
@@ -20,6 +22,7 @@ OptionParser.new do |parser|
   parser.on("--help") { puts parser; exit 0 }
 end.parse!(ARGV)
 command = ARGV.shift
+FAILED_STATUS = Struct.new(:ok) { def success? = ok }.new(false)
 
 def op_command(options, *args)
   command = [ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")]
@@ -28,10 +31,13 @@ def op_command(options, *args)
   command
 end
 
+def capture_with_timeout(command, timeout_seconds)
+  AgentConfigProcess.capture_with_timeout(command, timeout_seconds)
+end
+
 def run_op(options, *args)
-  Open3.capture3(*op_command(options, *args))
-rescue Errno::ENOENT
-  ["", "op CLI not found", false]
+  output, error, status = capture_with_timeout(op_command(options, *args), 3)
+  [output, error, status || FAILED_STATUS]
 end
 
 def op_installed?
@@ -130,7 +136,7 @@ when "status"
   end
   puts "1Password vault: #{options[:vault]}"
   PROVIDERS.each do |provider|
-    _value, _error, status = Open3.capture3(*op_command(options, "read", "--no-newline", reference(options, provider)))
+    _value, _error, status = run_op(options, "read", "--no-newline", reference(options, provider))
     puts "  #{status.success? ? "✓" : "·"} #{provider} — #{status.success? ? "credential available" : "item or field missing"}"
   end
 when "refs"

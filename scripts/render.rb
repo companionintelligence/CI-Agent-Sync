@@ -94,10 +94,24 @@ workspace = read_yaml(File.join(root, "repos", "workspace.yaml"))
 capability_bundles = read_yaml(File.join(root, "integrations", "capability-bundles.yaml"))
 all_workspace_names = workspace.fetch("layers").values.flatten.uniq
 repo_by_name = repos.each_with_object({}) { |repo, memo| memo[repo.fetch("name")] = repo }
+repos.each do |repo|
+  Array(repo["aliases"]).each { |alias_name| repo_by_name[alias_name] = repo }
+end
+machine_path_values = machine_config.fetch("paths", {}).transform_values { |path| expand_path(path, ci_root) }
+repo_path_overrides = {
+  "Companion-Hub" => "companion_hub",
+  "Companion-Memory" => "companion_memory",
+  "CI-Hub" => "companion_hub",
+  "CI-Server" => "companion_memory",
+  "CI-Engineering" => "ci_engineering",
+}
 
 workspace_repositories = all_workspace_names.map do |name|
   repo = repo_by_name[name]
-  path = if repo
+  override = repo_path_overrides[name]
+  path = if override && machine_path_values[override]
+           machine_path_values.fetch(override)
+         elsif repo
            expand_path(repo.fetch("local_path"), ci_root)
          elsif (workspace.fetch("local_paths", {})[name])
            expand_path(workspace.fetch("local_paths").fetch(name), ci_root)
@@ -172,7 +186,7 @@ if requested == "all" || requested == "aider-desk"
   aider_desk_root = File.join(output_root, "aider-desk")
   template_path = File.join(root, "integrations", "aider-desk", "mcp-servers.json.example")
   template = JSON.parse(File.read(template_path))
-  machine_paths = machine_config.fetch("paths", {}).transform_values { |path| expand_path(path, ci_root) }
+  machine_paths = machine_path_values.dup
   machine_paths["ci_root"] = ci_root
   rendered = replace_machine_paths(template, ci_root, machine_paths)
   write_file(File.join(aider_desk_root, "mcp-servers.json"), JSON.pretty_generate(rendered) + "\n")

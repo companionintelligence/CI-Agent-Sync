@@ -2,8 +2,7 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "openai/Qwen3.8-27B-oQ4e-fp16-mtp",
-        "fallbacks": ["github-copilot/claude-opus-4.6"]
+        "primary": "openai/Qwen3.8-27B-oQ4e-fp16-mtp"
       },
       "models": {
         "openai/Qwen3.8-27B-oQ4e-fp16-mtp": {}
@@ -25,7 +24,11 @@
       "openai": {
         "baseUrl": "http://127.0.0.1:8000/v1",
         "api": "openai-completions",
-        "apiKey": "OPENAI_API_KEY",
+        "apiKey": {
+          "source": "env",
+          "provider": "default",
+          "id": "OPENAI_API_KEY"
+        },
         "authHeader": true,
         "models": [
           {
@@ -44,7 +47,10 @@
   "tools": {
     "deny": ["group:web", "browser"]
   },
+  "memory": {
+    "search": { "provider": "local" }
+  },
   "plugins": {
-    "allow": ["imessage", "memory-core"]
+    "allow": ["memory-core", "llama-cpp"]
   }
 }

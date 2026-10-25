@@ -4,7 +4,9 @@ notify = ["/Users/liam/.codex/computer-use/Codex Computer Use.app/Contents/Share
 sandbox_mode = "danger-full-access"
 service_tier = "default"
 personality = "pragmatic"
-model_verbosity = "low"
+model_verbosity = "high"
+model_reasoning_summary = "detailed"
+approval_policy = "never"
 
 [mcp_servers.gog]
 command = "gog"

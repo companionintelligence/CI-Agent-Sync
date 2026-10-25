@@ -11,10 +11,12 @@ servers. It stores policy and reproducible recipes, not native app state.
    secret-store presence, endpoint reachability, and workspace drift.
 3. `agentctl test --live-local` runs manifest validation, harness smoke checks,
    a gateway check when available, and a harmless local coding request.
-4. `agentctl backup` creates a timestamped redacted recovery bundle.
-5. `agentctl render` generates portable VS Code, workspace, and Aider Desk
+4. `agentctl conformance --json` produces the current harness/provider
+   convergence matrix without printing credentials.
+5. `agentctl backup` creates a timestamped redacted recovery bundle.
+6. `agentctl render` generates portable VS Code, workspace, and Aider Desk
    artifacts under ignored `local/rendered/`.
-6. `agentctl sync` distributes only the reviewed manifest into clean target
+7. `agentctl sync` distributes only the reviewed manifest into clean target
    repositories. Applying a sync creates a local rollback backup first.
 
 ## Three separate stores

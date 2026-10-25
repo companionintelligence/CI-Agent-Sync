@@ -14,12 +14,7 @@
       "subagents": {
         "maxConcurrent": 8
       },
-      "workspace": "/Users/liam/.openclaw/workspace",
-      "modelPolicy": {
-        "allow": [
-          "openai/Qwen3.8-27B-oQ4e-fp16-mtp"
-        ]
-      }
+      "workspace": "/Users/liam/.openclaw/workspace"
     },
     "entries": {
       "main": {}
@@ -83,6 +78,59 @@
             "reasoning": true
           }
         ]
+      },
+      "llama-cpp": {
+        "baseUrl": "http://127.0.0.1:65039/v1",
+        "apiKey": "<redacted>",
+        "api": "openai-completions",
+        "timeoutSeconds": 600,
+        "localService": {
+          "command": "/Users/liam/.openclaw/tools/llama.cpp/b10809/darwin-arm64/llama-server",
+          "args": [
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "65039",
+            "--models-preset",
+            "/Users/liam/.openclaw/tools/llama.cpp/models-e103a762-2be9-4f41-a078-6ca98c517c60.ini",
+            "--models-max",
+            "2",
+            "--metrics",
+            "--no-ui"
+          ],
+          "healthUrl": "http://127.0.0.1:65039/health",
+          "readyTimeoutMs": 30000,
+          "idleStopMs": 600000
+        },
+        "models": [
+          {
+            "id": "qwen3.8-27b-ud-q4_k_m",
+            "name": "Qwen3.8 27B (UD-Q4_K_M)",
+            "api": "openai-completions",
+            "reasoning": true,
+            "input": [
+              "text"
+            ],
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            },
+            "contextWindow": 65536,
+            "contextTokens": 65536,
+            "maxTokens": 16384,
+            "params": {
+              "modelPath": "hf:unsloth/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_M.gguf#4ca720788d1e01f1bff70c033e0d0028fd02e502",
+              "contextSize": 65536
+            },
+            "compat": {
+              "supportsTools": true,
+              "supportsUsageInStreaming": true,
+              "toolSchemaProfile": "llamacpp"
+            }
+          }
+        ]
       }
     }
   },
@@ -90,13 +138,17 @@
     "allow": [
       "imessage",
       "memory-core",
-      "openai"
+      "openai",
+      "llama-cpp"
     ],
     "entries": {
       "imessage": {
         "enabled": true
       },
       "openai": {
+        "enabled": true
+      },
+      "llama-cpp": {
         "enabled": true
       }
     }
@@ -166,9 +218,14 @@
     ]
   },
   "wizard": {
-    "lastRunAt": "2026-10-24T23:42:41.442Z",
+    "lastRunAt": "2026-10-25T00:06:09.832Z",
     "lastRunCommand": "doctor",
     "lastRunMode": "local",
     "lastRunVersion": "2026.10.6"
+  },
+  "memory": {
+    "search": {
+      "provider": "local"
+    }
   }
 }
