@@ -29,6 +29,11 @@ action_ledger:
   approval_expires: true
   mutation_is_not_performed: true
   required_fields: [action, target, reason, requested_at, status]
+  approved_fields: [id, action, target, reason, status, requested_at, approved_at, expires_at]
+  target_formats:
+    fleet_qa: fleet-qa:<suite>/<mode>:<all|nodes=node-a,node-b>
+  receipt_forwarding: bounded_audit_fields_only
+  credential_values_never_returned: true
   terminal_states: [completed, cancelled, expired]
 
 profiles:
