@@ -3,4 +3,4 @@
 set -euo pipefail
 
 STORE_ROOT="${0:A:h:h}"
-exec ruby "$STORE_ROOT/scripts/atlas-web.rb" "$@"
+exec node --experimental-strip-types --no-warnings "$STORE_ROOT/src/cli.ts" atlas "$@"

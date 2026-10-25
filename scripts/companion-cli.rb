@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # A small bridge around the native Companion Hub (`cihub`) and Companion
-# Memory (`ci`) CLIs. Agent Atlas owns portable policy and safe orchestration;
+# Memory (`ci`) CLIs. CI Agent Sync owns portable policy and safe orchestration;
 # the native products remain the source of truth for their own commands.
 #
 # The bridge is intentionally dependency-free. It discovers installed CLIs,
@@ -274,7 +274,7 @@ module CompanionCli
 
     def puts_usage(io = @out)
       io.puts <<~USAGE
-        agentctl companion — bridge Agent Atlas with Companion Hub and Memory
+        agentctl companion — bridge CI Agent Sync with Companion Hub and Memory
 
         Usage:
           agentctl companion status [options]
@@ -430,7 +430,7 @@ module CompanionCli
         command.on("--once", "run combined status and exit") { options[:once] = true }
         command.on("--env ENV", "Companion Hub environment") { |value| options[:env] = value }
         command.on("--timeout SECONDS", Integer, "per-CLI timeout") { |value| options[:timeout] = value }
-        command.on("--from-1password", "pass 1Password mode to the Agent Atlas readiness probe") { options[:from_1password] = true }
+        command.on("--from-1password", "pass 1Password mode to the CI Agent Sync readiness probe") { options[:from_1password] = true }
         command.on("--help") { puts command; exit 0 }
       end
       parser.parse!(argv)
@@ -452,8 +452,8 @@ module CompanionCli
         @out.puts "[3] Companion Hub pool status"
         @out.puts "[4] Companion Memory connection"
         @out.puts "[5] Companion Memory inference"
-        @out.puts "[6] Agent Atlas readiness"
-        @out.puts "[7] Create redacted Agent Atlas backup"
+        @out.puts "[6] CI Agent Sync readiness"
+        @out.puts "[7] Create redacted CI Agent Sync backup"
         @out.puts "[q] Quit"
         @out.print "Select: "
         @out.flush

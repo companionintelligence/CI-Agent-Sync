@@ -3,20 +3,25 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f4f1eb" />
-    <meta name="description" content="Agent Atlas setup wizard for agents, providers, configurations, and redacted backups." />
-    <title>Agent Atlas · Setup</title>
-    <link rel="icon" type="image/png" href="/assets/agent-atlas-logo.png" />
+    <meta name="theme-color" content="#f3faf7" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="CI Agent Sync setup wizard for agents, providers, portable configuration, and redacted backups." />
+    <title>CI Agent Sync · Setup</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/ci-common/logo-mark.svg" />
+    <link rel="stylesheet" href="/assets/ci-common/tokens.css" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <div class="wizard-app">
       <header class="app-header">
-        <a class="brand" href="/" aria-label="Agent Atlas setup home">
-          <img src="/assets/agent-atlas-logo.png" alt="" />
-          <span>Agent Atlas</span>
+        <a class="brand" href="/" aria-label="CI Agent Sync setup home">
+          <img src="/assets/ci-common/logo-mark.svg" alt="" />
+          <span>CI Agent Sync</span>
         </a>
-        <span class="local-chip"><span class="status-dot"></span> LOCAL</span>
+        <div class="header-actions">
+          <span class="local-chip"><span class="status-dot"></span> LOCAL</span>
+          <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Use system theme" title="Use system theme"><span aria-hidden="true">◐</span><span class="theme-label">System</span></button>
+        </div>
       </header>
 
       <div class="progress-area" aria-label="Setup progress">
@@ -42,7 +47,7 @@
         <section class="wizard-step" data-step="2" aria-labelledby="step-2-title" hidden>
           <p class="kicker">STEP 1 / VAULT</p>
           <h1 id="step-2-title">Connect your vault.</h1>
-          <p class="lead">Use 1Password for credential values. Agent Atlas only stores references and setup policy.</p>
+          <p class="lead">Use 1Password for credential values. CI Agent Sync only stores references and setup policy.</p>
           <div class="command-card">
             <div class="command-heading"><span>Run in Terminal</span><button class="copy-button" type="button" data-copy="./bin/agentctl credentials op setup\n./bin/agentctl credentials op import">Copy</button></div>
             <pre><code>./bin/agentctl credentials op setup
