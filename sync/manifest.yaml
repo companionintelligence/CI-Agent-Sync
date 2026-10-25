@@ -61,6 +61,27 @@ items:
     groups: [shared]
     description: Portable reviewed MCP bundles and client defaults
 
+  - id: shared/hub-operator-policy
+    version: 1
+    source: integrations/hub-operator.yaml
+    destination: .agent-configs/hub-operator.yaml
+    groups: [shared]
+    description: Read-first Companion Hub control-room and CEO admin safety contract
+
+  - id: shared/deployment-targets
+    version: 1
+    source: integrations/deployment-targets.yaml
+    destination: .agent-configs/deployment-targets.yaml
+    groups: [shared]
+    description: Portable Cloudflare and Companion Hub deployment preflight and approval contract
+
+  - id: shared/fleet-targets
+    version: 1
+    source: integrations/fleet/targets.yaml
+    destination: .agent-configs/fleet/targets.yaml
+    groups: [shared]
+    description: Tailscale-named Hub fleet targets and explicit operator exclusions
+
   - id: shared/harness-inventory
     version: 1
     source: integrations/harnesses.yaml
@@ -102,6 +123,20 @@ items:
     destination: .agent-configs/workflows/marketing-video.md
     groups: [shared]
     description: Portable Brand Studio, CI-Common, CI-Engineering, and Metricool workflow
+
+  - id: shared/ceo-operations-workflow
+    version: 1
+    source: workflows/ceo-operations.md
+    destination: .agent-configs/workflows/ceo-operations.md
+    groups: [shared]
+    description: Portable CEO, launch-readiness, incident, and Hub operator workflow
+
+  - id: shared/deployment-workflow
+    version: 1
+    source: workflows/deployment.md
+    destination: .agent-configs/workflows/deployment.md
+    groups: [shared]
+    description: Portable Cloudflare, Hub catalog, and fleet deployment workflow
 
   - id: shared/harness-routing
     version: 1

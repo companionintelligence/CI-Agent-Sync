@@ -1,7 +1,7 @@
 # Portable agent control plane
 
-`agent-configs` is the declarative layer shared by Hermes, OpenClaw, Claude,
-Codex, OpenCode, Aider Desk, Pi, Antigravity, VS Code, Ollama, and local model
+`agent-configs` is the declarative layer shared by ChatGPT, Hermes, OpenClaw,
+Claude, Codex, OpenCode, Aider Desk, Pi, Antigravity, VS Code, Ollama, and local model
 servers. It stores policy and reproducible recipes, not native app state.
 
 ## Lifecycle
@@ -13,10 +13,16 @@ servers. It stores policy and reproducible recipes, not native app state.
    a gateway check when available, and a harmless local coding request.
 4. `agentctl conformance --json` produces the current harness/provider
    convergence matrix without printing credentials.
-5. `agentctl backup` creates a timestamped redacted recovery bundle.
-6. `agentctl render` generates portable VS Code, workspace, and Aider Desk
+5. `agentctl hub smoke --json --strict --from-1password` runs the read-only
+   Companion Hub control room: health, registration, qa-read surfaces,
+   inference inventory, MCP tool discovery, and local CLI status.
+6. `agentctl backup` creates a timestamped redacted recovery bundle.
+7. `agentctl memory smoke`, `agentctl fleet smoke`, and `agentctl deploy doctor`
+   verify the local Memory origin, Tailscale Hub targets, and Cloudflare/Hub
+   deployment identity without performing a write.
+8. `agentctl render` generates portable VS Code, workspace, and Aider Desk
    artifacts under ignored `local/rendered/`.
-7. `agentctl sync` distributes only the reviewed manifest into clean target
+9. `agentctl sync` distributes only the reviewed manifest into clean target
    repositories. Applying a sync creates a local rollback backup first.
 
 ## Three separate stores
@@ -41,6 +47,19 @@ default. `core` is read-oriented; `development` adds engineering helpers;
 Every remote service still needs a local endpoint and native credential. A
 registered MCP server is not proof that transport, authentication, and tools
 are working.
+
+Companion Hub credentials are intentionally split by blast radius:
+
+- `companion-hub` is an `mcp` key for MCP handshake and tools.
+- `companion-hub-qa` is a `qa:read` key for pool, routing, app-status, and
+  install-queue observability.
+- `companion-hub-inference` is an `inference` key for model inventory and
+  harmless OpenAI-compatible coding probes.
+
+Full/admin credentials stay out of the default portable profile. Any write
+workflow must name its target, show the read-only preflight, state rollback,
+obtain confirmation immediately before the mutation, and re-run the control
+room afterward.
 
 ## Recovery
 

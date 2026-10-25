@@ -23,6 +23,10 @@ def usage
       agentctl credentials ...
       agentctl audit ...
       agentctl fallbacks [CHAIN]
+      agentctl hub smoke [--json] [--strict]
+      agentctl memory smoke [--json] [--strict]
+      agentctl fleet smoke [--json] [--strict] [--include-candidates]
+      agentctl deploy doctor [--json] [--strict] [--from-1password] [--fleet]
 
     Credential values stay in 1Password or client-native OAuth stores. This
     command never prints credential values.
@@ -43,6 +47,29 @@ when "conformance"
   exec RbConfig.ruby, File.join(root, "scripts", "conformance.rb"), *ARGV
 when "openclaw"
   exec File.join(root, "bin", "openclaw-runtime"), *ARGV
+when "hub", "operator"
+  exec RbConfig.ruby, File.join(root, "scripts", "hub-control-room.rb"), *ARGV
+when "memory"
+  target = ARGV.shift
+  if target == "smoke"
+    exec RbConfig.ruby, File.join(root, "scripts", "memory-control-room.rb"), *ARGV
+  end
+  warn "Supported memory target: smoke"
+  exit 2
+when "fleet"
+  target = ARGV.shift
+  if target == "smoke"
+    exec RbConfig.ruby, File.join(root, "scripts", "hub-fleet-smoke.rb"), *ARGV
+  end
+  warn "Supported fleet target: smoke"
+  exit 2
+when "deploy"
+  target = ARGV.shift
+  if target == "doctor"
+    exec RbConfig.ruby, File.join(root, "scripts", "deploy-doctor.rb"), *ARGV
+  end
+  warn "Supported deploy target: doctor"
+  exit 2
 when "backup"
   exec RbConfig.ruby, File.join(root, "scripts", "backup.rb"), *ARGV
 when "repair"
