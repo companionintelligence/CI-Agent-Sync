@@ -27,6 +27,14 @@ packs:
     sequence: [static-checks, fleet-qa-preflight, fleet-qa-readiness, scoped-run, evidence-bundle]
     writes: false_until_confirmed
     output: release-evidence
+  fleet-qa-marketplace:
+    profiles: [ceo, engineering]
+    bundles: [operator-readonly, platform-qa]
+    sequence: [agentctl-readiness, fleet-qa-capabilities, fleet-qa-preflight, ledger-plan, ledger-approve, fleet-qa-start, fleet-qa-evidence, ledger-complete]
+    writes: true
+    requires: [explicit_target, explicit_confirmation, action_ledger]
+    target_format: fleet-qa:<suite>/<mode>:<all|nodes=node-a,node-b>
+    output: fleet-qa-evidence-bundle
   campaign-review:
     profile: marketing
     bundles: [marketing]

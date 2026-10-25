@@ -40,6 +40,19 @@ suites:
     confirmation: required
     purpose: Companion Hub marketplace app install/start/health and platform journeys
 
+approval:
+  schema_version: 1
+  provider: local-action-ledger
+  command: ./bin/agentctl ledger plan|approve
+  required_for: [fleet_qa_start, fleet_qa_preflight]
+  required_status: approved
+  required_fields: [id, action, target, reason, status, expires_at]
+  target_format: fleet-qa:<suite>/<mode>:<all|nodes=node-a,node-b>
+  target_must_match: suite_mode_and_explicit_selector
+  expires_at_must_be_future: true
+  credential_values_never_returned: true
+  receipt_forwarding: bounded_audit_fields_only
+
 mcp_tools:
   - fleet_qa_capabilities
   - fleet_qa_readiness
@@ -65,6 +78,18 @@ sequence:
   - fleet_qa_start
   - fleet_qa_evidence
   - fleet_qa_snapshot
+  - fleet_qa_stop
+
+mutating_sequence:
+  - fleet_qa_capabilities
+  - fleet_qa_readiness
+  - fleet_qa_preflight
+  - action_ledger_plan
+  - action_ledger_approve
+  - fleet_qa_start
+  - fleet_qa_evidence
+  - fleet_qa_snapshot
+  - action_ledger_complete
   - fleet_qa_stop
 
 cli_only:
