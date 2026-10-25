@@ -8,6 +8,10 @@ source:
   mcp_entrypoint: tools/mcp-server.mjs
   roster: tools/fleet-qa/skills/run-fleet-qa/fleet.json
   hub_root_env: [HUB_ROOT, COMPANION_HUB_ROOT, CI_HUB_ROOT]
+  read_only_routes:
+    readiness: /api/readiness.json
+    manifest: /api/run.json
+    snapshot: mcp://fleet_qa_snapshot
 
 credential:
   provider: companion-hub-fleet-qa
@@ -38,23 +42,29 @@ suites:
 
 mcp_tools:
   - fleet_qa_capabilities
+  - fleet_qa_readiness
+  - fleet_qa_manifest
   - fleet_qa_status
   - fleet_qa_start
   - fleet_qa_preflight
   - fleet_qa_inventory
   - fleet_qa_pool_scan
   - fleet_qa_evidence
+  - fleet_qa_snapshot
   - fleet_qa_stop
   - fleet_qa_reset
 
 sequence:
   - fleet_qa_capabilities
+  - fleet_qa_readiness
+  - fleet_qa_manifest
   - fleet_qa_status
   - fleet_qa_preflight
   - fleet_qa_inventory
   - fleet_qa_pool_scan
   - fleet_qa_start
   - fleet_qa_evidence
+  - fleet_qa_snapshot
   - fleet_qa_stop
 
 cli_only:
@@ -63,6 +73,6 @@ cli_only:
   - do not infer execution from an evidence resource or a read-only MCP call
 
 evidence:
-  resources: [status, results, llm, pool, provenance, journeys, drills]
+  resources: [manifest, readiness, status, results, llm, pool, provenance, journeys, drills]
   required_fields: [target, suite, mode, provider_or_backend, model_or_app, result, timestamp]
   redact: [api_keys, bearer_tokens, cookies, oauth_sessions, native_app_state]
