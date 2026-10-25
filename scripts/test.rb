@@ -24,13 +24,16 @@ def run_check(checks, id, *command)
 end
 
 run_check(checks, "validate", RbConfig.ruby, File.join(root, "scripts", "validate.rb"))
-smoke = [RbConfig.ruby, File.join(root, "scripts", "harness-smoke.rb")]
+smoke = [File.join(root, "bin", "agentctl"), "harness-smoke"]
 smoke << "--live-local" if options[:live_local]
 run_check(checks, "harness-smoke", *smoke)
 run_check(checks, "sync-tests", RbConfig.ruby, File.join(root, "scripts", "test_sync.rb"))
 run_check(checks, "process-helper-tests", RbConfig.ruby, File.join(root, "scripts", "test_process_helpers.rb"))
 run_check(checks, "hub-control-room-fixture", RbConfig.ruby, File.join(root, "scripts", "test_hub_control_room.rb"))
 run_check(checks, "memory-control-room-fixture", RbConfig.ruby, File.join(root, "scripts", "test_memory_control_room.rb"))
+run_check(checks, "marketplace-audit-fixture", RbConfig.ruby, File.join(root, "scripts", "test_marketplace_audit.rb"))
+run_check(checks, "ci-agent-sync-typescript-web-fixture", RbConfig.ruby, File.join(root, "scripts", "test_atlas_web.rb"))
+run_check(checks, "companion-cli-fixture", RbConfig.ruby, File.join(root, "scripts", "test_companion_cli.rb"))
 
 summary = checks.group_by { |item| item["status"] }.transform_values(&:length)
 result = { "schema_version" => 1, "summary" => summary, "checks" => checks, "live_local" => options[:live_local] }

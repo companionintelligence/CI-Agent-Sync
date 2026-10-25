@@ -38,7 +38,7 @@ servers:
     clients: [vscode, claude, codex, openclaw, hermes]
     optional_clients: [opencode, aider-desk, pi]
     state: opt_in
-    notes: "Companion Memory MCP. The external appliance URL is /api/mcp; API keys need both mcp and intents scopes or the tool list will be empty."
+    notes: "Companion Memory MCP. The external appliance URL is /api/mcp; use agent-configs-companion-memory with mcp + intents and read capability. The native CLI uses the separate full agent-configs-companion-memory-cli key because GraphQL is outside scoped routes."
 
   ci-brand-studio:
     owner: companionintelligence/CI-Brand-Studio

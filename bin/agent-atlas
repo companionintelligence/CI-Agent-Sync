@@ -1,0 +1,6 @@
+#!/usr/bin/env zsh
+
+set -euo pipefail
+
+STORE_ROOT="${0:A:h:h}"
+exec node --experimental-strip-types --no-warnings "$STORE_ROOT/src/cli.ts" atlas "$@"

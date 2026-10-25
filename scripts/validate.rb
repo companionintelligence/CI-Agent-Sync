@@ -45,6 +45,7 @@ begin
   fallback = YAML.safe_load_file(File.join(STORE_ROOT, "integrations", "providers", "fallbacks.yaml"), aliases: false)
   bundles = YAML.safe_load_file(File.join(STORE_ROOT, "integrations", "capability-bundles.yaml"), aliases: false)
   harnesses = YAML.safe_load_file(File.join(STORE_ROOT, "integrations", "harnesses.yaml"), aliases: false).fetch("harnesses")
+  marketplace_harnesses = YAML.safe_load_file(File.join(STORE_ROOT, "integrations", "marketplace-harnesses.yaml"), aliases: false).fetch("harnesses")
   registry = YAML.safe_load_file(File.join(STORE_ROOT, "integrations", "mcp", "registry.yaml"), aliases: false).fetch("servers")
 
   fallback.fetch("providers").each_key do |name|
@@ -68,6 +69,10 @@ begin
       valid = registry.key?(server)
       add_check(checks, "reference.bundle.#{name}.#{server}", valid ? "ok" : "error", valid ? "server is declared" : "server missing from MCP registry")
     end
+  end
+  marketplace_harnesses.each do |name, contract|
+    valid = harnesses.key?(name) && contract.fetch("marketplace_slug").to_s.match?(/\A[a-z0-9][a-z0-9-]+\z/)
+    add_check(checks, "reference.marketplace-harness.#{name}", valid ? "ok" : "error", valid ? "harness and marketplace slug are declared" : "invalid harness or marketplace slug")
   end
   valid_routes = routing.fetch("routes").values.all? { |route| route["primary"].nil? || providers.key?(route["primary"]) }
   add_check(checks, "routing.providers", valid_routes ? "ok" : "error", "routing providers are declared")

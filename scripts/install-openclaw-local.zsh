@@ -32,8 +32,9 @@ set -euo pipefail
 store_root="$STORE_ROOT"
 bundled_runtime='/Applications/OpenClaw.app/Contents/Resources/runtime'
 bundled_openclaw="\$bundled_runtime/lib/node_modules/openclaw/openclaw.mjs"
-if [[ -x "\$bundled_runtime/bin/bun" && -f "\$bundled_openclaw" ]]; then
-  exec "\$store_root/bin/agent-store" with omlx -- "\$bundled_runtime/bin/bun" "\$bundled_openclaw" "\$@"
+node_bin="\${OPENCLAW_NODE_BIN:-\$(whence -p node 2>/dev/null || true)}"
+if [[ -n "\$node_bin" && -x "\$node_bin" && -f "\$bundled_openclaw" ]]; then
+  exec "\$store_root/bin/agent-store" with omlx -- "\$node_bin" "\$bundled_openclaw" "\$@"
 fi
 exec "\$store_root/bin/agent-store" with omlx -- "$OPENCLAW_BIN" "\$@"
 EOF
