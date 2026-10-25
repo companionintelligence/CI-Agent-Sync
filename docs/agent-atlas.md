@@ -1,9 +1,9 @@
-# Agent Atlas web console
+# Agent Atlas setup wizard
 
-Agent Atlas is the local operator surface for the portable `agent-configs`
-store. It is intentionally small: Ruby's standard library serves a static
-browser interface and a read-only JSON API, so a new machine does not need a
-Node install just to inspect its agent setup.
+Agent Atlas is the local setup surface for the portable `agent-configs` store.
+It is intentionally small: Ruby's standard library serves a static,
+mobile-first browser wizard and a small JSON API, so a new machine does not
+need a Node install to prepare its agent setup.
 
 ## Start it
 
@@ -24,21 +24,42 @@ The equivalent `agentctl` entry point is:
 ./bin/agentctl atlas --open
 ```
 
+## Wizard flow
+
+| Step | What happens |
+| --- | --- |
+| 1. Start | Explains the portable/local boundary |
+| 2. Vault | Copies the safe 1Password setup commands |
+| 3. Agents | Selects the harnesses to keep in the portable plan |
+| 4. Profile | Chooses CEO, engineering, or marketing policy |
+| 5. Backup | Previews and creates a redacted native-config backup |
+| 6. Ready | Shows the next CLI checks and sync commands |
+
+The profile step can generate the ignored `local/rendered/` artifacts for every
+supported agent. The backup step can create a timestamped redacted snapshot in
+`local/backups/`. Both are fixed allowlisted actions; the browser cannot run an
+arbitrary shell command.
+
 ## What the browser can see
 
 | Route | Purpose | Writes |
 | --- | --- | --- |
-| `/` | Agent Atlas dashboard | No |
-| `/api/overview` | Redacted provider, harness, bundle, and Marketplace inventory | No |
+| `/` | Mobile-first setup wizard | No |
+| `/api/overview` | Redacted provider, harness, bundle, profile, and Marketplace inventory | No |
+| `/api/check/backup-plan` | Preview available agent config files | No |
 | `/api/check/doctor` | Existing machine doctor JSON | No |
 | `/api/check/fleet` | Existing Tailscale/Hub smoke JSON | No |
 | `/api/check/marketplace` | Existing Marketplace audit JSON | No |
+| `/api/action/render` | Generate ignored portable artifacts for all agents | Yes, local only |
+| `/api/action/backup` | Create a redacted native-config snapshot | Yes, local only |
 | `/docs/portable-setup.md` | Local setup guide | No |
 | `/healthz` | Server liveness | No |
 
-The API intentionally reads public YAML metadata and invokes existing
-read-only probes. It does not read credential values, create 1Password items,
-claim a Hub, mutate a fleet node, change an app, or deploy an application.
+The API intentionally reads public YAML metadata and invokes existing scripts.
+The two write routes are fixed, allowlisted actions with an explicit JSON
+`confirm: true` body. They do not read credential values, create 1Password
+items, claim a Hub, mutate a fleet node, change an app, or deploy an
+application.
 
 ## Safety boundary
 
@@ -48,8 +69,8 @@ authentication; use it only on a trusted, isolated network and prefer a
 private Tailscale path with an authenticated reverse proxy if remote access is
 ever needed.
 
-The GUI is a dashboard, not a replacement for the approval ledger. Use the
-CLI for changes:
+The wizard is not a replacement for the approval ledger. Use the CLI for
+fleet, deployment, Hub, or repository changes:
 
 ```sh
 ./bin/agentctl ledger plan ...

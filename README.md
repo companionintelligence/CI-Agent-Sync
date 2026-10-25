@@ -22,10 +22,12 @@ identity remain local to each app.
 | --- | --- | --- |
 | Prepare a new machine | `./scripts/bootstrap-machine.zsh` | Installs the safe local shell of the store |
 | Connect credentials | `./bin/agentctl credentials op setup` then `./bin/agentctl credentials op import` | Uses 1Password without copying values into Git |
-| Open the GUI | `./bin/agent-atlas --open` or `./bin/agentctl atlas --open` | Starts the loopback-only CI Agent Sync console |
+| Open the GUI | `./bin/agent-atlas --open` or `./bin/agentctl atlas --open` | Starts the loopback-only CI Agent Sync setup wizard |
 | Check the machine | `./bin/agentctl doctor --json` | Reports commands, configs, endpoints, and credential backend status |
 | Check the fleet | `./bin/agentctl fleet smoke --json --strict` | Verifies Tailscale and Hub liveness for named targets |
 | Audit Marketplace apps | `./bin/agentctl marketplace audit --strict` | Checks release tags, Hub/Memory wiring, and image pins |
+| Generate portable config | `./bin/agentctl render --agent all` | Writes ignored cross-harness artifacts under `local/rendered/` |
+| Back up agent configs | `./bin/agentctl backup` | Creates a redacted snapshot under `local/backups/` |
 | Plan a sync | `./bin/agentctl sync` | Shows what would be distributed; use `--apply` only after review |
 
 The shortest useful setup is:
@@ -40,11 +42,12 @@ cp profiles/machines/macos-laptop.yaml.example profiles/machines/local.yaml
 ./bin/agent-atlas --open
 ```
 
-## Open the local console
+## Open the setup wizard
 
-CI Agent Sync is a zero-dependency Ruby web console backed by the real YAML store.
-It binds to `127.0.0.1:8787`, serves a responsive dashboard, and exposes only
-read-only inventory and evidence checks:
+CI Agent Sync is a zero-dependency Ruby web wizard backed by the real YAML store.
+It binds to `127.0.0.1:8787` and walks through the smallest useful setup path:
+connect 1Password, choose harnesses, pick a profile, generate portable config
+artifacts, and create a redacted backup of the agent configs on this machine.
 
 ```sh
 ./bin/agent-atlas --open
@@ -60,10 +63,12 @@ Useful alternatives:
 ./bin/agent-atlas --check         # validate the bundled web assets
 ```
 
-The console does not have write endpoints. It can run the existing doctor,
-fleet smoke, and Marketplace audit commands so you can see current evidence in
-one place. Use the CLI's plan/approval workflows for anything that changes a
-machine, fleet node, deployment, credential, or app.
+The wizard can invoke only two explicit local actions: `render.rb --agent all`
+to generate ignored portable artifacts under `local/rendered/`, and
+`backup.rb` to create a redacted snapshot under `local/backups/`. It does not
+write native harness state, create credentials, claim Hub, change fleet nodes,
+or deploy applications. Read-only Doctor, fleet, and Marketplace evidence
+remains available through the CLI and the wizard's local API.
 
 Full route and safety details are in [docs/agent-atlas.md](docs/agent-atlas.md).
 

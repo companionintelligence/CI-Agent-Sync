@@ -1,10 +1,15 @@
-const state = { overview: null };
+const state = {
+  step: 1,
+  overview: null,
+  selectedAgents: new Set(),
+  profile: "ceo",
+  rendered: false,
+  backup: null,
+};
+
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-
-function text(element, value) {
-  if (element) element.textContent = value ?? "";
-}
+const stepLabels = ["Start", "Vault", "Agents", "Profile", "Backup", "Ready"];
 
 function make(tag, className, content) {
   const element = document.createElement(tag);
@@ -13,134 +18,193 @@ function make(tag, className, content) {
   return element;
 }
 
-function tagList(values, className = "capability-tags") {
-  const list = make("div", className);
-  (values || []).forEach((value) => list.append(make("span", null, value)));
-  return list;
+function text(selector, value) {
+  const element = typeof selector === "string" ? $(selector) : selector;
+  if (element) element.textContent = value ?? "";
 }
 
-function renderHarnesses(items) {
-  const list = $("#harness-list");
+function copyText(value, feedback = "#render-status") {
+  navigator.clipboard.writeText(value).then(() => {
+    text(feedback, "Copied.");
+    window.setTimeout(() => text(feedback, ""), 2200);
+  }).catch(() => text(feedback, "Select the command manually."));
+}
+
+function setStep(step) {
+  state.step = Math.max(1, Math.min(6, step));
+  $$('[data-step]').forEach((section) => {
+    section.hidden = Number(section.dataset.step) !== state.step;
+  });
+  text("#step-number", state.step);
+  text("#step-label", stepLabels[state.step - 1]);
+  $("#progress-bar").style.width = `${(state.step / 6) * 100}%`;
+  const back = $("#back-button");
+  const next = $("#next-button");
+  back.disabled = state.step === 1;
+  next.textContent = state.step === 1 ? "Start setup" : state.step === 6 ? "Done" : state.step === 5 ? "Finish" : "Continue";
+  next.disabled = state.step === 6;
+  if (state.step === 6) renderReadySummary();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function renderAgents(items) {
+  const list = $("#harness-options");
   list.replaceChildren();
   items.forEach((item) => {
-    const row = make("article", "harness-row");
-    const name = make("div", "harness-name");
-    name.append(make("span", "status-dot"), make("span", null, item.name));
-    row.append(name, tagList(item.capabilities));
-    row.append(make("span", "smoke-tag", item.smoke ? `smoke: ${item.smoke}` : "native app"));
-    list.append(row);
+    state.selectedAgents.add(item.id);
+    const label = make("label", "option-row");
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = true;
+    input.dataset.agent = item.id;
+    input.addEventListener("change", () => {
+      if (input.checked) state.selectedAgents.add(item.id);
+      else state.selectedAgents.delete(item.id);
+      updateAgentCount();
+    });
+    const mark = make("span", "fake-checkbox");
+    const detail = make("span");
+    detail.append(make("span", "option-name", item.name), make("span", "option-detail", (item.capabilities || []).join(" · ")));
+    label.append(make("span"), input, mark, detail);
+    list.append(label);
   });
+  updateAgentCount();
 }
 
-function renderProviders(items) {
-  const grid = $("#provider-grid");
-  grid.replaceChildren();
-  items.forEach((item) => {
-    const card = make("article", "provider-card");
-    const top = make("div", "provider-top");
-    top.append(make("h3", null, item.name), make("span", "provider-kind", item.class));
-    const meta = make("div", "provider-meta");
-    const env = make("span");
-    env.append(make("b", null, "secret slot "), document.createTextNode(item.env || "native auth"));
-    const endpoint = make("span");
-    endpoint.append(make("b", null, "route "), document.createTextNode(item.endpoint_env || "local / native"));
-    meta.append(env, endpoint, tagList(item.clients.slice(0, 5)));
-    card.append(top, meta);
-    grid.append(card);
-  });
+function updateAgentCount() {
+  const total = state.overview?.harnesses?.length || 0;
+  text("#agent-count", `${state.selectedAgents.size} of ${total} selected`);
+  $("#select-all").textContent = state.selectedAgents.size === total ? "Clear all" : "Select all";
 }
 
-function renderBundles(items) {
-  const list = $("#bundle-list");
+function renderProfiles(items) {
+  const list = $("#profile-options");
   list.replaceChildren();
-  items.forEach((item, index) => {
-    const row = make("article", "bundle-row");
-    row.append(make("span", "bundle-number", String(index + 1).padStart(2, "0")));
-    const body = make("div");
-    const title = make("h3", null, item.name);
-    const description = make("p", null, item.description || "Reviewed capability set");
-    const tags = tagList(item.servers, "bundle-tags");
-    if (item.high_risk) tags.append(make("span", "bundle-risk", "approval required"));
-    body.append(title, description, tags);
-    row.append(body);
-    list.append(row);
+  items.forEach((item) => {
+    const label = make("label", "profile-row");
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.name = "profile";
+    input.value = item.id;
+    input.checked = item.id === state.profile;
+    input.addEventListener("change", () => {
+      state.profile = item.id;
+      renderProfilePlan();
+    });
+    const radio = make("span", "radio-mark");
+    const detail = make("span");
+    detail.append(
+      make("span", "profile-name", item.name),
+      make("span", "profile-detail", `${item.bundles.join(" · ")} / ${item.default_chain || "default"}`),
+    );
+    label.append(input, radio, detail);
+    list.append(label);
   });
+  renderProfilePlan();
 }
 
-function renderOverview(payload) {
-  state.overview = payload;
-  const counts = payload.counts || {};
-  text($("#app-version"), payload.app?.version);
-  text($("#runtime-label"), `${counts.harnesses || 0} harnesses mapped`);
-  text($("#count-harnesses"), counts.harnesses);
-  text($("#count-providers"), counts.providers);
-  text($("#count-mcps"), counts.mcp_servers);
-  text($("#count-bundles"), counts.bundles);
-  text($("#signal-summary"), `${counts.marketplace_harnesses || 0} Marketplace bridges`);
-  renderHarnesses(payload.harnesses || []);
-  renderProviders(payload.providers || []);
-  renderBundles(payload.bundles || []);
+function currentProfile() {
+  return state.overview?.profiles?.find((profile) => profile.id === state.profile) || { name: "CEO", bundles: ["core"] };
 }
 
-function showResult(kind, result) {
-  const panel = $("#result-panel");
-  const status = $("#result-status");
-  panel.hidden = false;
-  status.className = `result-status ${result.status === "error" ? "error" : ""}`;
-  text(status, result.status === "ok" ? "PASS" : result.status.toUpperCase());
-  text($("#result-title"), `${kind} / read-only evidence`);
-  const output = result.data ? JSON.stringify(result.data, null, 2) : (result.message || "No output");
-  text($("#result-output"), output.slice(0, 40000));
-  panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+function renderProfilePlan() {
+  const profile = currentProfile();
+  const plan = $("#config-plan");
+  plan.replaceChildren();
+  plan.append(make("span", "plan-label", "Portable plan"));
+  plan.append(make("strong", null, profile.name));
+  plan.append(make("p", null, `Bundles: ${profile.bundles.join(", ")}`));
+  plan.append(make("p", null, `Agents selected: ${state.selectedAgents.size}`));
+  const code = make("code", null, `./bin/agentctl profile show ${profile.id} --json\n./bin/agentctl render --agent all`);
+  plan.append(code);
 }
 
-async function runCheck(kind, sourceButton) {
-  const panel = $("#result-panel");
-  const status = $("#result-status");
-  panel.hidden = false;
-  status.className = "result-status working";
-  text(status, "RUNNING");
-  text($("#result-title"), `${kind} / collecting evidence`);
-  text($("#result-output"), "The local read-only probe is running…");
-  if (sourceButton) sourceButton.disabled = true;
+function renderReadySummary() {
+  const summary = $("#ready-summary");
+  summary.replaceChildren();
+  const profile = currentProfile();
+  const row = (label, value) => {
+    const item = make("div");
+    item.append(make("dt", null, label), make("dd", null, value));
+    return item;
+  };
+  summary.append(row("Profile", profile.name), row("Agents", `${state.selectedAgents.size} selected`), row("Backup", state.backup || "Not created in this run"));
+}
+
+async function request(url, options = {}) {
+  const response = await fetch(url, { headers: { Accept: "application/json", "Content-Type": "application/json" }, ...options });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || `Request failed (${response.status})`);
+  return payload;
+}
+
+async function runAction(url, statusSelector, successText) {
+  const button = $(url.includes("backup") ? "#backup-button" : "#render-button");
+  button.disabled = true;
+  text(statusSelector, "Working…");
   try {
-    const response = await fetch(`/api/check/${encodeURIComponent(kind)}`, { headers: { Accept: "application/json" } });
-    const result = await response.json();
-    showResult(kind, result);
+    const result = await request(url, { method: "POST", body: JSON.stringify({ confirm: true }) });
+    if (result.status !== "ok") throw new Error(result.message || "Action did not complete");
+    if (url.includes("backup")) state.backup = result.message || "Created";
+    else state.rendered = true;
+    text(statusSelector, successText);
+    if (url.includes("backup")) renderReadySummary();
   } catch (error) {
-    showResult(kind, { status: "error", message: error.message });
+    text(statusSelector, error.message);
   } finally {
-    if (sourceButton) sourceButton.disabled = false;
+    button.disabled = false;
   }
 }
 
-async function copyText(value) {
+async function previewBackup() {
+  const panel = $("#backup-plan");
+  panel.hidden = false;
+  panel.textContent = "Reading available agent configs…";
   try {
-    await navigator.clipboard.writeText(value);
-    text($("#copy-feedback"), "Copied to clipboard.");
-  } catch (_error) {
-    text($("#copy-feedback"), "Clipboard access is unavailable; select the command manually.");
+    const result = await request("/api/check/backup-plan");
+    panel.textContent = result.data ? JSON.stringify(result.data, null, 2) : (result.message || "No plan returned");
+  } catch (error) {
+    panel.textContent = error.message;
   }
-  window.setTimeout(() => text($("#copy-feedback"), ""), 3000);
 }
 
-$$('[data-copy="setup"]').forEach((button) => button.addEventListener("click", () => copyText([
-  "git clone https://github.com/mrhegemon/agent-configs.git",
-  "cd agent-configs",
-  "./bin/agentctl credentials op setup",
-  "./bin/agentctl credentials op import",
-  "./bin/agent-atlas --open",
-].join("\n"))));
+function wireEvents() {
+  $("#next-button").addEventListener("click", () => {
+    if (state.step < 6) setStep(state.step + 1);
+  });
+  $("#back-button").addEventListener("click", () => {
+    if (state.step > 1) setStep(state.step - 1);
+  });
+  $("#select-all").addEventListener("click", () => {
+    const inputs = $$('[data-agent]', $("#harness-options"));
+    const shouldSelect = state.selectedAgents.size !== inputs.length;
+    inputs.forEach((input) => {
+      input.checked = shouldSelect;
+      if (shouldSelect) state.selectedAgents.add(input.dataset.agent);
+      else state.selectedAgents.delete(input.dataset.agent);
+    });
+    updateAgentCount();
+  });
+  $$('[data-copy]').forEach((button) => button.addEventListener("click", () => copyText(button.dataset.copy.replaceAll("\\n", "\n"))));
+  $("#render-button").addEventListener("click", () => runAction("/api/action/render", "#render-status", "Portable artifacts generated under local/rendered."));
+  $("#backup-plan-button").addEventListener("click", previewBackup);
+  $("#backup-button").addEventListener("click", () => runAction("/api/action/backup", "#backup-status", "Redacted backup created."));
+  $("#start-over").addEventListener("click", () => {
+    state.step = 1;
+    state.rendered = false;
+    state.backup = null;
+    setStep(1);
+  });
+}
 
-$$("[data-copy-text]").forEach((button) => button.addEventListener("click", () => copyText(button.dataset.copyText)));
-$$('[data-check]').forEach((button) => button.addEventListener("click", () => runCheck(button.dataset.check, button)));
-$("#close-result")?.addEventListener("click", () => { $("#result-panel").hidden = true; });
-
-fetch("/api/overview", { headers: { Accept: "application/json" } })
-  .then((response) => response.json())
-  .then(renderOverview)
+wireEvents();
+request("/api/overview")
+  .then((payload) => {
+    state.overview = payload;
+    renderAgents(payload.harnesses || []);
+    renderProfiles(payload.profiles || []);
+    $("#loading-banner").classList.add("loaded");
+  })
   .catch((error) => {
-    text($("#runtime-label"), "store unavailable");
-    text($("#signal-summary"), "start the local server");
-    $$(".loading-row").forEach((row) => text(row, `Could not read the store: ${error.message}`));
+    text("#loading-banner", `Could not read the store: ${error.message}`);
   });
