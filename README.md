@@ -148,6 +148,25 @@ versioned manifest, target-local group selection, explicit deletion records,
 and plan-first application so reviewed policies can be transplanted without
 copying native auth or credentials.
 
+The first-party Marketplace projections of Hermes and OpenClaw are covered by
+the read-only release contract in
+[integrations/marketplace-harnesses.yaml](integrations/marketplace-harnesses.yaml).
+Audit a local catalog checkout and, when available, its source checkouts with:
+
+```sh
+./bin/agentctl marketplace audit \
+  --marketplace /path/to/CI-Marketplace \
+  --sources-root /path/to/source-checkouts
+```
+
+The audit checks the catalog version against every image tag, requires
+sha256-pinned images, verifies Hub MCP and Companion Memory wiring, checks the
+standardized inference handoff names, and optionally compares the catalog
+version with the latest local release tag in CI-Hermes and CI-OpenClaw. It
+never reads or prints a credential. This is the bridge between the portable
+cross-harness policy and the Hub-managed Marketplace app environment; the Hub
+still remains the runtime source of truth for keys and active model routing.
+
 For the marketing stack, start with
 [workflows/marketing-video.md](workflows/marketing-video.md). It connects
 CI-Brand-Studio planning, CI-Common production, CI-Engineering evidence, and
