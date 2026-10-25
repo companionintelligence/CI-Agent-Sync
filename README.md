@@ -27,7 +27,9 @@ Start here:
 ./bin/agentctl report --json --from-1password --deploy
 ./bin/agentctl profile list --json
 ./bin/agentctl profile show ceo --json
-./bin/agentctl ledger plan --action marketplace_full_qa --target core-1 --reason "release validation"
+./bin/agentctl ledger plan --action fleet_qa_start --target 'fleet-qa:apps/full:nodes=core-a' --reason "release validation"
+# approve the returned id only after reviewing the target and preflight
+./bin/agentctl ledger approve --id LEDGER_ID --confirm
 ./bin/agentctl hub smoke --json
 ./bin/agentctl hub smoke --json --strict --from-1password
 ./bin/agentctl memory smoke --json

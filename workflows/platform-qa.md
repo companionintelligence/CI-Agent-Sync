@@ -41,11 +41,15 @@ portable; CI-Engineering accepts `HUB_ROOT`, `COMPANION_HUB_ROOT`, or
    preserve the `runId`, manifest, readiness, provenance, and result metadata
    without secrets.
 9. For marketplace/platform app validation, use `suite: apps` with `mode:
-   quick` or `full`. The request must include `confirm: true`; the dashboard
-   service is also armed server-side and remains confirmation-gated.
-10. Collect evidence again, then call `fleet_qa_stop` when the test window is
-   complete. Use `fleet_qa_reset` only as a local fleet-qa control after the
-   current evidence is preserved.
+   quick` or `full`. First create a ledger plan whose target is exactly
+   `fleet-qa:apps/<mode>:<all|nodes=node-a,node-b>`, approve it explicitly,
+   then pass the resulting bounded receipt together with `confirm: true`.
+   The dashboard service is also armed server-side and remains
+   confirmation-gated.
+10. Collect evidence again, complete the ledger record with the run result,
+    then call `fleet_qa_stop` when the test window is complete. Use
+    `fleet_qa_reset` only as a local fleet-qa control after the current
+    evidence is preserved.
 
 Every node-facing request must carry `nodes` or `all`. `all: true` is an
 explicit operator choice and still respects the CI-Engineering roster and
