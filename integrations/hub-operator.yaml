@@ -35,6 +35,12 @@ credentials:
     scope: inference
     capability: read
     use: OpenAI-compatible model inventory and harmless coding probes
+  fleet_qa:
+    provider: companion-hub-fleet-qa
+    scope: qa:read
+    capability: read
+    use: per-node Hub local-key JSON map for CI-Engineering fleet-qa pool routing evidence
+    format: json_map
   admin:
     provider: native_hub_session_or_explicit_admin_key
     scope: operator session or explicitly provisioned full key
@@ -50,6 +56,7 @@ lanes:
       - liveness and readiness
       - registration phase and state drift
       - qa-read pool status, routing log, and install queue
+      - fleet-qa target status, inventory, and pool-routing evidence when enabled
       - inference model inventory
       - MCP initialize and tools/list
       - local cihub status, Docker, and Tailscale summary
@@ -63,6 +70,21 @@ lanes:
       - pool_identity_or_peer_auth_failure
       - no_chat_model_available
       - mcp_tools_empty
+  platform_qa:
+    purpose: "Exercise the complete Hub platform and marketplace path through CI-Engineering fleet-qa."
+    read_first:
+      - control_room
+      - fleet_qa_capabilities
+      - fleet_qa_status_for_named_targets
+      - fleet_qa_preflight
+      - fleet_qa_inventory
+      - fleet_qa_pool_scan
+    mutation_contract:
+      - use an explicit nodes list or all true; never rely on an implicit default
+      - run llm or agent mode before marketplace app-suite mode
+      - require confirm true immediately before app-suite start or preflight
+      - collect fleet_qa_evidence after each run
+      - stop the fleet-qa service when the test window is complete
   ceo_admin:
     purpose: "Prepare an executive action with scoped evidence and an approval gate."
     read_first:

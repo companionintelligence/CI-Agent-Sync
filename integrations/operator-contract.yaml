@@ -1,0 +1,49 @@
+version: 1
+
+# Shared operational contract for every local harness. The scripts implement
+# the read-only probes and ledger; this file keeps the portable vocabulary and
+# bundle metadata in one place for renderers and future clients.
+schemas:
+  readiness: 1
+  evidence_bundle: 1
+  action_ledger: 1
+
+readiness:
+  command: ./bin/agentctl readiness --json
+  strict_means: no warnings or errors
+  default_surfaces: [agent_store, companion_hub, companion_memory, tailscale_fleet]
+  optional_surfaces: [cloudflare, fleet_qa]
+  fleet_qa_url_env: CI_FLEET_QA_URL
+  credential_values_never_returned: true
+
+evidence_bundle:
+  command: ./bin/agentctl report --json
+  redacted: true
+  includes: [readiness, harness_conformance, harness_smoke, operator_contract]
+  excludes: [native_app_state, oauth_sessions, device_identities, credential_values]
+
+action_ledger:
+  command: ./bin/agentctl ledger
+  storage: local/action-ledger
+  approval_is_explicit: true
+  approval_expires: true
+  mutation_is_not_performed: true
+  required_fields: [action, target, reason, requested_at, status]
+  terminal_states: [completed, cancelled, expired]
+
+profiles:
+  ceo:
+    bundles: [core, operator-readonly]
+    workflows: [ceo-operations, platform-readiness, incident-response, launch-review]
+    default_chain: reasoning
+    mutation_policy: ledger_and_confirmation
+  engineering:
+    bundles: [core, development, platform-qa]
+    workflows: [platform-qa, deployment, incident-response, release-readiness]
+    default_chain: tool_calling
+    mutation_policy: ledger_and_confirmation
+  marketing:
+    bundles: [core, marketing]
+    workflows: [marketing-video, campaign-review, metricool-publish]
+    default_chain: marketing_draft
+    mutation_policy: ledger_and_confirmation

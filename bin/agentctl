@@ -15,6 +15,10 @@ def usage
       agentctl health [--json] [--strict]
       agentctl test [--json] [--live-local]
       agentctl conformance [--json]
+      agentctl readiness [--json] [--strict] [--from-1password] [--deploy]
+      agentctl report [--json] [--from-1password] [--deploy] [--force] [--output PATH]
+      agentctl ledger plan|approve|complete|cancel|list ...
+      agentctl profile list|show NAME [--json]
       agentctl backup [--dry-run] [--output PATH]
       agentctl repair openclaw
       agentctl render [options]
@@ -45,6 +49,14 @@ when "test"
   exec RbConfig.ruby, File.join(root, "scripts", "test.rb"), *ARGV
 when "conformance"
   exec RbConfig.ruby, File.join(root, "scripts", "conformance.rb"), *ARGV
+when "readiness"
+  exec RbConfig.ruby, File.join(root, "scripts", "readiness.rb"), *ARGV
+when "report", "export-report"
+  exec RbConfig.ruby, File.join(root, "scripts", "export-report.rb"), *ARGV
+when "ledger"
+  exec RbConfig.ruby, File.join(root, "scripts", "action-ledger.rb"), *ARGV
+when "profile", "profiles"
+  exec RbConfig.ruby, File.join(root, "scripts", "profile.rb"), *ARGV
 when "openclaw"
   exec File.join(root, "bin", "openclaw-runtime"), *ARGV
 when "hub", "operator"
