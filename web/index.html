@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#101b2d" />
+    <meta name="description" content="Agent Atlas — a portable local control room for AI harnesses, providers, MCPs, and fleet readiness." />
+    <title>Agent Atlas · Companion Intelligence</title>
+    <link rel="icon" type="image/png" href="/assets/agent-atlas-logo.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Agent Atlas navigation">
+        <a class="brand" href="#overview" aria-label="Agent Atlas overview">
+          <span class="brand-mark"><img src="/assets/agent-atlas-logo.png" alt="" /></span>
+          <span>
+            <span class="brand-kicker">COMPANION INTELLIGENCE</span>
+            <span class="brand-name">Agent Atlas</span>
+          </span>
+        </a>
+        <p class="sidebar-intro">One portable map for every agent, model, and mission.</p>
+        <nav class="nav-stack">
+          <a class="nav-link active" href="#overview"><span class="nav-index">01</span>Overview</a>
+          <a class="nav-link" href="#harnesses"><span class="nav-index">02</span>Harnesses</a>
+          <a class="nav-link" href="#providers"><span class="nav-index">03</span>Providers</a>
+          <a class="nav-link" href="#bundles"><span class="nav-index">04</span>Capability bundles</a>
+          <a class="nav-link" href="#setup"><span class="nav-index">05</span>Setup trail</a>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="side-status"><span class="status-dot"></span><span>Local console</span></div>
+          <p>Loopback only. Read-only by design. Credentials stay in 1Password and native clients.</p>
+          <span class="version-pill">ATLAS <span id="app-version">0.1.0</span></span>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div class="breadcrumb"><span>LOCAL OPERATOR CONSOLE</span><i>/</i><span id="runtime-label">loading store…</span></div>
+          <div class="topbar-actions">
+            <span class="read-only-badge"><span class="status-dot"></span> No secrets in browser</span>
+            <button class="button button-quiet" type="button" data-check="doctor">Run doctor <span>↗</span></button>
+          </div>
+        </header>
+
+        <section class="hero section-anchor" id="overview">
+          <div class="hero-copy">
+            <p class="eyebrow">PORTABLE CONTROL PLANE / 001</p>
+            <h1>Your agents,<br /><em>in one orbit.</em></h1>
+            <p class="hero-lede">Agent Atlas turns a folder of recipes into a calm, inspectable operating surface for harnesses, providers, MCPs, and fleet work.</p>
+            <div class="hero-actions">
+              <button class="button button-primary" type="button" data-copy="setup">Copy easy setup <span>↗</span></button>
+              <a class="button button-outline" href="#harnesses">Explore the map <span>↓</span></a>
+            </div>
+            <p class="copy-feedback" id="copy-feedback" aria-live="polite"></p>
+          </div>
+          <div class="hero-art" aria-label="Agent Atlas logo and operating principle">
+            <div class="art-orbit orbit-one"></div>
+            <div class="art-orbit orbit-two"></div>
+            <img src="/assets/agent-atlas-logo.png" alt="Agent Atlas compass and connected agents mark" />
+            <div class="art-caption"><span>POLICY</span><span>ROUTING</span><span>READINESS</span></div>
+          </div>
+        </section>
+
+        <section class="signal-strip" aria-label="Store inventory">
+          <div class="signal lead-signal"><span class="signal-label">The store knows</span><strong id="signal-summary">your working map</strong><span class="signal-note">without owning your secrets</span></div>
+          <div class="signal"><span class="signal-label">Harnesses</span><strong id="count-harnesses">—</strong><span class="signal-note">tracked surfaces</span></div>
+          <div class="signal"><span class="signal-label">Providers</span><strong id="count-providers">—</strong><span class="signal-note">portable routes</span></div>
+          <div class="signal"><span class="signal-label">MCP servers</span><strong id="count-mcps">—</strong><span class="signal-note">reviewed recipes</span></div>
+          <div class="signal"><span class="signal-label">Bundles</span><strong id="count-bundles">—</strong><span class="signal-note">capability gates</span></div>
+        </section>
+
+        <section class="workspace-section section-anchor" id="harnesses">
+          <div class="section-heading">
+            <div><p class="eyebrow">THE MAP / 02</p><h2>Harness constellation</h2></div>
+            <p>Every client gets a native home. Atlas carries the shared decisions between them.</p>
+          </div>
+          <div class="harness-layout">
+            <div class="harness-table-wrap">
+              <div class="table-head"><span>Surface</span><span>What it can do</span><span>Smoke</span></div>
+              <div id="harness-list" class="harness-list"><div class="loading-row">Reading the harness map…</div></div>
+            </div>
+            <aside class="callout callout-coral">
+              <span class="callout-index">FIELD NOTE / A</span>
+              <h3>Portable does not mean duplicated.</h3>
+              <p>Policy, provider names, MCP recipes, and safe workflows travel. Sessions, OAuth, model caches, and device identity stay where they belong.</p>
+              <a href="#setup">See the setup trail <span>→</span></a>
+            </aside>
+          </div>
+        </section>
+
+        <section class="workspace-section section-anchor" id="providers">
+          <div class="section-heading split-heading">
+            <div><p class="eyebrow">THE ROUTES / 03</p><h2>Provider rail</h2></div>
+            <button class="button button-dark" type="button" data-check="fleet">Check fleet health <span>↗</span></button>
+          </div>
+          <div id="provider-grid" class="provider-grid"><div class="loading-row">Reading provider routes…</div></div>
+        </section>
+
+        <section class="workspace-section section-anchor" id="bundles">
+          <div class="section-heading">
+            <div><p class="eyebrow">THE GATES / 04</p><h2>Capability bundles</h2></div>
+            <p>Start narrow. Add power only when the work and the target justify it.</p>
+          </div>
+          <div id="bundle-list" class="bundle-list"><div class="loading-row">Reading capability bundles…</div></div>
+        </section>
+
+        <section class="setup-section section-anchor" id="setup">
+          <div class="setup-header">
+            <p class="eyebrow">THE SHORTCUT / 05</p>
+            <h2>From blank machine<br /><em>to useful in minutes.</em></h2>
+            <p>Run the store locally, connect 1Password, then let each harness keep its own native state.</p>
+          </div>
+          <div class="setup-steps">
+            <article class="setup-step"><span class="step-number">01</span><div><h3>Clone the map</h3><pre><code>git clone https://github.com/mrhegemon/agent-configs.git
+cd agent-configs</code></pre><button class="text-button" type="button" data-copy-text="git clone https://github.com/mrhegemon/agent-configs.git; cd agent-configs">Copy command</button></div></article>
+            <article class="setup-step"><span class="step-number">02</span><div><h3>Connect the vault</h3><pre><code>./bin/agentctl credentials op setup
+./bin/agentctl credentials op import</code></pre><button class="text-button" type="button" data-copy-text="./bin/agentctl credentials op setup; ./bin/agentctl credentials op import">Copy command</button></div></article>
+            <article class="setup-step"><span class="step-number">03</span><div><h3>Open your atlas</h3><pre><code>./bin/agent-atlas --open</code></pre><button class="text-button" type="button" data-copy-text="./bin/agent-atlas --open">Copy command</button></div></article>
+          </div>
+          <div class="setup-footer"><span class="status-dot"></span><span>Safe defaults are already on: loopback binding, read-only checks, plan-first mutations.</span><a href="/docs/portable-setup.md">Read the full setup →</a></div>
+        </section>
+
+        <section class="checks-section" aria-labelledby="checks-title">
+          <div class="checks-heading"><div><p class="eyebrow">LIVE EVIDENCE</p><h2 id="checks-title">Read-only checks</h2></div><p>Run a check when you need evidence. The console never performs a mutation.</p></div>
+          <div class="check-actions"><button class="check-card" type="button" data-check="doctor"><span class="check-icon">⌁</span><span><strong>Doctor</strong><small>machine + credential backend</small></span><span class="check-arrow">↗</span></button><button class="check-card" type="button" data-check="fleet"><span class="check-icon">◎</span><span><strong>Fleet smoke</strong><small>Tailscale + Hub liveness</small></span><span class="check-arrow">↗</span></button><button class="check-card" type="button" data-check="marketplace"><span class="check-icon">▦</span><span><strong>Marketplace audit</strong><small>release + image wiring</small></span><span class="check-arrow">↗</span></button></div>
+          <div class="result-panel" id="result-panel" hidden><div class="result-top"><span id="result-status" class="result-status">READY</span><span id="result-title">Select a check</span><button class="text-button" id="close-result" type="button">Close</button></div><pre id="result-output"></pre></div>
+        </section>
+
+        <footer class="footer"><div><img src="/assets/agent-atlas-logo.png" alt="" /><span>Agent Atlas / Companion Intelligence</span></div><p>Policy travels. Identity stays local.</p><a href="https://github.com/mrhegemon/agent-configs" target="_blank" rel="noreferrer">View the store ↗</a></footer>
+      </main>
+    </div>
+    <noscript><div class="noscript">Agent Atlas needs JavaScript for its live inventory. The CLI remains fully usable without it.</div></noscript>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

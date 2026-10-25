@@ -33,6 +33,8 @@ ruby -c scripts/test_action_ledger.rb >/dev/null
 ruby -c scripts/profile.rb >/dev/null
 ruby -c scripts/marketplace-audit.rb >/dev/null
 ruby -c scripts/test_marketplace_audit.rb >/dev/null
+ruby -c scripts/atlas-web.rb >/dev/null
+ruby -c scripts/test_atlas_web.rb >/dev/null
 git diff --check
 
 while IFS= read -r file; do

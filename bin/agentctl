@@ -31,6 +31,7 @@ def usage
       agentctl memory smoke [--json] [--strict]
       agentctl fleet smoke [--json] [--strict] [--include-candidates]
       agentctl marketplace audit [--marketplace PATH] [--sources-root PATH] [--json] [--strict]
+      agentctl atlas [--open] [--bind ADDRESS] [--port PORT]
       agentctl deploy doctor [--json] [--strict] [--from-1password] [--fleet]
 
     Credential values stay in 1Password or client-native OAuth stores. This
@@ -83,6 +84,8 @@ when "marketplace"
   end
   warn "Supported marketplace target: audit"
   exit 2
+when "atlas"
+  exec RbConfig.ruby, File.join(root, "scripts", "atlas-web.rb"), *ARGV
 when "deploy"
   target = ARGV.shift
   if target == "doctor"
