@@ -22,6 +22,7 @@ Start here:
 ./bin/agentctl inventory
 ./bin/agentctl doctor --json
 ./bin/agentctl test
+./bin/agentctl conformance --json
 ./bin/agentctl backup
 ./bin/agentctl repair openclaw
 ./bin/agentctl credentials op status

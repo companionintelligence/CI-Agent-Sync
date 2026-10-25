@@ -15,8 +15,9 @@ workflow vocabulary.
 5. Companion Memory through the `/api/mcp` appliance endpoint only after the
    reachable URL and scoped key have been tested from the calling process.
 
-Credentials are resolved from the machine's native secret store. Do not copy
-API keys, OAuth sessions, or app databases into this repository.
+Provider credentials are resolved from 1Password first through `agent-store`;
+native stores remain migration fallbacks until verified. Do not copy API keys,
+OAuth sessions, or app databases into this repository.
 
 ## Client matrix
 
@@ -28,6 +29,7 @@ API keys, OAuth sessions, or app databases into this repository.
 | Pi GUI | `omlx-local/Qwen3.8-27B-oQ4e-fp16-mtp` | configure only reviewed servers | `~/.pi/agent/models.json` |
 | Claude | native provider or gateway | CI-Common, CI-Engineering, Metricool OAuth | `agents/claude/mcp.redacted.yaml` |
 | Codex | native provider or gateway | CI-Common, CI-Engineering, Metricool OAuth | `agents/codex/config.redacted.toml` |
+| OpenCode | `omlx/Qwen3.8-27B-oQ4e-fp16-mtp` | CI-Common, CI-Engineering, Metricool OAuth | use `opencode run --standalone` with process-local credentials |
 | VS Code | gateway/remote or local | reviewed MCP baseline | `integrations/vscode/mcp.json.example` |
 
 ## Handoff recipe
@@ -48,6 +50,18 @@ Ollama, then an explicitly enabled gateway or remote provider. The selected
 provider and model must be visible, tool capability must be preserved, and a
 fallback must stop before publishing, scheduling, device control, account
 changes, or destructive repository operations.
+
+OpenCode's desktop background service does not inherit credentials injected by
+`agent-store`. For local providers, run the standalone path so the selected
+provider and key stay in the current process:
+
+```sh
+./bin/agent-store with omlx -- opencode run --standalone \
+  --model omlx/Qwen3.8-27B-oQ4e-fp16-mtp "your task"
+```
+
+Ollama is installed as a user service on this Mac; verify `/api/tags` before
+selecting an Ollama model.
 
 The internal MCP set is also portable:
 

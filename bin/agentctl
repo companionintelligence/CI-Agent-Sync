@@ -14,6 +14,7 @@ def usage
       agentctl doctor [--json] [--strict]
       agentctl health [--json] [--strict]
       agentctl test [--json] [--live-local]
+      agentctl conformance [--json]
       agentctl backup [--dry-run] [--output PATH]
       agentctl repair openclaw
       agentctl render [options]
@@ -38,6 +39,10 @@ when "health"
   exec RbConfig.ruby, File.join(root, "scripts", "doctor.rb"), *ARGV
 when "test"
   exec RbConfig.ruby, File.join(root, "scripts", "test.rb"), *ARGV
+when "conformance"
+  exec RbConfig.ruby, File.join(root, "scripts", "conformance.rb"), *ARGV
+when "openclaw"
+  exec File.join(root, "bin", "openclaw-runtime"), *ARGV
 when "backup"
   exec RbConfig.ruby, File.join(root, "scripts", "backup.rb"), *ARGV
 when "repair"

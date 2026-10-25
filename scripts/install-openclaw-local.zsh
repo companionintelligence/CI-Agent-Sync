@@ -3,7 +3,7 @@
 set -euo pipefail
 
 STORE_ROOT="${0:A:h:h}"
-OPENCLAW_BIN="${OPENCLAW_BIN:-$(whence -p openclaw 2>/dev/null || true)}"
+OPENCLAW_BIN="${OPENCLAW_BIN:-$STORE_ROOT/bin/openclaw-runtime}"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   print -u2 "This installer currently targets the macOS OpenClaw LaunchAgent."

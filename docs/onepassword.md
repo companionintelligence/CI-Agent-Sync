@@ -17,6 +17,11 @@ tokens stay in 1Password or the machine's native auth environment.
 ./bin/agentctl credentials op status
 ```
 
+The desktop app must be unlocked for the first CLI approval. On macOS,
+1Password shows an **Allow ChatGPT to get CLI access** dialog; approve it with
+Touch ID, then rerun the commands. Probes fail fast while that dialog is
+waiting and never print credential values.
+
 Import keeps the Keychain/Secret Service copy by default so each provider can
 be tested before removing local migration copies. Only after verification, and
 only if desired, run:

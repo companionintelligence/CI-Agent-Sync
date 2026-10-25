@@ -1,0 +1,22 @@
+#!/usr/bin/env zsh
+
+# Always run the OpenClaw runtime shipped with the desktop app when it exists.
+# The standalone npm CLI can be older than the desktop gateway and may reject
+# the desktop config schema. This selector never prints config or credentials.
+
+set -euo pipefail
+
+store_root="${0:A:h:h}"
+bundled_runtime='/Applications/OpenClaw.app/Contents/Resources/runtime'
+bundled_openclaw="$bundled_runtime/lib/node_modules/openclaw/openclaw.mjs"
+
+if [[ -x "$bundled_runtime/bin/bun" && -f "$bundled_openclaw" ]]; then
+  exec "$bundled_runtime/bin/bun" "$bundled_openclaw" "$@"
+fi
+
+openclaw_bin="${OPENCLAW_BIN:-$(whence -p openclaw 2>/dev/null || true)}"
+[[ -x "$openclaw_bin" ]] || {
+  print -u2 "OpenClaw runtime not found. Install OpenClaw.app or set OPENCLAW_BIN."
+  exit 127
+}
+exec "$openclaw_bin" "$@"

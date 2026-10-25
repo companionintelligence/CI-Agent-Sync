@@ -108,7 +108,18 @@ op_cli_available() {
 
 op_session_available() {
   op_cli_available || return 1
-  "${AGENT_CONFIGS_OP_BINARY:-op}" whoami --format=json >/dev/null 2>&1
+  ruby -rtimeout -ropen3 -e '
+    pid = nil
+    begin
+      pid = Process.spawn(*ARGV, in: File::NULL, out: File::NULL, err: File::NULL, pgroup: true)
+      _pid, status = Timeout.timeout(3) { Process.waitpid2(pid) }
+      exit status.success? ? 0 : 1
+    rescue StandardError
+      Process.kill("TERM", -pid) rescue Process.kill("TERM", pid) rescue nil if pid
+      Process.kill("KILL", -pid) rescue Process.kill("KILL", pid) rescue nil if pid
+      exit 1
+    end
+  ' "${AGENT_CONFIGS_OP_BINARY:-op}" whoami --format=json >/dev/null 2>&1
 }
 
 op_provider_item() {
@@ -121,7 +132,29 @@ op_reference() {
 
 op_secret_lookup() {
   op_session_available || return 2
-  "${AGENT_CONFIGS_OP_BINARY:-op}" read --no-newline "$(op_reference "$1")" 2>/dev/null
+  ruby -rtimeout -ropen3 -e '
+    pid = nil
+    output_reader = output_writer = error_reader = error_writer = nil
+    begin
+      output_reader, output_writer = IO.pipe
+      error_reader, error_writer = IO.pipe
+      pid = Process.spawn(*ARGV, in: File::NULL, out: output_writer, err: error_writer, pgroup: true)
+      output_writer.close
+      error_writer.close
+      _pid, status = Timeout.timeout(5) { Process.waitpid2(pid) }
+      print output_reader.read if status.success?
+      exit status.success? ? 0 : 1
+    rescue StandardError
+      Process.kill("TERM", -pid) rescue Process.kill("TERM", pid) rescue nil if pid
+      Process.kill("KILL", -pid) rescue Process.kill("KILL", pid) rescue nil if pid
+      exit 1
+    ensure
+      output_reader.close rescue nil if output_reader
+      output_writer.close rescue nil if output_writer
+      error_reader.close rescue nil if error_reader
+      error_writer.close rescue nil if error_writer
+    end
+  ' "${AGENT_CONFIGS_OP_BINARY:-op}" read --no-newline "$(op_reference "$1")" 2>/dev/null
 }
 
 secret_lookup() {
@@ -152,7 +185,7 @@ credential_source() {
 
 hermes_config_path() {
   if command -v hermes >/dev/null 2>&1; then
-    typeset resolved="$(hermes config path 2>/dev/null || true)"
+    typeset resolved="$(ruby -I"$STORE_ROOT/scripts" -rprocess_helpers -e 'out, _err, status = AgentConfigProcess.capture_with_timeout(["hermes", "config", "path"], 5); print out if status&.success?' 2>/dev/null || true)"
     [[ -n "$resolved" ]] && { print -r -- "$resolved"; return; }
   fi
   print -r -- "$HOME/.hermes/config.yaml"
@@ -359,8 +392,21 @@ repos_inventory() {
     manifest = YAML.load_file(ARGV[0])
     ci_root = ENV.fetch("CI_ROOT", File.join(Dir.home, "devel", "ci"))
     expand = ->(value) { value.to_s.gsub("${CI_ROOT}", ci_root).gsub("${HOME}", Dir.home) }
+    profile_path = File.join(File.dirname(ARGV[0]), "..", "profiles", "machines", "local.yaml")
+    profile = File.file?(profile_path) ? YAML.load_file(profile_path) : {}
+    paths = profile.fetch("paths", {})
+    overrides = {
+      "Companion-Hub" => "companion_hub",
+      "Companion-Memory" => "companion_memory",
+      "CI-Engineering" => "ci_engineering",
+    }
     manifest.fetch("repositories").each do |repo|
-      root = expand.call(repo.fetch("local_path"))
+      override = overrides[repo.fetch("name")]
+      root = if override && paths[override]
+               expand.call(paths.fetch(override))
+             else
+               expand.call(repo.fetch("local_path"))
+             end
       if Dir.exist?(File.join(root, ".git"))
         _out, _err, status = Open3.capture3("git", "-C", root, "status", "--porcelain")
         branch, _branch_err, _branch_status = Open3.capture3("git", "-C", root, "branch", "--show-current")
@@ -441,11 +487,11 @@ audit_one() {
       hermes doctor 2>&1 | redact_output || true
       ;;
     openclaw)
-      command -v openclaw >/dev/null 2>&1 || { print "openclaw: not installed"; return 0; }
+      [[ -x "$STORE_ROOT/bin/openclaw-runtime" ]] || { print "openclaw runtime selector: not installed"; return 0; }
       if [[ -x "$HOME/.local/bin/openclaw-gateway-with-omlx" ]]; then
         "$HOME/.local/bin/openclaw-gateway-with-omlx" doctor --deep --non-interactive 2>&1 | redact_output || true
       else
-        openclaw doctor --deep --non-interactive 2>&1 | redact_output || true
+        "$STORE_ROOT/bin/openclaw-runtime" doctor --deep --non-interactive 2>&1 | redact_output || true
       fi
       ;;
     claude)
