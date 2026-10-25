@@ -455,7 +455,7 @@ sync_store() {
 }
 
 doctor_store() {
-  ruby "$STORE_ROOT/scripts/doctor.rb" "$@"
+  "$STORE_ROOT/bin/agentctl" doctor "$@"
 }
 
 fallbacks_store() {

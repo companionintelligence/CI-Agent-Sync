@@ -26,7 +26,13 @@ OptionParser.new do |parser|
 end.parse!
 
 def run_json(script, args, timeout_seconds)
-  command = [RbConfig.ruby, File.join(ROOT, "scripts", script), "--json", *args]
+  runner = case script
+           when "doctor.rb" then [File.join(ROOT, "bin", "agentctl"), "doctor"]
+           when "conformance.rb" then [File.join(ROOT, "bin", "agentctl"), "conformance"]
+           when "harness-smoke.rb" then [File.join(ROOT, "bin", "agentctl"), "harness-smoke"]
+           else [RbConfig.ruby, File.join(ROOT, "scripts", script)]
+           end
+  command = [*runner, "--json", *args]
   output, _error, status = AgentConfigProcess.capture_with_timeout(command, timeout_seconds)
   payload = JSON.parse(output) rescue nil
   return [payload, status&.success?] if payload.is_a?(Hash)

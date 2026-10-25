@@ -119,7 +119,7 @@ tooling. The current runtime separates the layers cleanly:
 | Control plane | TypeScript on Node 22 | Shared types, async HTTP/MCP-friendly integrations, and the same language as CI-Hub, CI-Common, and the marketplace |
 | Browser | TypeScript source bundled to browser JavaScript | Typed mobile-first wizard without a frontend framework or server build requirement at runtime |
 | Brand | Pinned CI-Common 1.6.0 bundle | Offline, hash-verified tokens, logo assets, and fonts; no sibling checkout dependency |
-| Compatibility | `bin/agent-store-legacy` and `scripts/*.rb` | Existing credential and specialized operator paths remain available while their individual implementations are ported |
+| Compatibility | `bin/agent-store-legacy` and the remaining `scripts/*.rb` | Existing credential and specialized operator paths remain available while their individual implementations are ported; diagnostics use the TypeScript commands below |
 
 The public entry points are now TypeScript-backed: `bin/agentctl`,
 `bin/agent-store`, and `bin/agent-atlas`. Run `npm run build` when changing

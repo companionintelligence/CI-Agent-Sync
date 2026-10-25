@@ -24,7 +24,7 @@ def run_check(checks, id, *command)
 end
 
 run_check(checks, "validate", RbConfig.ruby, File.join(root, "scripts", "validate.rb"))
-smoke = [RbConfig.ruby, File.join(root, "scripts", "harness-smoke.rb")]
+smoke = [File.join(root, "bin", "agentctl"), "harness-smoke"]
 smoke << "--live-local" if options[:live_local]
 run_check(checks, "harness-smoke", *smoke)
 run_check(checks, "sync-tests", RbConfig.ruby, File.join(root, "scripts", "test_sync.rb"))

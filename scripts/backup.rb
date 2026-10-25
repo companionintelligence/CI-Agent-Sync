@@ -59,7 +59,7 @@ sources.each do |relative, source, kind|
   records << { "path" => relative, "status" => "copied-redacted", "sha256" => Digest::SHA256.file(destination).hexdigest }
 end
 
-doctor_out, doctor_error, doctor_status = Open3.capture3(RbConfig.ruby, File.join(ROOT, "scripts", "doctor.rb"), "--json")
+doctor_out, doctor_error, doctor_status = Open3.capture3(File.join(ROOT, "bin", "agentctl"), "doctor", "--json")
 File.write(File.join(options[:output], "doctor.json"), doctor_out)
 records << { "path" => "doctor.json", "status" => doctor_status.success? ? "ok" : "warnings-or-errors", "stderr_present" => !doctor_error.empty? }
 manifest = {

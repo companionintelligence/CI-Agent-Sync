@@ -13,6 +13,7 @@ import {
   safeDetail,
 } from "./core.ts";
 import { backupPlan, createBackup, renderArtifacts } from "./operations.ts";
+import { doctor } from "./doctor.ts";
 
 export const APP_NAME = "CI Agent Sync";
 export const APP_VERSION = "0.2.0";
@@ -73,7 +74,16 @@ function send(response: ServerResponse, status: number, type: string, body: stri
 
 async function routeCheck(kind: string): Promise<any> {
   if (kind === "backup-plan") return { kind, status: "ok", data: backupPlan() };
-  const script = kind === "doctor" ? "doctor.rb" : kind === "fleet" ? "hub-fleet-smoke.rb" : kind === "marketplace" ? "marketplace-audit.rb" : undefined;
+  if (kind === "doctor") {
+    const checked = await doctor({ json: false });
+    return {
+      kind,
+      status: checked.exitCode === 0 ? "ok" : "error",
+      exit_code: checked.exitCode,
+      data: redactSecrets(checked.result),
+    };
+  }
+  const script = kind === "fleet" ? "hub-fleet-smoke.rb" : kind === "marketplace" ? "marketplace-audit.rb" : undefined;
   if (!script) return { kind, status: "error", message: "Unknown read-only check" };
   const result = await legacyScriptAsync(script, ["--json"], kind === "doctor" ? 35_000 : 20_000);
   const parsed = (() => { try { return JSON.parse(result.stdout); } catch { return undefined; } })();

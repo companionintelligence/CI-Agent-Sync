@@ -83,6 +83,22 @@ def auth_headers(key)
   key && !key.empty? ? { "Authorization" => "Bearer #{key}" } : {}
 end
 
+def parse_json_or_sse(body)
+  parsed = JSON.parse(body)
+  return parsed
+rescue JSON::ParserError
+  body.to_s.lines.reverse_each do |line|
+    next unless line.start_with?("data:")
+
+    begin
+      return JSON.parse(line.delete_prefix("data:").strip)
+    rescue JSON::ParserError
+      next
+    end
+  end
+  nil
+end
+
 def response_detail(response)
   response[:code] ? "HTTP #{response[:code]}" : "unreachable (#{response[:error]})"
 end
@@ -112,7 +128,7 @@ def mcp_probe(base_url, key, timeout_seconds)
   )
   return { ok: false, detail: "tools/list #{response_detail(listed)}" } unless listed[:code] == 200
 
-  payload = JSON.parse(listed[:body]) rescue nil
+  payload = parse_json_or_sse(listed[:body])
   tools = payload&.dig("result", "tools")
   return { ok: false, detail: "tools/list returned no tool array" } unless tools.is_a?(Array)
 

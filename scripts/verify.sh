@@ -15,22 +15,24 @@ zsh -n scripts/sync-repos.zsh
 node --version | rg '^v(2[2-9]|[3-9][0-9])\.' >/dev/null
 node --experimental-strip-types --no-warnings src/cli.ts check >/dev/null
 node --experimental-strip-types --no-warnings src/test.ts >/dev/null
+node --experimental-strip-types --no-warnings src/cli.ts conformance --json --timeout 5 >/dev/null
+node --experimental-strip-types --no-warnings src/cli.ts harness-smoke --json --timeout 5 >/dev/null
 ruby -c scripts/redact-config.rb >/dev/null
 ruby -c scripts/redact-text.rb >/dev/null
-ruby -c scripts/doctor.rb >/dev/null
+zsh -n scripts/doctor.rb
 ruby -c scripts/render.rb >/dev/null
 ruby -c scripts/sync.rb >/dev/null
 ruby -c scripts/test_sync.rb >/dev/null
 ruby -c scripts/validate.rb >/dev/null
 ruby -c scripts/test.rb >/dev/null
-ruby -c scripts/harness-smoke.rb >/dev/null
+zsh -n scripts/harness-smoke.rb
 ruby -c scripts/harness_probe.rb >/dev/null
 ruby -c scripts/test_harness_probe.rb >/dev/null
 ruby -c scripts/backup.rb >/dev/null
 ruby -c scripts/repair-openclaw.rb >/dev/null
 ruby -c scripts/onepassword.rb >/dev/null
 ruby -c scripts/process_helpers.rb >/dev/null
-ruby -c scripts/conformance.rb >/dev/null
+zsh -n scripts/conformance.rb
 ruby -c scripts/readiness.rb >/dev/null
 ruby -c scripts/export-report.rb >/dev/null
 ruby -c scripts/action-ledger.rb >/dev/null
