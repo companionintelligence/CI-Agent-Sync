@@ -46,7 +46,7 @@ def onepassword_item_names
 
   binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
   vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
-  output, _error, status = capture_with_timeout([binary, "item", "list", "--vault", vault, "--format=json"], 12)
+  output, _error, status = capture_with_timeout([binary, "item", "list", "--vault", vault, "--format=json"], AgentConfigProcess.onepassword_timeout)
   parsed = JSON.parse(output) rescue []
   $agent_config_op_items = status&.success? ? Array(parsed).filter_map { |item| item["title"] || item["id"] } : []
 rescue StandardError
@@ -61,7 +61,7 @@ def op_secret_value(provider)
   item = "agent-configs-#{provider}"
   return nil unless onepassword_item_names.include?(item)
   reference = "op://#{vault}/#{item}/credential"
-  output, _error, status = capture_with_timeout([binary, "read", "--no-newline", reference], 12)
+  output, _error, status = capture_with_timeout([binary, "read", "--no-newline", reference], AgentConfigProcess.onepassword_timeout(:read))
   return nil if status.nil?
   output.strip if status.success? && !output.strip.empty?
 rescue Timeout::Error, StandardError
@@ -126,12 +126,19 @@ end
 end
 
 %w[code hermes openclaw claude codex opencode ollama wrangler cihub tailscale npx uvx pnpm yarn docker].each do |command|
-  resolved_command = command == "openclaw" ? File.join(STORE_ROOT, "bin", "openclaw-runtime") : command
+  resolved_command = if command == "openclaw"
+                       File.join(STORE_ROOT, "bin", "openclaw-runtime")
+                     elsif command == "hermes"
+                       AgentConfigProcess.hermes_version_command
+                     else
+                       command
+                     end
   path = command == "openclaw" && File.executable?(resolved_command) ? resolved_command : `command -v #{command} 2>/dev/null`.strip
   if path.empty?
     add_check(checks, "command.#{command}", "warn", "not installed on this machine")
   else
-    version, _ok = run_command(resolved_command, "--version")
+    version_command = resolved_command.is_a?(Array) ? resolved_command + ["--version"] : [resolved_command, "--version"]
+    version, _ok = run_command(*version_command)
     add_check(checks, "command.#{command}", "ok", [version, path].reject(&:empty?).join(" — "))
   end
 end
@@ -157,7 +164,9 @@ config_paths.each do |name, path|
 end
 
 if command = `command -v openclaw 2>/dev/null`.strip
-  gateway_command = File.join(Dir.home, ".local", "bin", "openclaw-gateway-with-omlx")
+  # Gateway health is independent of model credentials. Do not route this
+  # diagnostic through the 1Password-backed inference wrapper.
+  gateway_command = File.join(STORE_ROOT, "bin", "openclaw-runtime")
   gateway_command = command unless File.executable?(gateway_command)
   gateway_probe, gateway_ok = run_command(gateway_command, "gateway", "health", "--json")
   add_check(checks, "runtime.openclaw.gateway", gateway_ok ? "ok" : "warn", gateway_ok ? "gateway health responded" : "gateway probe failed; use the desktop-matched runtime when installed")
@@ -166,7 +175,7 @@ end
 providers = %w[anthropic openai openrouter ollama omlx companion-hub companion-hub-qa companion-hub-inference companion-hub-fleet-qa companion-memory omniroute android-mcp cloudflare]
 op_binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
 if system("which", op_binary, out: File::NULL, err: File::NULL)
-  _vaults, _vaults_error, vaults_status = capture_with_timeout([op_binary, "vault", "list", "--format=json"], 30)
+  _vaults, _vaults_error, vaults_status = capture_with_timeout([op_binary, "vault", "list", "--format=json"], AgentConfigProcess.onepassword_timeout)
   if vaults_status&.success?
     add_check(checks, "credential-backend.onepassword", "ok", "1Password CLI authenticated; values are never printed")
   else

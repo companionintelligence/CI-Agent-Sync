@@ -34,7 +34,7 @@ def onepassword_item_names
 
   binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
   vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
-  output, _error, status = capture_with_timeout([binary, "item", "list", "--vault", vault, "--format=json"], 12)
+  output, _error, status = capture_with_timeout([binary, "item", "list", "--vault", vault, "--format=json"], AgentConfigProcess.onepassword_timeout)
   parsed = JSON.parse(output) rescue []
   $agent_config_op_items = status&.success? ? Array(parsed).filter_map { |item| item["title"] || item["id"] } : []
 rescue StandardError
@@ -48,7 +48,7 @@ def op_secret_value(provider)
   vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
   return nil unless onepassword_item_names.include?("agent-configs-#{provider}")
   reference = "op://#{vault}/agent-configs-#{provider}/credential"
-  output, _error, status = capture_with_timeout([binary, "read", "--no-newline", reference], 12)
+  output, _error, status = capture_with_timeout([binary, "read", "--no-newline", reference], AgentConfigProcess.onepassword_timeout(:read))
   return nil if status.nil?
   output.strip if status.success? && !output.strip.empty?
 rescue Timeout::Error, StandardError
@@ -110,8 +110,15 @@ selected = options[:agent] ? { options[:agent] => harnesses.fetch(options[:agent
 checks = []
 selected.each do |name, metadata|
   if metadata["command"]
-    command = metadata["command"] == "openclaw" ? File.join(ROOT, "bin", "openclaw-runtime") : metadata["command"]
-    probe = command_probe([command, "--version"], options[:timeout])
+    command = if metadata["command"] == "openclaw"
+                File.join(ROOT, "bin", "openclaw-runtime")
+              elsif metadata["command"] == "hermes"
+                AgentConfigProcess.hermes_version_command
+              else
+                metadata["command"]
+              end
+    version_command = command.is_a?(Array) ? command + ["--version"] : [command, "--version"]
+    probe = command_probe(version_command, options[:timeout])
     checks << { "id" => "harness.#{name}.command", "status" => probe["status"], "detail" => probe["detail"] }
   elsif Array(metadata["app_paths"]).any? { |path| File.exist?(expand_path(path)) }
     checks << { "id" => "harness.#{name}.app", "status" => "ok", "detail" => "desktop app present" }
@@ -140,8 +147,10 @@ end
 
 if options[:live_local]
   if selected.key?("openclaw") || !options[:agent]
-    gateway_wrapper = File.join(Dir.home, ".local", "bin", "openclaw-gateway-with-omlx")
-    gateway_command = File.executable?(gateway_wrapper) ? [gateway_wrapper, "gateway", "health", "--json"] : ["openclaw", "gateway", "health", "--json"]
+    # Gateway health is a control-plane probe; it does not need an inference
+    # credential. Calling the oMLX injection wrapper here can block on a
+    # desktop 1Password approval and turn a healthy gateway into a timeout.
+    gateway_command = [File.join(ROOT, "bin", "openclaw-runtime"), "gateway", "health", "--json"]
     probe = command_probe(gateway_command, options[:timeout])
     checks << { "id" => "live.openclaw.gateway", "status" => probe["status"], "detail" => probe["detail"] }
   end
