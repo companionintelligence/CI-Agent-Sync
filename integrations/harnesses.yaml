@@ -5,6 +5,7 @@ version: 1
 harnesses:
   hermes:
     command: hermes
+    version_probe: metadata
     config_paths:
       macos: "${HOME}/.hermes/config.yaml"
       linux: "${HOME}/.hermes/config.yaml"
