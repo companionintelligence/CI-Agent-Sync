@@ -17,6 +17,8 @@ integrations:
   plugins_registry: integrations/plugins.yaml
   hub_operator: integrations/hub-operator.yaml
   fleet_qa: integrations/fleet-qa.yaml
+  operator_contract: integrations/operator-contract.yaml
+  workflow_packs: integrations/workflow-packs.yaml
   repository_manifest: repos/companionintelligence.yaml
   workspace_manifest: repos/workspace.yaml
 
@@ -33,9 +35,16 @@ operations:
   repository_sync_apply: ./bin/agent-store repos sync --apply
   hub_control_room: ./bin/agentctl hub smoke --json --strict --from-1password
   memory_control_room: ./bin/agentctl memory smoke --json --strict --from-1password
+  companion_cli_status: ./bin/agentctl companion status --json
+  companion_hub_cli: ./bin/agentctl companion hub
+  companion_memory_cli: ./bin/agentctl companion memory
+  companion_tui: ./bin/agentctl companion tui
   fleet_smoke: ./bin/agentctl fleet smoke --json --strict
   deployment_doctor: ./bin/agentctl deploy doctor --json
   platform_qa_workflow: workflows/platform-qa.md
+  readiness: ./bin/agentctl readiness --json --from-1password
+  evidence_report: ./bin/agentctl report --json --from-1password --deploy
+  action_ledger: ./bin/agentctl ledger
 
 agents:
   hermes:

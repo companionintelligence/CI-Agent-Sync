@@ -9,5 +9,15 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install ripgrep for repository verification
+        run: brew install ripgrep
+      - name: Install TypeScript control-plane dependencies
+        run: npm ci
+      - name: Build TypeScript control plane and browser bundle
+        run: npm run build
       - name: Verify scripts and secret hygiene
         run: ./scripts/verify.sh

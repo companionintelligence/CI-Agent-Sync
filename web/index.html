@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f3faf7" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="CI Agent Sync setup wizard for agents, providers, portable configuration, and redacted backups." />
+    <title>CI Agent Sync · Setup</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/ci-common/logo-mark.svg" />
+    <link rel="stylesheet" href="/assets/ci-common/tokens.css" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="wizard-app">
+      <header class="app-header">
+        <a class="brand" href="/" aria-label="CI Agent Sync setup home">
+          <img src="/assets/ci-common/logo-mark.svg" alt="" />
+          <span>CI Agent Sync</span>
+        </a>
+        <div class="header-actions">
+          <span class="local-chip"><span class="status-dot"></span> LOCAL</span>
+          <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Use system theme" title="Use system theme"><span aria-hidden="true">◐</span><span class="theme-label">System</span></button>
+        </div>
+      </header>
+
+      <div class="progress-area" aria-label="Setup progress">
+        <div class="progress-meta"><span><strong id="step-number">1</strong> of 6</span><span id="step-label">Start</span></div>
+        <div class="progress-track"><div id="progress-bar"></div></div>
+      </div>
+
+      <main class="wizard-main">
+        <div class="loading-banner" id="loading-banner">Loading your agent map…</div>
+
+        <section class="wizard-step active" data-step="1" aria-labelledby="step-1-title">
+          <p class="kicker">SETUP WIZARD</p>
+          <h1 id="step-1-title">Get every agent ready.</h1>
+          <p class="lead">A short setup path for your harnesses, shared config, and a safe redacted backup.</p>
+          <div class="plain-list">
+            <div><span class="list-mark">1</span><span>Connect credentials through 1Password.</span></div>
+            <div><span class="list-mark">2</span><span>Choose the agents and work profile you use.</span></div>
+            <div><span class="list-mark">3</span><span>Generate portable artifacts and back up native configs.</span></div>
+          </div>
+          <div class="quiet-note"><strong>Safe by default.</strong> Secrets, OAuth sessions, app databases, and device identities stay out of the store.</div>
+        </section>
+
+        <section class="wizard-step" data-step="2" aria-labelledby="step-2-title" hidden>
+          <p class="kicker">STEP 1 / VAULT</p>
+          <h1 id="step-2-title">Connect your vault.</h1>
+          <p class="lead">Use 1Password for credential values. CI Agent Sync only stores references and setup policy.</p>
+          <div class="command-card">
+            <div class="command-heading"><span>Run in Terminal</span><button class="copy-button" type="button" data-copy="./bin/agentctl credentials op setup\n./bin/agentctl credentials op import">Copy</button></div>
+            <pre><code>./bin/agentctl credentials op setup
+./bin/agentctl credentials op import</code></pre>
+          </div>
+          <label class="check-row"><input id="vault-ready" type="checkbox" /><span class="fake-checkbox"></span><span><strong>1Password is ready</strong><small>I can finish any sign-in prompt in the desktop app.</small></span></label>
+          <div class="quiet-note">You can continue without checking this box. The wizard will not ask you to paste a credential here.</div>
+        </section>
+
+        <section class="wizard-step" data-step="3" aria-labelledby="step-3-title" hidden>
+          <p class="kicker">STEP 2 / AGENTS</p>
+          <div class="title-row"><div><h1 id="step-3-title">Choose your agents.</h1><p class="lead">Select the clients you want to keep in your portable setup.</p></div><button class="text-button" id="select-all" type="button">Select all</button></div>
+          <div class="selection-meta"><span id="agent-count">0 selected</span><span>Native sessions stay local.</span></div>
+          <div class="option-list" id="harness-options"></div>
+        </section>
+
+        <section class="wizard-step" data-step="4" aria-labelledby="step-4-title" hidden>
+          <p class="kicker">STEP 3 / PROFILE</p>
+          <h1 id="step-4-title">Pick a working profile.</h1>
+          <p class="lead">This chooses the reviewed bundles and fallback posture. It does not overwrite native app state.</p>
+          <div class="profile-list" id="profile-options"></div>
+          <div class="plan-card" id="config-plan"></div>
+          <button class="secondary-button full-width" id="render-button" type="button">Generate portable config</button>
+          <p class="action-status" id="render-status" aria-live="polite"></p>
+        </section>
+
+        <section class="wizard-step" data-step="5" aria-labelledby="step-5-title" hidden>
+          <p class="kicker">STEP 4 / BACKUP</p>
+          <h1 id="step-5-title">Back up before you go.</h1>
+          <p class="lead">Create a redacted snapshot of the agent configs available on this machine.</p>
+          <div class="backup-summary"><strong>Included</strong><span>Hermes · OpenClaw · Claude · Codex · OpenCode · Aider Desk · Antigravity · Pi · VS Code</span><small>Missing files are skipped. Credential values and native sessions are never copied.</small></div>
+          <button class="secondary-button full-width" id="backup-plan-button" type="button">Preview backup</button>
+          <div class="backup-plan" id="backup-plan" hidden></div>
+          <button class="primary-button full-width" id="backup-button" type="button">Create redacted backup</button>
+          <p class="action-status" id="backup-status" aria-live="polite"></p>
+        </section>
+
+        <section class="wizard-step" data-step="6" aria-labelledby="step-6-title" hidden>
+          <p class="kicker">READY</p>
+          <h1 id="step-6-title">Your map is ready.</h1>
+          <p class="lead">Use the CLI or any supported harness with the same reviewed setup.</p>
+          <div class="ready-summary" id="ready-summary"></div>
+          <div class="next-actions">
+            <div><span class="action-number">01</span><span><strong>Check the machine</strong><code>./bin/agentctl doctor --json</code></span></div>
+            <div><span class="action-number">02</span><span><strong>Review a sync plan</strong><code>./bin/agentctl sync</code></span></div>
+            <div><span class="action-number">03</span><span><strong>Open this wizard again</strong><code>./bin/agent-atlas --open</code></span></div>
+          </div>
+          <div class="finish-actions"><button class="secondary-button" id="start-over" type="button">Start over</button><a class="secondary-button" href="/docs/agent-atlas.md">Setup notes</a></div>
+        </section>
+      </main>
+
+      <footer class="wizard-controls">
+        <button class="back-button" id="back-button" type="button" disabled>Back</button>
+        <button class="primary-button next-button" id="next-button" type="button">Start setup</button>
+      </footer>
+    </div>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

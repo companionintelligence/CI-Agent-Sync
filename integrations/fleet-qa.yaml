@@ -8,6 +8,10 @@ source:
   mcp_entrypoint: tools/mcp-server.mjs
   roster: tools/fleet-qa/skills/run-fleet-qa/fleet.json
   hub_root_env: [HUB_ROOT, COMPANION_HUB_ROOT, CI_HUB_ROOT]
+  read_only_routes:
+    readiness: /api/readiness.json
+    manifest: /api/run.json
+    snapshot: mcp://fleet_qa_snapshot
 
 credential:
   provider: companion-hub-fleet-qa
@@ -36,25 +40,56 @@ suites:
     confirmation: required
     purpose: Companion Hub marketplace app install/start/health and platform journeys
 
+approval:
+  schema_version: 1
+  provider: local-action-ledger
+  command: ./bin/agentctl ledger plan|approve
+  required_for: [fleet_qa_start, fleet_qa_preflight]
+  required_status: approved
+  required_fields: [id, action, target, reason, status, expires_at]
+  target_format: fleet-qa:<suite>/<mode>:<all|nodes=node-a,node-b>
+  target_must_match: suite_mode_and_explicit_selector
+  expires_at_must_be_future: true
+  credential_values_never_returned: true
+  receipt_forwarding: bounded_audit_fields_only
+
 mcp_tools:
   - fleet_qa_capabilities
+  - fleet_qa_readiness
+  - fleet_qa_manifest
   - fleet_qa_status
   - fleet_qa_start
   - fleet_qa_preflight
   - fleet_qa_inventory
   - fleet_qa_pool_scan
   - fleet_qa_evidence
+  - fleet_qa_snapshot
   - fleet_qa_stop
   - fleet_qa_reset
 
 sequence:
   - fleet_qa_capabilities
+  - fleet_qa_readiness
+  - fleet_qa_manifest
   - fleet_qa_status
   - fleet_qa_preflight
   - fleet_qa_inventory
   - fleet_qa_pool_scan
   - fleet_qa_start
   - fleet_qa_evidence
+  - fleet_qa_snapshot
+  - fleet_qa_stop
+
+mutating_sequence:
+  - fleet_qa_capabilities
+  - fleet_qa_readiness
+  - fleet_qa_preflight
+  - action_ledger_plan
+  - action_ledger_approve
+  - fleet_qa_start
+  - fleet_qa_evidence
+  - fleet_qa_snapshot
+  - action_ledger_complete
   - fleet_qa_stop
 
 cli_only:
@@ -63,6 +98,6 @@ cli_only:
   - do not infer execution from an evidence resource or a read-only MCP call
 
 evidence:
-  resources: [status, results, llm, pool, provenance, journeys, drills]
+  resources: [manifest, readiness, status, results, llm, pool, provenance, journeys, drills]
   required_fields: [target, suite, mode, provider_or_backend, model_or_app, result, timestamp]
   redact: [api_keys, bearer_tokens, cookies, oauth_sessions, native_app_state]

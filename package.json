@@ -1,0 +1,26 @@
+{
+  "name": "@companionintelligence/ci-agent-sync",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Portable Companion Intelligence agent control plane",
+  "type": "module",
+  "packageManager": "npm@10",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "check": "node --experimental-strip-types --no-warnings src/cli.ts check",
+    "dev": "node --experimental-strip-types --no-warnings src/cli.ts atlas --open",
+    "start": "node --experimental-strip-types --no-warnings src/cli.ts atlas",
+    "build": "tsc --project tsconfig.json && esbuild web/app.ts --bundle --format=iife --target=es2020 --outfile=web/app.js",
+    "test": "node --experimental-strip-types --no-warnings src/test.ts"
+  },
+  "dependencies": {
+    "yaml": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.9.3"
+  }
+}

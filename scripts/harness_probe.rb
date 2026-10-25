@@ -1,0 +1,59 @@
+# Resolve a safe version probe for a harness without invoking an interactive
+# startup path. Some clients load external secret sources before --version;
+# their installed distribution metadata is the equivalent side-effect-free
+# health signal.
+require "open3"
+
+module AgentConfigHarnessProbe
+  module_function
+
+  def command_for(metadata, command)
+    return [command, "--version"] unless metadata["version_probe"] == "metadata"
+
+    python = python_interpreter_for(command)
+    return [python, "-c", "import importlib.metadata as m; print(m.version('hermes-agent'))"] if python
+
+    [command, "--version"]
+  end
+
+  def python_interpreter_for(command)
+    executable = resolved_executable(command)
+    candidates = [executable]
+    begin
+      wrapper = File.read(executable)
+      target = wrapper[/\bexec\s+["']([^"']+)["']/, 1]
+      candidates.unshift(target) if target && !target.empty?
+    rescue StandardError
+      # A binary or unreadable wrapper falls back to the normal probe.
+    end
+
+    # Hermes' venv launcher is a POSIX shell/Python polyglot whose first line
+    # is `#!/bin/sh`, so its Python interpreter is embedded on the next line.
+    # Prefer sibling Python executables before falling back to shebang parsing.
+    candidates = candidates.compact.uniq.flat_map do |candidate|
+      [candidate, File.join(File.dirname(candidate), "python3"), File.join(File.dirname(candidate), "python")]
+    end.uniq
+
+    candidates.each do |candidate|
+      next unless File.file?(candidate)
+      return candidate if File.basename(candidate).match?(/\Apython(?:[0-9]+(?:\.[0-9]+)?)?\z/) && File.executable?(candidate)
+
+      first_line = File.foreach(candidate).first
+      next unless first_line&.start_with?("#!")
+
+      interpreter = first_line.delete_prefix("#!").strip.split.last
+      next unless interpreter&.match?(/python(?:[0-9]+(?:\.[0-9]+)?)?\z/)
+      return interpreter if File.executable?(interpreter)
+    rescue StandardError
+      next
+    end
+    nil
+  end
+
+  def resolved_executable(command)
+    output, _error, status = Open3.capture3("which", command)
+    status.success? && !output.lines.first.to_s.strip.empty? ? output.lines.first.strip : command
+  rescue StandardError
+    command
+  end
+end
