@@ -1,0 +1,6 @@
+#!/usr/bin/env zsh
+
+set -euo pipefail
+
+STORE_ROOT="${0:A:h:h}"
+exec ruby "$STORE_ROOT/scripts/atlas-web.rb" "$@"
