@@ -27,6 +27,8 @@ identity remain local to each app.
 | Check Hub + Memory CLIs | `./bin/agentctl companion status --json` | Runs the native `cihub` and `ci` checks through one stable bridge |
 | Use a terminal menu | `./bin/agentctl companion tui` | Launches a small read-oriented TUI for Hub, Memory, readiness, and backup |
 | Check the fleet | `./bin/agentctl fleet smoke --json --strict` | Verifies Tailscale and Hub liveness for named targets |
+| Preflight the whole platform | `./bin/agentctl platform preflight --json` | Read-only repo, provider, service, 1Password, Tailscale, and promotion evidence |
+| Save release evidence | `./bin/agentctl platform evidence --strict` | Writes a redacted, hash-addressed evidence bundle under ignored `local/evidence/` |
 | Audit Marketplace apps | `./bin/agentctl marketplace audit --strict` | Checks release tags, Hub/Memory wiring, and image pins |
 | Generate portable config | `./bin/agentctl render --agent all` | Writes ignored cross-harness artifacts under `local/rendered/` |
 | Back up agent configs | `./bin/agentctl backup` | Creates a redacted snapshot under `local/backups/` |
@@ -216,6 +218,8 @@ Start here:
 ./bin/agentctl doctor --json
 ./bin/agentctl test
 ./bin/agentctl conformance --json
+./bin/agentctl platform preflight --json
+./bin/agentctl platform evidence --strict
 ./bin/agentctl readiness --json --from-1password
 ./bin/agentctl report --json --from-1password --deploy
 ./bin/agentctl profile list --json
