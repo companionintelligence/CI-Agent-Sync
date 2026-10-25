@@ -5,8 +5,10 @@ require "net/http"
 require "open3"
 require "optparse"
 require "time"
+require "timeout"
 require "uri"
 require "yaml"
+require_relative "process_helpers"
 
 STORE_ROOT = File.expand_path("..", __dir__)
 
@@ -25,24 +27,31 @@ def add_check(checks, id, status, detail, **extra)
 end
 
 def run_command(*command)
-  output, _error, status = Open3.capture3(*command)
+  output, _error, status = capture_with_timeout(command, 10)
+  return ["", false] if status.nil?
   [output.lines.first.to_s.strip, status.success?]
 rescue Errno::ENOENT
   ["", false]
+end
+
+def capture_with_timeout(command, timeout_seconds)
+  AgentConfigProcess.capture_with_timeout(command, timeout_seconds)
 end
 
 def op_secret_value(provider)
   return nil if ENV["AGENT_CONFIGS_SECRET_BACKEND"] == "native"
   binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
   return nil unless system("which", binary, out: File::NULL, err: File::NULL)
-  _whoami, _whoami_error, whoami_status = Open3.capture3(binary, "whoami", "--format=json")
+  _whoami, _whoami_error, whoami_status = capture_with_timeout([binary, "whoami", "--format=json"], 3)
+  return nil if whoami_status.nil?
   return nil unless whoami_status.success?
   vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
   item = "agent-configs-#{provider}"
   reference = "op://#{vault}/#{item}/credential"
-  output, _error, status = Open3.capture3(binary, "read", "--no-newline", reference)
+  output, _error, status = capture_with_timeout([binary, "read", "--no-newline", reference], 3)
+  return nil if status.nil?
   output.strip if status.success? && !output.strip.empty?
-rescue StandardError
+rescue Timeout::Error, StandardError
   nil
 end
 
@@ -92,11 +101,12 @@ end
 end
 
 %w[code hermes openclaw claude codex opencode ollama npx uvx pnpm yarn docker].each do |command|
-  path = `command -v #{command} 2>/dev/null`.strip
+  resolved_command = command == "openclaw" ? File.join(STORE_ROOT, "bin", "openclaw-runtime") : command
+  path = command == "openclaw" && File.executable?(resolved_command) ? resolved_command : `command -v #{command} 2>/dev/null`.strip
   if path.empty?
     add_check(checks, "command.#{command}", "warn", "not installed on this machine")
   else
-    version, _ok = run_command(command, "--version")
+    version, _ok = run_command(resolved_command, "--version")
     add_check(checks, "command.#{command}", "ok", [version, path].reject(&:empty?).join(" — "))
   end
 end
@@ -113,8 +123,8 @@ config_paths = {
   "pi" => File.join(Dir.home, ".pi"),
 }
 if system("command", "-v", "hermes", out: File::NULL, err: File::NULL)
-  hermes_path, _error, hermes_status = Open3.capture3("hermes", "config", "path")
-  config_paths["hermes"] = hermes_path.strip if hermes_status.success? && !hermes_path.strip.empty?
+  hermes_path, _error, hermes_status = capture_with_timeout(["hermes", "config", "path"], 5)
+  config_paths["hermes"] = hermes_path.strip if hermes_status&.success? && !hermes_path.strip.empty?
 end
 config_paths.each do |name, path|
   add_check(checks, "config.#{name}", File.exist?(path) ? "ok" : "warn", File.exist?(path) ? "present" : "missing")
@@ -130,8 +140,8 @@ end
 providers = %w[anthropic openai openrouter ollama omlx companion-hub companion-memory omniroute android-mcp]
 op_binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
 if system("which", op_binary, out: File::NULL, err: File::NULL)
-  _whoami, _whoami_error, whoami_status = Open3.capture3(op_binary, "whoami", "--format=json")
-  if whoami_status.success?
+  _whoami, _whoami_error, whoami_status = capture_with_timeout([op_binary, "whoami", "--format=json"], 3)
+  if whoami_status&.success?
     add_check(checks, "credential-backend.onepassword", "ok", "1Password CLI authenticated; values are never printed")
   else
     add_check(checks, "credential-backend.onepassword", "warn", "1Password CLI installed but not authenticated")
@@ -243,11 +253,27 @@ end
 
 ci_root = ENV.fetch("CI_ROOT", File.join(Dir.home, "devel", "ci"))
 manifest = YAML.safe_load_file(File.join(STORE_ROOT, "repos", "companionintelligence.yaml"), aliases: true)
+machine_profile_path = File.join(STORE_ROOT, "profiles", "machines", "local.yaml")
+machine_paths = if File.file?(machine_profile_path)
+                  YAML.safe_load_file(machine_profile_path, aliases: false).fetch("paths", {})
+                else
+                  {}
+                end
+path_overrides = {
+  "Companion-Hub" => "companion_hub",
+  "Companion-Memory" => "companion_memory",
+  "CI-Engineering" => "ci_engineering",
+}
 present = 0
 dirty = 0
 missing = 0
 manifest.fetch("repositories").each do |repo|
-  path = expand_path(repo.fetch("local_path"), ci_root)
+  override = path_overrides[repo.fetch("name")]
+  path = if override && machine_paths[override]
+           expand_path(machine_paths.fetch(override), ci_root)
+         else
+           expand_path(repo.fetch("local_path"), ci_root)
+         end
   if !Dir.exist?(File.join(path, ".git"))
     missing += 1
     next
