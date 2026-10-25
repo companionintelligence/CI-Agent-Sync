@@ -25,19 +25,25 @@ portable; CI-Engineering accepts `HUB_ROOT`, `COMPANION_HUB_ROOT`, or
 
 1. Call `fleet_qa_capabilities` and confirm the expected `llm`/`agent` and
    `quick`/`full` modes are present.
-2. Select targets explicitly with `nodes: ["beta-1"]`, a named list, or
+2. Call `fleet_qa_readiness` and stop on blocking prerequisites. Treat
+   warnings (stale provenance, missing inventory, or missing pool survey) as
+   evidence gaps, not as a reason to claim the fleet is healthy.
+3. Read `fleet_qa_manifest` to identify the current/last `runId` before
+   comparing evidence across agents or machines.
+4. Select targets explicitly with `nodes: ["beta-1"]`, a named list, or
    `all: true`. There is no implicit all-fleet default.
-3. Call `fleet_qa_status` and `fleet_qa_preflight` for the selected suite.
-4. Call `fleet_qa_inventory` and `fleet_qa_pool_scan` to establish model,
+5. Call `fleet_qa_status` and `fleet_qa_preflight` for the selected suite.
+6. Call `fleet_qa_inventory` and `fleet_qa_pool_scan` to establish model,
    backend, and routing evidence before a run.
-5. Run `fleet_qa_start` with `suite: llm` and `mode: llm` first. Use
+7. Run `fleet_qa_start` with `suite: llm` and `mode: llm` first. Use
    `mode: agent` only for the harmless coding/agent probe.
-6. Collect `fleet_qa_evidence` with the relevant resource and preserve the
-   result metadata without secrets.
-7. For marketplace/platform app validation, use `suite: apps` with `mode:
+8. Collect `fleet_qa_evidence` or the bounded `fleet_qa_snapshot` and
+   preserve the `runId`, manifest, readiness, provenance, and result metadata
+   without secrets.
+9. For marketplace/platform app validation, use `suite: apps` with `mode:
    quick` or `full`. The request must include `confirm: true`; the dashboard
    service is also armed server-side and remains confirmation-gated.
-8. Collect evidence again, then call `fleet_qa_stop` when the test window is
+10. Collect evidence again, then call `fleet_qa_stop` when the test window is
    complete. Use `fleet_qa_reset` only as a local fleet-qa control after the
    current evidence is preserved.
 

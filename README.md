@@ -23,6 +23,11 @@ Start here:
 ./bin/agentctl doctor --json
 ./bin/agentctl test
 ./bin/agentctl conformance --json
+./bin/agentctl readiness --json --from-1password
+./bin/agentctl report --json --from-1password --deploy
+./bin/agentctl profile list --json
+./bin/agentctl profile show ceo --json
+./bin/agentctl ledger plan --action marketplace_full_qa --target core-1 --reason "release validation"
 ./bin/agentctl hub smoke --json
 ./bin/agentctl hub smoke --json --strict --from-1password
 ./bin/agentctl memory smoke --json
@@ -59,7 +64,11 @@ The underlying commands remain available for compatibility:
 The control-plane lifecycle, separation of policy/secrets/native state, and
 portable recovery model are documented in
 [docs/control-plane.md](docs/control-plane.md). Harness readiness is tested in
-tiers described by [docs/harness-parity.md](docs/harness-parity.md).
+tiers described by [docs/harness-parity.md](docs/harness-parity.md). The
+cross-surface readiness schema, portable evidence bundle, and approval ledger
+are defined in [integrations/operator-contract.yaml](integrations/operator-contract.yaml).
+Workflow packs for CEO, engineering, and marketing work are in
+[integrations/workflow-packs.yaml](integrations/workflow-packs.yaml).
 
 Provider order and safety rules are in
 [integrations/providers/fallbacks.yaml](integrations/providers/fallbacks.yaml).

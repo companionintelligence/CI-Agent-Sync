@@ -9,6 +9,7 @@ zsh -n bin/agent-store
 zsh -n bin/openclaw-runtime
 zsh -n scripts/bootstrap-machine.zsh
 zsh -n scripts/sync-repos.zsh
+ruby -c bin/agentctl >/dev/null
 ruby -c scripts/redact-config.rb >/dev/null
 ruby -c scripts/redact-text.rb >/dev/null
 ruby -c scripts/doctor.rb >/dev/null
@@ -23,6 +24,11 @@ ruby -c scripts/repair-openclaw.rb >/dev/null
 ruby -c scripts/onepassword.rb >/dev/null
 ruby -c scripts/process_helpers.rb >/dev/null
 ruby -c scripts/conformance.rb >/dev/null
+ruby -c scripts/readiness.rb >/dev/null
+ruby -c scripts/export-report.rb >/dev/null
+ruby -c scripts/action-ledger.rb >/dev/null
+ruby -c scripts/test_action_ledger.rb >/dev/null
+ruby -c scripts/profile.rb >/dev/null
 git diff --check
 
 while IFS= read -r file; do
@@ -44,6 +50,9 @@ ruby -ryaml -e '
 ' integrations/providers/fallbacks.yaml
 
 ruby scripts/test_sync.rb >/dev/null
+ruby scripts/test_action_ledger.rb >/dev/null
+ruby scripts/profile.rb list --json >/dev/null
+ruby scripts/profile.rb show ceo --json >/dev/null
 
 while IFS= read -r file; do
   ruby -rjson -e 'JSON.parse(File.read(ARGV[0]))' "$file"

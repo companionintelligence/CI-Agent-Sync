@@ -166,7 +166,10 @@ end
 providers = %w[anthropic openai openrouter ollama omlx companion-hub companion-hub-qa companion-hub-inference companion-hub-fleet-qa companion-memory omniroute android-mcp cloudflare]
 op_binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
 if system("which", op_binary, out: File::NULL, err: File::NULL)
-  _vaults, _vaults_error, vaults_status = capture_with_timeout([op_binary, "vault", "list", "--format=json"], 30)
+  # `op vault list` can wait on a desktop approval/session indefinitely. A
+  # readiness probe must fail closed quickly; credential setup has its own
+  # explicit 1Password workflow and is not accelerated by this check.
+  _vaults, _vaults_error, vaults_status = capture_with_timeout([op_binary, "vault", "list", "--format=json"], 8)
   if vaults_status&.success?
     add_check(checks, "credential-backend.onepassword", "ok", "1Password CLI authenticated; values are never printed")
   else
