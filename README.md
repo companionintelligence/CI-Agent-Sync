@@ -23,6 +23,11 @@ Start here:
 ./bin/agentctl doctor --json
 ./bin/agentctl test
 ./bin/agentctl conformance --json
+./bin/agentctl readiness --json --from-1password
+./bin/agentctl report --json --from-1password --deploy
+./bin/agentctl profile list --json
+./bin/agentctl profile show ceo --json
+./bin/agentctl ledger plan --action marketplace_full_qa --target core-1 --reason "release validation"
 ./bin/agentctl hub smoke --json
 ./bin/agentctl hub smoke --json --strict --from-1password
 ./bin/agentctl memory smoke --json
@@ -59,7 +64,11 @@ The underlying commands remain available for compatibility:
 The control-plane lifecycle, separation of policy/secrets/native state, and
 portable recovery model are documented in
 [docs/control-plane.md](docs/control-plane.md). Harness readiness is tested in
-tiers described by [docs/harness-parity.md](docs/harness-parity.md).
+tiers described by [docs/harness-parity.md](docs/harness-parity.md). The
+cross-surface readiness schema, portable evidence bundle, and approval ledger
+are defined in [integrations/operator-contract.yaml](integrations/operator-contract.yaml).
+Workflow packs for CEO, engineering, and marketing work are in
+[integrations/workflow-packs.yaml](integrations/workflow-packs.yaml).
 
 Provider order and safety rules are in
 [integrations/providers/fallbacks.yaml](integrations/providers/fallbacks.yaml).
@@ -112,6 +121,7 @@ putting it in chat or a tracked file:
 ./bin/agent-store credentials set companion-hub
 ./bin/agent-store credentials set companion-hub-qa
 ./bin/agent-store credentials set companion-hub-inference
+./bin/agent-store credentials set companion-hub-fleet-qa
 ./bin/agent-store credentials set companion-memory
 ./bin/agent-store credentials set omniroute
 ./bin/agent-store credentials set android-mcp
@@ -164,6 +174,14 @@ For CI-Hub fleet work, use the plan-first policy in
 follow [docs/fleet-operations.md](docs/fleet-operations.md). The latest
 repair evidence is in
 [reports/2026-10-24-fleet-pool-repair.md](reports/2026-10-24-fleet-pool-repair.md).
+
+For whole-platform and marketplace QA, select the `platform-qa` bundle and
+follow [workflows/platform-qa.md](workflows/platform-qa.md). It exposes the
+guarded CI-Engineering `fleet_qa_*` MCP tools to every supported local
+harness, requires an explicit node list or `all: true`, and requires
+confirmation before marketplace app-suite control. The per-node
+`FLEET_HUB_API_KEYS_JSON` value is stored only as
+`agent-configs-companion-hub-fleet-qa` in 1Password.
 
 The mobile references are catalogued in
 [integrations/references.yaml](integrations/references.yaml). The Android

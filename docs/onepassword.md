@@ -51,6 +51,9 @@ agent-configs-openrouter
 agent-configs-ollama
 agent-configs-omlx
 agent-configs-companion-hub
+agent-configs-companion-hub-qa
+agent-configs-companion-hub-inference
+agent-configs-companion-hub-fleet-qa
 agent-configs-companion-memory
 agent-configs-omniroute
 agent-configs-android-mcp
@@ -78,6 +81,10 @@ target-scoped Cloudflare API token as `agent-configs-cloudflare`; the portable
 workflow injects it only for an explicit Wrangler command. Do not copy the
 current laptop’s native Wrangler OAuth file. Hub fleet credentials should be
 scoped per target when the appliance does not share one owner/key namespace.
+For CI-Engineering fleet-qa, store the one-line JSON object of reviewed node
+local keys in `agent-configs-companion-hub-fleet-qa`; never commit or echo the
+object. The wrapper injects it as `FLEET_HUB_API_KEYS_JSON` only for the
+fleet-qa process.
 
 Never commit a service-account token, `OP_SESSION_*` value, exported `.env`, or
 resolved secret. Rotate a provider in 1Password first, rerun `status`, then

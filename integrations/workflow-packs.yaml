@@ -1,0 +1,42 @@
+version: 1
+
+# A portable task vocabulary. A harness may render these into native skills,
+# prompts, commands, or MCP bundles, but it must preserve the approval policy.
+packs:
+  platform-readiness:
+    profile: ceo
+    bundle: operator-readonly
+    command: ./bin/agentctl readiness --json --from-1password --deploy
+    writes: false
+    output: readiness-report
+  incident-response:
+    profiles: [ceo, engineering]
+    bundle: operator-readonly
+    sequence: [agentctl-readiness, preserve-evidence, propose-repair, confirm, verify]
+    writes: false_until_confirmed
+    output: incident-brief
+  launch-review:
+    profile: ceo
+    bundles: [operator-readonly, platform-qa]
+    sequence: [agentctl-readiness, fleet-qa-snapshot, marketplace-evidence, go-no-go]
+    writes: false_until_confirmed
+    output: launch-readiness-report
+  release-readiness:
+    profile: engineering
+    bundles: [development, platform-qa]
+    sequence: [static-checks, fleet-qa-preflight, fleet-qa-readiness, scoped-run, evidence-bundle]
+    writes: false_until_confirmed
+    output: release-evidence
+  campaign-review:
+    profile: marketing
+    bundles: [marketing]
+    sequence: [brand-plan, ci-common-build, ci-engineering-evidence, metricool-analytics]
+    writes: false_until_confirmed
+    output: campaign-review
+  metricool-publish:
+    profile: marketing
+    bundle: marketing
+    sequence: [draft, preview, ledger-plan, confirm, publish, verify]
+    writes: true
+    requires: [explicit_target, explicit_confirmation, action_ledger]
+    output: publication-record

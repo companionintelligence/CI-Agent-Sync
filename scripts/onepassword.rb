@@ -12,7 +12,7 @@ require_relative "process_helpers"
 ROOT = File.expand_path("..", __dir__)
 PROVIDERS = %w[
   anthropic openai openrouter ollama omlx companion-hub companion-hub-qa
-  companion-hub-inference companion-memory omniroute android-mcp cloudflare
+  companion-hub-inference companion-hub-fleet-qa companion-memory omniroute android-mcp cloudflare
 ].freeze
 
 options = {

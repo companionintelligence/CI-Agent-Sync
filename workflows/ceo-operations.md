@@ -41,6 +41,7 @@ Recommended scoped 1Password items:
 | `agent-configs-companion-hub` | `mcp` | MCP initialize and approved tools |
 | `agent-configs-companion-hub-qa` | `qa:read` | Pool, routing, app-status, install-queue reads |
 | `agent-configs-companion-hub-inference` | `inference` | OpenAI-compatible model inventory and coding probes |
+| `agent-configs-companion-hub-fleet-qa` | `qa:read` JSON map | Per-node fleet-qa pool-routing evidence |
 
 Create them on the Hub host with the least scope needed, then store each raw
 value once in 1Password. Do not put a full/admin key in the default portable

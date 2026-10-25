@@ -69,6 +69,16 @@ providers:
     scope: inference
     capability: read
 
+  companion-hub-fleet-qa:
+    aliases: [companion_hub_fleet_qa, fleet-qa, hub-fleet-qa]
+    env: FLEET_HUB_API_KEYS_JSON
+    keychain_service: agent-configs/companion-hub-fleet-qa
+    endpoint_env: COMPANION_HUB_BASE_URL
+    primary_clients: [hermes, openclaw, claude, codex, opencode, vscode, aider-desk, pi, antigravity]
+    scope: qa:read
+    capability: read
+    format: json_map
+
   companion-memory:
     aliases: [companion_memory, ci-memory, memory]
     env: COMPANION_MEMORY_API_KEY
