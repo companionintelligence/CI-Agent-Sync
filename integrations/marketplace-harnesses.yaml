@@ -1,0 +1,66 @@
+version: 1
+
+# The Marketplace catalog is the release-facing projection of the same
+# harnesses described in integrations/harnesses.yaml. This contract contains
+# only public manifest expectations and paths; it never contains credentials,
+# OAuth state, or native client data.
+source:
+  repository: companionintelligence/CI-Marketplace
+  manifest_root: apps
+  checkout_env: CI_MARKETPLACE_ROOT
+
+policy:
+  mode: audit_only
+  secrets_from_catalog: false
+  credentials_source: hub_handout_or_1password
+  require_sha256_image_pins: true
+  require_hub_integration: true
+  source_release_check: optional_local_checkout
+
+harnesses:
+  hermes:
+    marketplace_slug: ci-hermes
+    source_repository: companionintelligence/CI-Hermes
+    source_checkout_name: CI-Hermes
+    portable_profile: core
+    capability_bundles: [core]
+    release_tag_prefix: v
+    hub_integration:
+      mcp_client: true
+      memory:
+        url_env: CI_SERVER_URL
+        token_env: CI_SERVER_TOKEN
+      inference:
+        llm_base_url: HERMES_OPENAI_BASE_URL
+        llm_api_key: HERMES_OPENAI_API_KEY
+        chat_model: HERMES_DEFAULT_MODEL
+        embedding_model: HERMES_EMBEDDINGS_MODEL
+        ollama_host: OLLAMA_HOST
+        num_ctx: HERMES_NUM_CTX
+    compose:
+      main_service: ci-hermes
+      required_env: [APP_SEED, CI_HUB_URL, CI_SERVER_URL, CI_SERVER_TOKEN]
+  openclaw:
+    marketplace_slug: ci-openclaw
+    source_repository: companionintelligence/CI-OpenClaw
+    source_checkout_name: CI-OpenClaw
+    portable_profile: core
+    capability_bundles: [core]
+    release_tag_prefix: ""
+    hub_integration:
+      mcp_client: true
+      wake_endpoint: /hooks/wake
+      wake_port: 18789
+      memory:
+        url_env: CI_SERVER_URL
+        token_env: CI_SERVER_TOKEN
+      inference:
+        llm_base_url: OPENAI_API_BASE
+        llm_api_key: OPENAI_API_KEY
+        chat_model: DEFAULT_MODEL
+        embedding_model: EMBEDDINGS_MODEL
+        ollama_host: OLLAMA_HOST
+        num_ctx: CI_LLM_NUM_CTX
+    compose:
+      main_service: ci-openclaw
+      required_env: [APP_SEED, CI_HUB_URL, CI_SERVER_URL, CI_SERVER_TOKEN]

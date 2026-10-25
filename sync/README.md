@@ -29,6 +29,10 @@ rollback copy under `local/sync-backups/` before replacing an existing file;
 use `--no-backup` only for a deliberate exception. A target may add
 `.agent-configs/sync.yml` to disable sync, select groups, or override items.
 
+The shared group includes the Marketplace harness contract. This distributes
+the public expectations for `ci-hermes` and `ci-openclaw` without copying
+their native data, image layers, Hub keys, or provider credentials.
+
 ## Target policy
 
 ```yaml
