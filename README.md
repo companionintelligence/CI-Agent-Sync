@@ -2,19 +2,18 @@
 
 > A portable map for every agent, model, and mission.
 
-CI Agent Sync is the user-facing name for this repository, which remains
-`agent-configs` for Git and automation compatibility. It is the local,
+CI Agent Sync is the user-facing name for this repository. It is the local,
 versionable home for Companion Intelligence harness recipes, provider routes,
 MCP bundles, workflow packs, redacted audits, and safe operator helpers.
 
 The store is maintained in
-[mrhegemon/agent-configs](https://github.com/mrhegemon/agent-configs). It is a
+[companionintelligence/CI-Agent-Sync](https://github.com/companionintelligence/CI-Agent-Sync). It is a
 portable control plane, not a mirror of native app state: credential values
 stay in the shared 1Password vault, while reviewed recipes and redacted audits
 live here. Client-native OAuth state, sessions, model caches, and device
 identity remain local to each app.
 
-![CI Agent Sync logo](web/assets/agent-atlas-logo.png)
+![CI Agent Sync logo](web/assets/ci-common/logo-mark.svg)
 
 ## TL;DR
 
@@ -22,29 +21,42 @@ identity remain local to each app.
 | --- | --- | --- |
 | Prepare a new machine | `./scripts/bootstrap-machine.zsh` | Installs the safe local shell of the store |
 | Connect credentials | `./bin/agentctl credentials op setup` then `./bin/agentctl credentials op import` | Uses 1Password without copying values into Git |
-| Open the GUI | `./bin/agent-atlas --open` or `./bin/agentctl atlas --open` | Starts the loopback-only CI Agent Sync console |
+| Open the GUI | `./bin/agent-atlas --open` or `./bin/agentctl atlas --open` | Starts the loopback-only CI Agent Sync setup wizard |
 | Check the machine | `./bin/agentctl doctor --json` | Reports commands, configs, endpoints, and credential backend status |
+| Check Hub + Memory CLIs | `./bin/agentctl companion status --json` | Runs the native `cihub` and `ci` checks through one stable bridge |
+| Use a terminal menu | `./bin/agentctl companion tui` | Launches a small read-oriented TUI for Hub, Memory, readiness, and backup |
 | Check the fleet | `./bin/agentctl fleet smoke --json --strict` | Verifies Tailscale and Hub liveness for named targets |
 | Audit Marketplace apps | `./bin/agentctl marketplace audit --strict` | Checks release tags, Hub/Memory wiring, and image pins |
+| Generate portable config | `./bin/agentctl render --agent all` | Writes ignored cross-harness artifacts under `local/rendered/` |
+| Back up agent configs | `./bin/agentctl backup` | Creates a redacted snapshot under `local/backups/` |
 | Plan a sync | `./bin/agentctl sync` | Shows what would be distributed; use `--apply` only after review |
 
 The shortest useful setup is:
 
 ```sh
-git clone https://github.com/mrhegemon/agent-configs.git
-cd agent-configs
+git clone https://github.com/companionintelligence/CI-Agent-Sync.git
+cd CI-Agent-Sync
 cp profiles/machines/macos-laptop.yaml.example profiles/machines/local.yaml
 ./scripts/bootstrap-machine.zsh
+npm install
 ./bin/agentctl credentials op setup
 ./bin/agentctl credentials op import
 ./bin/agent-atlas --open
 ```
 
-## Open the local console
+## Open the setup wizard
 
-CI Agent Sync is a zero-dependency Ruby web console backed by the real YAML store.
-It binds to `127.0.0.1:8787`, serves a responsive dashboard, and exposes only
-read-only inventory and evidence checks:
+CI Agent Sync is a TypeScript web wizard backed by the real YAML store. Node 22
+and the small `yaml` package provide the portable runtime; no framework or
+daemon is required. It binds to `127.0.0.1:8787` and walks through the smallest
+useful setup path: connect 1Password, choose harnesses, pick a profile,
+generate portable config artifacts, and create a redacted backup of the agent
+configs on this machine.
+
+The CI Agent Sync control plane is Node/npm-only. You do not need Bun to
+install, build, test, or run this repository. The workspace inventory may
+describe package managers used by independent Companion Intelligence repos;
+those entries do not change this repository's Node-only runtime.
 
 ```sh
 ./bin/agent-atlas --open
@@ -60,10 +72,13 @@ Useful alternatives:
 ./bin/agent-atlas --check         # validate the bundled web assets
 ```
 
-The console does not have write endpoints. It can run the existing doctor,
-fleet smoke, and Marketplace audit commands so you can see current evidence in
-one place. Use the CLI's plan/approval workflows for anything that changes a
-machine, fleet node, deployment, credential, or app.
+The wizard can invoke only two explicit local actions: the TypeScript render
+operation to generate ignored portable artifacts under `local/rendered/`, and
+the TypeScript backup operation to create a redacted snapshot under
+`local/backups/`. It does not
+write native harness state, create credentials, claim Hub, change fleet nodes,
+or deploy applications. Read-only Doctor, fleet, and Marketplace evidence
+remains available through the CLI and the wizard's local API.
 
 Full route and safety details are in [docs/agent-atlas.md](docs/agent-atlas.md).
 
@@ -87,6 +102,26 @@ flowchart LR
 
 The operating rule is simple: policy travels, identity stays local, and every
 write crosses an explicit approval boundary.
+
+## Why TypeScript instead of Ruby?
+
+The first version used Ruby's standard library because it was a quick,
+zero-dependency way to serve a loopback wizard. That was useful for the first
+audit, but it made the control plane unlike the TypeScript/Node-based
+Companion Intelligence products and harder to share with frontend and MCP
+tooling. The current runtime separates the layers cleanly:
+
+| Layer | Implementation | Reason |
+| --- | --- | --- |
+| Control plane | TypeScript on Node 22 | Shared types, async HTTP/MCP-friendly integrations, and the same language as CI-Hub, CI-Common, and the marketplace |
+| Browser | TypeScript source bundled to browser JavaScript | Typed mobile-first wizard without a frontend framework or server build requirement at runtime |
+| Brand | Pinned CI-Common 1.6.0 bundle | Offline, hash-verified tokens, logo assets, and fonts; no sibling checkout dependency |
+| Compatibility | `bin/agent-store-legacy` and `scripts/*.rb` | Existing credential and specialized operator paths remain available while their individual implementations are ported |
+
+The public entry points are now TypeScript-backed: `bin/agentctl`,
+`bin/agent-store`, and `bin/agent-atlas`. Run `npm run build` when changing
+TypeScript or the browser source, then use `./bin/agentctl check` before
+publishing a change.
 
 ## What is portable
 
@@ -226,6 +261,33 @@ cross-surface readiness schema, portable evidence bundle, and approval ledger
 are defined in [integrations/operator-contract.yaml](integrations/operator-contract.yaml).
 Workflow packs for CEO, engineering, and marketing work are in
 [integrations/workflow-packs.yaml](integrations/workflow-packs.yaml).
+
+## Companion Hub and Memory CLI bridge
+
+CI Agent Sync works alongside the native Companion Hub `cihub` CLI and
+Companion Memory `ci` CLI. It does not replace either command line or copy
+their implementation. Use the bridge when you want the portable control plane
+to discover and launch the native tools from one command:
+
+```sh
+./bin/agentctl companion status
+./bin/agentctl companion status --json
+./bin/agentctl companion status --from-1password --json
+./bin/agentctl companion hub status local
+./bin/agentctl companion hub pool status local
+./bin/agentctl companion memory doctor --graphql
+./bin/agentctl companion memory stats --json
+./bin/agentctl companion tui
+```
+
+The combined status check runs Hub `status` and Memory `doctor --graphql` with
+bounded timeouts. It discovers installed binaries first and then falls back to
+the local Companion-Hub / CI-Memory checkouts. Set `CIHUB_BIN`, `CI_MEMORY_CLI`,
+`CI_HUB_ROOT`, or `CI_MEMORY_ROOT` when a machine uses a non-standard layout.
+`COMPANION_MEMORY_BASE_URL` is passed to the native Memory CLI as `--server`;
+credential values remain in the environment or 1Password. See
+[docs/companion-cli.md](docs/companion-cli.md) for the JSON contract, TUI
+menu, and discovery rules.
 
 Provider order and safety rules are in
 [integrations/providers/fallbacks.yaml](integrations/providers/fallbacks.yaml).

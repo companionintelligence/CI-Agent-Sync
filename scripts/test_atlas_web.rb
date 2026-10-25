@@ -3,36 +3,38 @@
 require "json"
 require "net/http"
 require "open3"
-require "rbconfig"
 require "socket"
 require "timeout"
 require "uri"
 
 ROOT = File.expand_path("..", __dir__)
-SERVER = File.join(ROOT, "scripts", "atlas-web.rb")
-
-abort "missing web assets" unless %w[index.html styles.css app.js].all? { |name| File.file?(File.join(ROOT, "web", name)) }
-abort "logo missing" unless File.file?(File.join(ROOT, "web", "assets", "agent-atlas-logo.png"))
-
-output, error, status = Open3.capture3(RbConfig.ruby, SERVER, "--check")
-abort "asset check failed: #{error}\n#{output}" unless status.success?
-
+node = ENV.fetch("NODE_BINARY", "node")
+command = [node, "--experimental-strip-types", "--no-warnings", File.join(ROOT, "src", "cli.ts"), "atlas", "--bind", "127.0.0.1", "--port", "0"]
 reader, writer = IO.pipe
-pid = Process.spawn(RbConfig.ruby, SERVER, "--bind", "127.0.0.1", "--port", "0", out: writer, err: writer)
+pid = Process.spawn(*command, out: writer, err: writer)
 writer.close
 
 begin
   line = Timeout.timeout(5) { reader.gets }
   match = line.to_s.match(%r{http://127\.0\.0\.1:(\d+)})
-  abort "server did not start: #{line.inspect}" unless match
+  abort "TypeScript server did not start: #{line.inspect}" unless match
   port = match[1].to_i
-  uri = URI("http://127.0.0.1:#{port}/api/overview")
-  response = Net::HTTP.get_response(uri)
+  base = "http://127.0.0.1:#{port}"
+  response = Net::HTTP.get_response(URI("#{base}/api/overview"))
   abort "overview request failed: #{response.code}" unless response.code == "200"
   payload = JSON.parse(response.body)
-  abort "wrong product name" unless payload.dig("app", "name") == "Agent Atlas"
+  abort "wrong product name" unless payload.dig("app", "name") == "CI Agent Sync"
   abort "overview omitted harnesses" unless payload.dig("counts", "harnesses").to_i.positive?
-  docs_response = Net::HTTP.get_response(URI("http://127.0.0.1:#{port}/docs/portable-setup.md"))
+  abort "overview omitted profiles" unless payload.fetch("profiles").any? { |profile| profile["id"] == "ceo" }
+  token_response = Net::HTTP.get_response(URI("#{base}/assets/ci-common/tokens.css"))
+  abort "CI-Common token route failed" unless token_response.code == "200" && token_response.body.include?("--background")
+  post_request = Net::HTTP::Post.new("/api/action/backup")
+  post_request["Content-Type"] = "application/json"
+  post_request.body = "{}"
+  post_response = Net::HTTP.start("127.0.0.1", port) { |http| http.request(post_request) }
+  post_payload = JSON.parse(post_response.body)
+  abort "backup confirmation guard failed" unless post_response.code == "400" && post_payload["message"].include?("confirmation")
+  docs_response = Net::HTTP.get_response(URI("#{base}/docs/portable-setup.md"))
   abort "docs route failed: #{docs_response.code}" unless docs_response.code == "200" && docs_response.body.include?("Portable setup")
   head_request = Net::HTTP::Head.new("/")
   head_response = Net::HTTP.start("127.0.0.1", port) { |http| http.request(head_request) }
@@ -43,4 +45,4 @@ ensure
   Process.wait(pid) rescue nil
 end
 
-puts "Agent Atlas asset checks passed"
+puts "CI Agent Sync TypeScript web fixture: ok"

@@ -16,3 +16,4 @@ work/
 profiles/machines/local.yaml
 sync/targets.yaml
 .DS_Store
+node_modules/
