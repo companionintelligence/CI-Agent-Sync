@@ -30,6 +30,7 @@ def usage
       agentctl hub smoke [--json] [--strict]
       agentctl memory smoke [--json] [--strict]
       agentctl fleet smoke [--json] [--strict] [--include-candidates]
+      agentctl marketplace audit [--marketplace PATH] [--sources-root PATH] [--json] [--strict]
       agentctl deploy doctor [--json] [--strict] [--from-1password] [--fleet]
 
     Credential values stay in 1Password or client-native OAuth stores. This
@@ -74,6 +75,13 @@ when "fleet"
     exec RbConfig.ruby, File.join(root, "scripts", "hub-fleet-smoke.rb"), *ARGV
   end
   warn "Supported fleet target: smoke"
+  exit 2
+when "marketplace"
+  target = ARGV.shift
+  if target == "audit"
+    exec RbConfig.ruby, File.join(root, "scripts", "marketplace-audit.rb"), *ARGV
+  end
+  warn "Supported marketplace target: audit"
   exit 2
 when "deploy"
   target = ARGV.shift
