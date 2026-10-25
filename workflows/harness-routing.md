@@ -71,6 +71,13 @@ The internal MCP set is also portable:
 - `companion-memory` — Memory MCP at `/api/mcp`, with a key carrying `mcp` and
   `intents` scopes.
 
+For whole-platform and marketplace validation, enable the `platform-qa`
+bundle. It uses the guarded CI-Engineering `fleet_qa_*` tools and the
+`companion-hub-fleet-qa` 1Password reference. The MCP requires an explicit
+`nodes` list or `all: true` for every node-facing request; the apps suite also
+requires `confirm: true`. Keep journeys and pool drills on their explicit CLI
+path with `--execute --lock`.
+
 All four are opt-in in the registry. Native clients should only enable the
 HTTP services after their endpoint and key are configured locally.
 

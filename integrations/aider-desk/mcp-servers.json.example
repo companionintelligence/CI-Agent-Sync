@@ -8,7 +8,11 @@
     "ci-engineering": {
       "command": "node",
       "args": ["${CI_ENGINEERING_ROOT}/tools/mcp-server.mjs", "--start"],
-      "env": {"CI_WORKSPACE": "${CI_ROOT}"}
+      "env": {
+        "CI_WORKSPACE": "${CI_ROOT}",
+        "HUB_ROOT": "${HUB_ROOT}",
+        "FLEET_HUB_API_KEYS_JSON": "${FLEET_HUB_API_KEYS_JSON}"
+      }
     },
     "metricool": {
       "url": "https://ai.metricool.com/mcp"

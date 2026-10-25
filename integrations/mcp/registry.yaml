@@ -60,11 +60,15 @@ servers:
     args: ["${CI_ENGINEERING_ROOT}/tools/mcp-server.mjs", --start]
     env:
       CI_WORKSPACE: "${CI_ROOT}"
+      HUB_ROOT: "${HUB_ROOT}"
+      CI_HUB_ROOT: "${CI_HUB_ROOT}"
+      COMPANION_HUB_ROOT: "${COMPANION_HUB_ROOT}"
+      FLEET_HUB_API_KEYS_JSON: "${FLEET_HUB_API_KEYS_JSON}"
     bind: loopback
     clients: [claude, codex, opencode, vscode]
-    optional_clients: [hermes]
+    optional_clients: [hermes, openclaw, aider-desk, pi, antigravity]
     state: opt_in
-    notes: Engineering and product-video MCP; confirmation remains server-side. Keep it opt-in for small local models.
+    notes: "Engineering, product-video, and guarded fleet-qa MCP. fleet_qa_* requires an explicit nodes list or all:true; marketplace app-suite control also requires confirm:true. Resolve FLEET_HUB_API_KEYS_JSON from agent-configs-companion-hub-fleet-qa only in the MCP process; confirmation remains server-side."
 
   ci-common:
     owner: companionintelligence/CI-Common

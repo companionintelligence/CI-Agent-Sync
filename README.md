@@ -112,6 +112,7 @@ putting it in chat or a tracked file:
 ./bin/agent-store credentials set companion-hub
 ./bin/agent-store credentials set companion-hub-qa
 ./bin/agent-store credentials set companion-hub-inference
+./bin/agent-store credentials set companion-hub-fleet-qa
 ./bin/agent-store credentials set companion-memory
 ./bin/agent-store credentials set omniroute
 ./bin/agent-store credentials set android-mcp
@@ -164,6 +165,14 @@ For CI-Hub fleet work, use the plan-first policy in
 follow [docs/fleet-operations.md](docs/fleet-operations.md). The latest
 repair evidence is in
 [reports/2026-10-24-fleet-pool-repair.md](reports/2026-10-24-fleet-pool-repair.md).
+
+For whole-platform and marketplace QA, select the `platform-qa` bundle and
+follow [workflows/platform-qa.md](workflows/platform-qa.md). It exposes the
+guarded CI-Engineering `fleet_qa_*` MCP tools to every supported local
+harness, requires an explicit node list or `all: true`, and requires
+confirmation before marketplace app-suite control. The per-node
+`FLEET_HUB_API_KEYS_JSON` value is stored only as
+`agent-configs-companion-hub-fleet-qa` in 1Password.
 
 The mobile references are catalogued in
 [integrations/references.yaml](integrations/references.yaml). The Android

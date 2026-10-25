@@ -163,7 +163,7 @@ if command = `command -v openclaw 2>/dev/null`.strip
   add_check(checks, "runtime.openclaw.gateway", gateway_ok ? "ok" : "warn", gateway_ok ? "gateway health responded" : "gateway probe failed; use the desktop-matched runtime when installed")
 end
 
-providers = %w[anthropic openai openrouter ollama omlx companion-hub companion-hub-qa companion-hub-inference companion-memory omniroute android-mcp cloudflare]
+providers = %w[anthropic openai openrouter ollama omlx companion-hub companion-hub-qa companion-hub-inference companion-hub-fleet-qa companion-memory omniroute android-mcp cloudflare]
 op_binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
 if system("which", op_binary, out: File::NULL, err: File::NULL)
   _vaults, _vaults_error, vaults_status = capture_with_timeout([op_binary, "vault", "list", "--format=json"], 30)
