@@ -17,6 +17,7 @@ node --experimental-strip-types --no-warnings src/cli.ts check >/dev/null
 node --experimental-strip-types --no-warnings src/test.ts >/dev/null
 node --experimental-strip-types --no-warnings src/cli.ts conformance --json --timeout 5 >/dev/null
 node --experimental-strip-types --no-warnings src/cli.ts harness-smoke --json --timeout 5 >/dev/null
+node --experimental-strip-types --no-warnings src/cli.ts platform preflight --json >/dev/null
 ruby -c scripts/redact-config.rb >/dev/null
 ruby -c scripts/redact-text.rb >/dev/null
 zsh -n scripts/doctor.rb
