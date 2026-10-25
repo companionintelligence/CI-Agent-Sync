@@ -19,6 +19,8 @@ ruby -c scripts/test_sync.rb >/dev/null
 ruby -c scripts/validate.rb >/dev/null
 ruby -c scripts/test.rb >/dev/null
 ruby -c scripts/harness-smoke.rb >/dev/null
+ruby -c scripts/harness_probe.rb >/dev/null
+ruby -c scripts/test_harness_probe.rb >/dev/null
 ruby -c scripts/backup.rb >/dev/null
 ruby -c scripts/repair-openclaw.rb >/dev/null
 ruby -c scripts/onepassword.rb >/dev/null
@@ -51,6 +53,7 @@ ruby -ryaml -e '
 
 ruby scripts/test_sync.rb >/dev/null
 ruby scripts/test_action_ledger.rb >/dev/null
+ruby scripts/test_harness_probe.rb >/dev/null
 ruby scripts/profile.rb list --json >/dev/null
 ruby scripts/profile.rb show ceo --json >/dev/null
 
