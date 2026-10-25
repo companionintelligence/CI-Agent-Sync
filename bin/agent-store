@@ -88,6 +88,11 @@ provider_env_aliases() {
     companion-hub-qa) print -r -- COMPANION_HUB_QA_API_KEY ;;
     companion-hub-inference) print -r -- COMPANION_HUB_INFERENCE_API_KEY ;;
     companion-hub-fleet-qa) print -r -- FLEET_HUB_API_KEYS_JSON ;;
+    companion-memory)
+      print -r -- COMPANION_MEMORY_API_KEY
+      print -r -- CI_API_KEY
+      print -r -- CI_SERVER_API_KEY
+      ;;
     *) print -r -- "$(provider_env "$1")" ;;
   esac
 }

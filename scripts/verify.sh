@@ -35,6 +35,8 @@ ruby -c scripts/marketplace-audit.rb >/dev/null
 ruby -c scripts/test_marketplace_audit.rb >/dev/null
 ruby -c scripts/atlas-web.rb >/dev/null
 ruby -c scripts/test_atlas_web.rb >/dev/null
+ruby -c scripts/companion-cli.rb >/dev/null
+ruby -c scripts/test_companion_cli.rb >/dev/null
 git diff --check
 
 while IFS= read -r file; do
@@ -58,6 +60,7 @@ ruby -ryaml -e '
 ruby scripts/test_sync.rb >/dev/null
 ruby scripts/test_action_ledger.rb >/dev/null
 ruby scripts/test_harness_probe.rb >/dev/null
+ruby scripts/test_companion_cli.rb >/dev/null
 ruby scripts/profile.rb list --json >/dev/null
 ruby scripts/profile.rb show ceo --json >/dev/null
 

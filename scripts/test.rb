@@ -33,6 +33,7 @@ run_check(checks, "hub-control-room-fixture", RbConfig.ruby, File.join(root, "sc
 run_check(checks, "memory-control-room-fixture", RbConfig.ruby, File.join(root, "scripts", "test_memory_control_room.rb"))
 run_check(checks, "marketplace-audit-fixture", RbConfig.ruby, File.join(root, "scripts", "test_marketplace_audit.rb"))
 run_check(checks, "agent-atlas-web-fixture", RbConfig.ruby, File.join(root, "scripts", "test_atlas_web.rb"))
+run_check(checks, "companion-cli-fixture", RbConfig.ruby, File.join(root, "scripts", "test_companion_cli.rb"))
 
 summary = checks.group_by { |item| item["status"] }.transform_values(&:length)
 result = { "schema_version" => 1, "summary" => summary, "checks" => checks, "live_local" => options[:live_local] }

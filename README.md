@@ -24,6 +24,8 @@ identity remain local to each app.
 | Connect credentials | `./bin/agentctl credentials op setup` then `./bin/agentctl credentials op import` | Uses 1Password without copying values into Git |
 | Open the GUI | `./bin/agent-atlas --open` or `./bin/agentctl atlas --open` | Starts the loopback-only CI Agent Sync setup wizard |
 | Check the machine | `./bin/agentctl doctor --json` | Reports commands, configs, endpoints, and credential backend status |
+| Check Hub + Memory CLIs | `./bin/agentctl companion status --json` | Runs the native `cihub` and `ci` checks through one stable bridge |
+| Use a terminal menu | `./bin/agentctl companion tui` | Launches a small read-oriented TUI for Hub, Memory, readiness, and backup |
 | Check the fleet | `./bin/agentctl fleet smoke --json --strict` | Verifies Tailscale and Hub liveness for named targets |
 | Audit Marketplace apps | `./bin/agentctl marketplace audit --strict` | Checks release tags, Hub/Memory wiring, and image pins |
 | Generate portable config | `./bin/agentctl render --agent all` | Writes ignored cross-harness artifacts under `local/rendered/` |
@@ -231,6 +233,33 @@ cross-surface readiness schema, portable evidence bundle, and approval ledger
 are defined in [integrations/operator-contract.yaml](integrations/operator-contract.yaml).
 Workflow packs for CEO, engineering, and marketing work are in
 [integrations/workflow-packs.yaml](integrations/workflow-packs.yaml).
+
+## Companion Hub and Memory CLI bridge
+
+Agent Atlas works alongside the native Companion Hub `cihub` CLI and
+Companion Memory `ci` CLI. It does not replace either command line or copy
+their implementation. Use the bridge when you want the portable control plane
+to discover and launch the native tools from one command:
+
+```sh
+./bin/agentctl companion status
+./bin/agentctl companion status --json
+./bin/agentctl companion status --from-1password --json
+./bin/agentctl companion hub status local
+./bin/agentctl companion hub pool status local
+./bin/agentctl companion memory doctor --graphql
+./bin/agentctl companion memory stats --json
+./bin/agentctl companion tui
+```
+
+The combined status check runs Hub `status` and Memory `doctor --graphql` with
+bounded timeouts. It discovers installed binaries first and then falls back to
+the local Companion-Hub / CI-Memory checkouts. Set `CIHUB_BIN`, `CI_MEMORY_CLI`,
+`CI_HUB_ROOT`, or `CI_MEMORY_ROOT` when a machine uses a non-standard layout.
+`COMPANION_MEMORY_BASE_URL` is passed to the native Memory CLI as `--server`;
+credential values remain in the environment or 1Password. See
+[docs/companion-cli.md](docs/companion-cli.md) for the JSON contract, TUI
+menu, and discovery rules.
 
 Provider order and safety rules are in
 [integrations/providers/fallbacks.yaml](integrations/providers/fallbacks.yaml).

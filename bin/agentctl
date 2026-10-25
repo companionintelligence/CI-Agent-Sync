@@ -32,6 +32,11 @@ def usage
       agentctl fleet smoke [--json] [--strict] [--include-candidates]
       agentctl marketplace audit [--marketplace PATH] [--sources-root PATH] [--json] [--strict]
       agentctl atlas [--open] [--bind ADDRESS] [--port PORT]
+      agentctl companion status [--json] [--strict] [--from-1password]
+      agentctl companion hub [cihub arguments...]
+      agentctl companion memory [ci arguments...]
+      agentctl companion tui [--once]
+      agentctl tui [--once]
       agentctl deploy doctor [--json] [--strict] [--from-1password] [--fleet]
 
     Credential values stay in 1Password or client-native OAuth stores. This
@@ -84,6 +89,10 @@ when "marketplace"
   end
   warn "Supported marketplace target: audit"
   exit 2
+when "companion"
+  exec RbConfig.ruby, File.join(root, "scripts", "companion-cli.rb"), *ARGV
+when "tui"
+  exec RbConfig.ruby, File.join(root, "scripts", "companion-cli.rb"), "tui", *ARGV
 when "atlas"
   exec RbConfig.ruby, File.join(root, "scripts", "atlas-web.rb"), *ARGV
 when "deploy"
