@@ -32,6 +32,15 @@ begin
   payload = JSON.parse(response.body)
   abort "wrong product name" unless payload.dig("app", "name") == "Agent Atlas"
   abort "overview omitted harnesses" unless payload.dig("counts", "harnesses").to_i.positive?
+  abort "overview omitted profiles" unless payload.fetch("profiles").any? { |profile| profile["id"] == "ceo" }
+  backup_plan = Net::HTTP.get_response(URI("http://127.0.0.1:#{port}/api/check/backup-plan"))
+  abort "backup plan failed: #{backup_plan.code}" unless backup_plan.code == "200" && backup_plan.body.include?("Backup plan")
+  post_request = Net::HTTP::Post.new("/api/action/backup")
+  post_request["Content-Type"] = "application/json"
+  post_request.body = "{}"
+  post_response = Net::HTTP.start("127.0.0.1", port) { |http| http.request(post_request) }
+  post_payload = JSON.parse(post_response.body)
+  abort "backup confirmation guard failed" unless post_response.code == "400" && post_payload["message"].include?("confirmation")
   docs_response = Net::HTTP.get_response(URI("http://127.0.0.1:#{port}/docs/portable-setup.md"))
   abort "docs route failed: #{docs_response.code}" unless docs_response.code == "200" && docs_response.body.include?("Portable setup")
   head_request = Net::HTTP::Head.new("/")

@@ -1,10 +1,10 @@
 #!/usr/bin/env ruby
 
-# Agent Atlas is a loopback-only, read-only web console for the portable
-# agent-config store. It intentionally has no write endpoints and never loads
-# credential values. Mutations remain in the plan/approval CLI workflows.
+# Agent Atlas is a loopback-only setup wizard for the portable agent-config
+# store. It reads public policy metadata, never loads credential values, and
+# only exposes two explicit local actions: generate rendered config artifacts
+# and create a redacted backup through the existing scripts.
 
-require "cgi"
 require "json"
 require "open3"
 require "optparse"
@@ -47,13 +47,14 @@ def overview_payload
   bundles = load_yaml("integrations/capability-bundles.yaml").fetch("bundles", {})
   servers = load_yaml("integrations/mcp/registry.yaml").fetch("servers", {})
   marketplace = load_yaml("integrations/marketplace-harnesses.yaml").fetch("harnesses", {})
+  profiles = load_yaml("integrations/operator-contract.yaml").fetch("profiles", {})
 
   {
     "app" => {
       "name" => APP_NAME,
       "version" => APP_VERSION,
       "tagline" => "A portable map for every agent, model, and mission.",
-      "safety" => "Loopback-only · read-only · no secrets in the browser",
+      "safety" => "Loopback-only · explicit local actions · no secrets in the browser",
     },
     "generated_at" => Time.now.utc.iso8601,
     "counts" => {
@@ -100,6 +101,16 @@ def overview_payload
         "profile" => contract["portable_profile"],
       }
     end,
+    "profiles" => profiles.map do |name, profile|
+      {
+        "id" => name,
+        "name" => label_for(name),
+        "bundles" => Array(profile["bundles"]),
+        "workflows" => Array(profile["workflows"]),
+        "default_chain" => profile["default_chain"],
+        "mutation_policy" => profile["mutation_policy"],
+      }
+    end,
     "commands" => {
       "setup" => "./bin/agentctl credentials op setup",
       "doctor" => "./bin/agentctl doctor --json",
@@ -125,6 +136,8 @@ def check_command(kind)
     [RbConfig.ruby, File.join(STORE_ROOT, "scripts", "hub-fleet-smoke.rb"), "--json"]
   when "marketplace"
     [RbConfig.ruby, File.join(STORE_ROOT, "scripts", "marketplace-audit.rb"), "--json"]
+  when "backup-plan"
+    [RbConfig.ruby, File.join(STORE_ROOT, "scripts", "backup.rb"), "--dry-run"]
   else
     nil
   end
@@ -186,6 +199,39 @@ def run_check(kind)
   result
 end
 
+def action_command(kind)
+  case kind
+  when "render"
+    [RbConfig.ruby, File.join(STORE_ROOT, "scripts", "render.rb"), "--agent", "all"]
+  when "backup"
+    [RbConfig.ruby, File.join(STORE_ROOT, "scripts", "backup.rb")]
+  else
+    nil
+  end
+end
+
+def run_action(kind, payload)
+  command = action_command(kind)
+  return [404, "application/json; charset=utf-8", json_response({ "status" => "error", "message" => "Unknown local action" })] unless command
+  unless payload.is_a?(Hash) && payload["confirm"] == true
+    return [400, "application/json; charset=utf-8", json_response({ "status" => "error", "message" => "This local action requires explicit confirmation" })]
+  end
+
+  begin
+    output, error, status, timed_out = capture_command(command, 90)
+    result = {
+      "kind" => kind,
+      "status" => timed_out ? "warn" : (status&.success? ? "ok" : "error"),
+      "exit_code" => status&.exitstatus,
+      "message" => safe_detail([output, error].join),
+    }
+    result["message"] = "Action timed out after 90 seconds" if timed_out
+    [status&.success? ? 200 : 500, "application/json; charset=utf-8", json_response(result)]
+  rescue StandardError => exception
+    [500, "application/json; charset=utf-8", json_response({ "kind" => kind, "status" => "error", "message" => safe_detail(exception.message) })]
+  end
+end
+
 def content_type(path)
   {
     ".html" => "text/html; charset=utf-8",
@@ -203,8 +249,11 @@ def json_response(payload)
   JSON.generate(payload)
 end
 
-def route_request(target)
+def route_request(method, target, body = "")
   uri = URI.parse(target)
+  if method == "POST" && !uri.path.start_with?("/api/action/")
+    return [405, "application/json; charset=utf-8", json_response({ "status" => "error", "message" => "Only the named local actions accept POST" })]
+  end
   case uri.path
   when "/", "/index.html"
     path = File.join(WEB_ROOT, "index.html")
@@ -219,6 +268,15 @@ def route_request(target)
     kind = uri.path.delete_prefix("/api/check/")
     return [200, "application/json; charset=utf-8", json_response(run_check(kind))]
   end
+
+  if uri.path == "/api/action/render" || uri.path == "/api/action/backup"
+    return [405, "application/json; charset=utf-8", json_response({ "status" => "error", "message" => "Use POST for local actions" })] unless method == "POST"
+    kind = uri.path.delete_prefix("/api/action/")
+    payload = JSON.parse(body) rescue {}
+    return run_action(kind, payload)
+  end
+
+  return [405, "application/json; charset=utf-8", json_response({ "status" => "error", "message" => "Only the named local actions accept POST" })] if method == "POST"
 
   if uri.path.start_with?("/docs/")
     relative = uri.path.delete_prefix("/")
@@ -267,15 +325,21 @@ def handle_client(socket)
   return unless request_line
 
   method, target, _http_version = request_line.split(" ", 3)
+  content_length = 0
+  headers = {}
   while (line = socket.gets)
     break if line == "\r\n" || line == "\n"
+    key, value = line.split(":", 2)
+    headers[key.to_s.downcase] = value.to_s.strip
   end
+  content_length = headers.fetch("content-length", "0").to_i if method == "POST"
+  body = content_length.positive? && content_length <= 8192 ? socket.read(content_length).to_s : ""
 
-  if method != "GET" && method != "HEAD"
-    write_response(socket, 405, "text/plain; charset=utf-8", "Agent Atlas is read-only\n")
+  if method != "GET" && method != "HEAD" && method != "POST"
+    write_response(socket, 405, "text/plain; charset=utf-8", "Agent Atlas only accepts GET, HEAD, and explicit POST actions\n")
   else
-    response = route_request(target)
-    write_response(socket, *response, method == "GET")
+    response = route_request(method, target, body)
+    write_response(socket, *response, method != "HEAD")
   end
 rescue StandardError
   # The client may close the connection while the browser is navigating.
@@ -303,7 +367,7 @@ actual_port = server.addr[1]
 url = "http://#{options[:bind]}:#{actual_port}"
 unless options[:quiet]
   puts "#{APP_NAME} listening at #{url}"
-  puts "Read-only local console; press Ctrl-C to stop."
+  puts "Setup wizard with explicit local actions; press Ctrl-C to stop."
   STDOUT.flush
 end
 
