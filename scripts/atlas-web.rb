@@ -156,19 +156,20 @@ def run_check(kind)
   command = check_command(kind)
   return { "kind" => kind, "status" => "error", "message" => "Unknown read-only check" } unless command
 
+  timeout_seconds = kind == "doctor" ? 35 : 20
   output = ""
   error = ""
   status = nil
   begin
-    output, error, status, timed_out = capture_command(command, 20)
+    output, error, status, timed_out = capture_command(command, timeout_seconds)
     if timed_out
-      return { "kind" => kind, "status" => "warn", "message" => "Check timed out after 20 seconds" }
+      return { "kind" => kind, "status" => "warn", "message" => "Check timed out after #{timeout_seconds} seconds" }
     end
   rescue StandardError => exception
     return { "kind" => kind, "status" => "error", "message" => safe_detail(exception.message) }
   end
   if status.nil?
-    return { "kind" => kind, "status" => "warn", "message" => "Check timed out after 20 seconds" }
+    return { "kind" => kind, "status" => "warn", "message" => "Check timed out after #{timeout_seconds} seconds" }
   end
 
   parsed = JSON.parse(output) rescue nil
