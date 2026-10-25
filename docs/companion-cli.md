@@ -1,6 +1,6 @@
 # Companion CLI and TUI bridge
 
-Agent Atlas does not replace the native Companion Hub or Companion Memory
+CI Agent Sync does not replace the native Companion Hub or Companion Memory
 command lines. It gives them one portable entry point and a small set of
 cross-system checks so the same operator workflow works from any harness.
 
@@ -36,7 +36,7 @@ health-check job:
 
 ## What is delegated
 
-| Surface | Native command | Agent Atlas behavior |
+| Surface | Native command | CI Agent Sync behavior |
 | --- | --- | --- |
 | Companion Hub | `cihub` | Finds the installed CLI, then falls back to a local `Companion-Hub` checkout and runs `bin/cihub.cjs`. |
 | Companion Memory | `ci` | Finds the installed CLI, a built `@ci/cli`, or runs `yarn workspace @ci/cli dev` from a local `CI-Memory` checkout. |
@@ -58,7 +58,7 @@ Discovery order is deliberately predictable:
 
 The workspace root is taken from `CI_ROOT` when present. When it is not set,
 the bridge checks the conventional `~/devel/ci` location and the surrounding
-workspace of the Agent Atlas checkout. This lets a machine use either the
+workspace of the CI Agent Sync checkout. This lets a machine use either the
 canonical names (`CI-Hub`, `CI-Memory`) or the product names
 (`Companion-Hub`, `Companion-Memory`).
 
@@ -66,7 +66,7 @@ For a Memory endpoint, use `COMPANION_MEMORY_BASE_URL`. The status command
 passes it to the native CLI as `--server`; `CI_SERVER_URL` is accepted as a
 fallback. API keys remain in the inherited environment or the native CLI's
 credential flow. Add `--from-1password` when the key should be injected by
-Agent Atlas for one process:
+CI Agent Sync for one process:
 
 ```sh
 export COMPANION_MEMORY_BASE_URL=https://companion-memory.localhost
@@ -125,8 +125,8 @@ and when its input is scripted:
 [3] Companion Hub pool status
 [4] Companion Memory connection
 [5] Companion Memory inference
-[6] Agent Atlas readiness
-[7] Create redacted Agent Atlas backup
+[6] CI Agent Sync readiness
+[7] Create redacted CI Agent Sync backup
 [q] Quit
 ```
 

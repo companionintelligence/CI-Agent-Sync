@@ -8,10 +8,11 @@ vault and native app state where each client expects it.
 ## New machine
 
 ```sh
-git clone https://github.com/mrhegemon/agent-configs.git
-cd agent-configs
+git clone https://github.com/companionintelligence/CI-Agent-Sync.git
+cd CI-Agent-Sync
 cp profiles/machines/macos-laptop.yaml.example profiles/machines/local.yaml
 ./scripts/bootstrap-machine.zsh
+npm install
 ./bin/agent-store inventory
 ./bin/agentctl credentials op setup
 ./bin/agentctl credentials op import
@@ -66,6 +67,19 @@ OpenClaw service wrapper with:
 This refreshes only the native LaunchAgent entrypoint and keeps OpenClaw on a
 loopback gateway. It does not copy credentials into the store or OpenClaw
 configuration. The wrapper resolves it from 1Password at launch.
+
+The wrapper runs the desktop bundle's `openclaw.mjs` through Node.js. It does
+not require Bun. Set `OPENCLAW_NODE_BIN` when a machine has more than one Node
+installation, for example:
+
+```sh
+OPENCLAW_NODE_BIN=/opt/homebrew/bin/node ./scripts/install-openclaw-local.zsh
+```
+
+OpenClaw itself reports a diagnostic when the selected Node version is outside
+the release's preferred range; keep that warning visible and install the
+version requested by the desktop release rather than falling back to another
+JavaScript runtime.
 
 OpenClaw local mode uses the same endpoint through its built-in `openai`
 provider. Keep `apiKey` set to the environment-variable name

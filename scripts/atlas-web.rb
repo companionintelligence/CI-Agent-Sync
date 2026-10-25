@@ -1,9 +1,8 @@
 #!/usr/bin/env ruby
 
-# Agent Atlas is a loopback-only setup wizard for the portable agent-config
-# store. It reads public policy metadata, never loads credential values, and
-# only exposes two explicit local actions: generate rendered config artifacts
-# and create a redacted backup through the existing scripts.
+# Legacy Ruby compatibility server for CI Agent Sync. The public entry point
+# is now the TypeScript server in src/atlas-web.ts; this file remains available
+# for older automation while the specialized Ruby commands are being ported.
 
 require "json"
 require "open3"
@@ -16,7 +15,7 @@ require "yaml"
 
 STORE_ROOT = File.expand_path("..", __dir__)
 WEB_ROOT = File.join(STORE_ROOT, "web")
-APP_NAME = "Agent Atlas"
+APP_NAME = "CI Agent Sync"
 APP_VERSION = "0.1.0"
 
 options = { bind: "127.0.0.1", port: 8787, open: false, check: false, quiet: false, allow_remote: false }
@@ -298,7 +297,7 @@ def route_request(method, target, body = "")
 rescue URI::InvalidURIError
   [400, "text/plain; charset=utf-8", "Bad request\n"]
 rescue StandardError => exception
-  [500, "text/plain; charset=utf-8", "Agent Atlas error: #{safe_detail(exception.message)}\n"]
+  [500, "text/plain; charset=utf-8", "CI Agent Sync error: #{safe_detail(exception.message)}\n"]
 end
 
 def write_response(socket, status_code, type, body, include_body = true)
@@ -336,7 +335,7 @@ def handle_client(socket)
   body = content_length.positive? && content_length <= 8192 ? socket.read(content_length).to_s : ""
 
   if method != "GET" && method != "HEAD" && method != "POST"
-    write_response(socket, 405, "text/plain; charset=utf-8", "Agent Atlas only accepts GET, HEAD, and explicit POST actions\n")
+    write_response(socket, 405, "text/plain; charset=utf-8", "CI Agent Sync only accepts GET, HEAD, and explicit POST actions\n")
   else
     response = route_request(method, target, body)
     write_response(socket, *response, method != "HEAD")
@@ -348,7 +347,7 @@ ensure
 end
 
 unless File.file?(File.join(WEB_ROOT, "index.html")) && File.file?(File.join(WEB_ROOT, "styles.css")) && File.file?(File.join(WEB_ROOT, "app.js"))
-  warn "Agent Atlas web assets are incomplete under #{WEB_ROOT}"
+  warn "CI Agent Sync web assets are incomplete under #{WEB_ROOT}"
   exit 1
 end
 
@@ -358,7 +357,7 @@ unless options[:allow_remote] || %w[127.0.0.1 localhost ::1].include?(options[:b
 end
 
 if options[:check]
-  puts "Agent Atlas web assets ready: #{WEB_ROOT}"
+  puts "CI Agent Sync legacy web assets ready: #{WEB_ROOT}"
   exit 0
 end
 

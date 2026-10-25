@@ -1,9 +1,9 @@
-# Agent Atlas setup wizard
+# CI Agent Sync setup wizard
 
-Agent Atlas is the local setup surface for the portable `agent-configs` store.
-It is intentionally small: Ruby's standard library serves a static,
-mobile-first browser wizard and a small JSON API, so a new machine does not
-need a Node install to prepare its agent setup.
+CI Agent Sync is the local setup surface for this portable store. It is a
+small TypeScript/Node 22 service that serves a static, mobile-first browser
+wizard and a JSON API. It intentionally has no frontend framework or
+long-running dependency beyond the local process and the pinned YAML parser.
 
 ## Start it
 
@@ -55,8 +55,9 @@ arbitrary shell command.
 | `/docs/portable-setup.md` | Local setup guide | No |
 | `/healthz` | Server liveness | No |
 
-The API intentionally reads public YAML metadata and invokes existing scripts.
-The two write routes are fixed, allowlisted actions with an explicit JSON
+The API intentionally reads public YAML metadata and invokes the typed
+operations in `src/operations.ts`. The two write routes are fixed, allowlisted
+actions with an explicit JSON
 `confirm: true` body. They do not read credential values, create 1Password
 items, claim a Hub, mutate a fleet node, change an app, or deploy an
 application.
@@ -80,9 +81,13 @@ fleet, deployment, Hub, or repository changes:
 ## Development checks
 
 ```sh
+npm install
+npm run build
 ./bin/agent-atlas --check
-ruby scripts/test_atlas_web.rb
+./bin/agentctl check
 ```
 
-The fixture test starts an ephemeral local server, verifies the overview API,
-docs route, health-safe static response, and `HEAD` support, then shuts it down.
+The TypeScript check compiles the control plane and browser source, validates
+the store manifests, and checks the vendored CI-Common assets. The legacy Ruby
+fixture remains available for compatibility coverage while specialized Ruby
+commands are being ported.

@@ -6,10 +6,15 @@ STORE_ROOT="${0:A:h:h}"
 cd "$STORE_ROOT"
 
 zsh -n bin/agent-store
+zsh -n bin/agent-store-legacy
+zsh -n bin/agentctl
+zsh -n bin/agent-atlas
 zsh -n bin/openclaw-runtime
 zsh -n scripts/bootstrap-machine.zsh
 zsh -n scripts/sync-repos.zsh
-ruby -c bin/agentctl >/dev/null
+node --version | rg '^v(2[2-9]|[3-9][0-9])\.' >/dev/null
+node --experimental-strip-types --no-warnings src/cli.ts check >/dev/null
+node --experimental-strip-types --no-warnings src/test.ts >/dev/null
 ruby -c scripts/redact-config.rb >/dev/null
 ruby -c scripts/redact-text.rb >/dev/null
 ruby -c scripts/doctor.rb >/dev/null
@@ -37,6 +42,7 @@ ruby -c scripts/atlas-web.rb >/dev/null
 ruby -c scripts/test_atlas_web.rb >/dev/null
 ruby -c scripts/companion-cli.rb >/dev/null
 ruby -c scripts/test_companion_cli.rb >/dev/null
+npm run build >/dev/null
 git diff --check
 
 while IFS= read -r file; do
