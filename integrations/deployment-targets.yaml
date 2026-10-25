@@ -1,0 +1,70 @@
+version: 1
+
+# Deployment is a capability, not a model provider. These recipes are
+# intentionally preflight-first and never contain API tokens, OAuth state, or
+# target-specific secrets.
+policy:
+  portable_from_any_harness: true
+  default_mode: plan_then_confirm
+  never_deploy_from_unreviewed_dirty_tree: true
+  require_named_target: true
+  require_post_deploy_probe: true
+  no_implicit_secret_export: true
+
+targets:
+  cloudflare:
+    kind: cloudflare
+    credential:
+      provider: cloudflare
+      env: CLOUDFLARE_API_TOKEN
+      item: agent-configs-cloudflare
+      native_fallback: local_wrangler_oauth_only
+    read_only_preflight:
+      - wrangler whoami
+      - wrangler deployments list
+    dry_run:
+      - wrangler deploy --dry-run
+    mutation:
+      - wrangler deploy
+    post_deploy:
+      - wrangler deployments list
+      - wrangler tail
+    approval: explicit_immediately_before_deploy
+    notes: "Use a target-scoped API token from 1Password for portable automation. The current laptop also has native Wrangler OAuth; that proves local access but is not portable."
+
+  companion-hub-catalog:
+    kind: companion_hub_catalog
+    credential:
+      provider: companion-hub
+      scope: portal_or_hub_operator
+      native_fallback: cihub_local_session
+    read_only_preflight:
+      - cihub submit --dry-run APP_DIRECTORY
+      - agentctl hub smoke --json --strict --from-1password
+    mutation:
+      - cihub submit APP_DIRECTORY
+    post_deploy:
+      - cihub version
+      - cihub app list
+    approval: explicit_immediately_before_submit
+    notes: "Catalog submission rewrites/pushes images and ingests a pending template; treat it as a release action, not a local build."
+
+  companion-hub-fleet:
+    kind: companion_hub_fleet
+    credential:
+      provider: companion-hub-qa
+      scope: per_target_scoped_operator_key
+      native_fallback: cihub_ssh_or_local_session
+    read_only_preflight:
+      - agentctl fleet smoke --json --strict
+      - cihub fleet list --json
+      - cihub fleet preflight --json
+      - cihub pool doctor
+    mutation:
+      - cihub fleet update --hub --execute
+    post_deploy:
+      - cihub fleet status --json
+      - cihub pool status
+      - agentctl fleet smoke --json --strict
+    approval: explicit_immediately_before_execute
+    notes: "Fleet update is SSH/Tailscale scoped and can change multiple machines. Keep core-5, core-7, and fzzy operator exclusions intact until separately reviewed."

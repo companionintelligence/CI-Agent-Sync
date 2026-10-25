@@ -28,6 +28,27 @@ bundles:
     servers: [android-remote-control]
     clients: [claude, codex, opencode, vscode]
     high_risk: true
+  operator-readonly:
+    description: Read-only Companion Hub control room for CEO, support, and launch readiness
+    extends: [core]
+    servers: [companion-hub]
+    clients: [claude, codex, hermes, openclaw, opencode, vscode, aider-desk, pi, antigravity]
+    credentials: [companion-hub, companion-hub-qa, companion-hub-inference]
+  operator-admin:
+    description: Explicitly approved Hub administration after a read-only preflight
+    extends: [operator-readonly]
+    servers: [companion-hub]
+    clients: [claude, codex, hermes, openclaw, opencode, vscode]
+    credentials: [companion-hub]
+    high_risk: true
+    requires: [named_target, backup_or_rollback, explicit_confirmation, post_change_probe]
+  deployment-admin:
+    description: Explicitly approved Cloudflare or Companion Hub deployment workflow
+    extends: [operator-readonly]
+    clients: [claude, codex, hermes, openclaw, opencode, vscode, aider-desk, pi, antigravity]
+    credentials: [cloudflare]
+    high_risk: true
+    requires: [named_target, dry_run_or_preflight, explicit_confirmation, post_deploy_probe]
 
 client_defaults:
   claude: [core]
@@ -39,3 +60,4 @@ client_defaults:
   aider-desk: []
   pi: []
   antigravity: []
+  chatgpt: []

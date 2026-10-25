@@ -28,6 +28,9 @@ smoke = [RbConfig.ruby, File.join(root, "scripts", "harness-smoke.rb")]
 smoke << "--live-local" if options[:live_local]
 run_check(checks, "harness-smoke", *smoke)
 run_check(checks, "sync-tests", RbConfig.ruby, File.join(root, "scripts", "test_sync.rb"))
+run_check(checks, "process-helper-tests", RbConfig.ruby, File.join(root, "scripts", "test_process_helpers.rb"))
+run_check(checks, "hub-control-room-fixture", RbConfig.ruby, File.join(root, "scripts", "test_hub_control_room.rb"))
+run_check(checks, "memory-control-room-fixture", RbConfig.ruby, File.join(root, "scripts", "test_memory_control_room.rb"))
 
 summary = checks.group_by { |item| item["status"] }.transform_values(&:length)
 result = { "schema_version" => 1, "summary" => summary, "checks" => checks, "live_local" => options[:live_local] }
