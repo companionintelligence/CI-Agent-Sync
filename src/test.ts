@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { ROOT, fileExists, readText, redactSecrets, runCommand, runCommandAsync, safeDetail } from "./core.ts";
+import { summarizeTailscaleStatus } from "./platform.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -19,6 +20,11 @@ async function main(): Promise<void> {
   assert(outputProbe.outputTruncated && outputProbe.exitCode === null && outputProbe.errorCode === "MAX_BUFFER", "async command output cap did not fail closed");
   assert(!safeDetail('{"apiKey":"not-for-output"}').includes("not-for-output"), "structured secret detail was not redacted");
   assert((redactSecrets({ apiKey: "not-for-output", status: "ok" }) as any).apiKey === "<redacted>", "structured payload secret was not redacted");
+  const tailnet = summarizeTailscaleStatus({
+    Self: { HostName: "laptop", DNSName: "laptop.example.ts.net.", Online: true, TailscaleIPs: ["100.64.0.1"] },
+    Peer: { one: { HostName: "core-1", Online: true, OS: "linux", TailscaleIPs: ["100.64.0.2"] }, two: { HostName: "retired", Online: false, OS: "linux", TailscaleIPs: [] } },
+  });
+  assert(tailnet.available && tailnet.summary.online === 2 && tailnet.summary.offline === 1, "Tailscale evidence summary is incorrect");
 
   const child = spawn("node", ["--experimental-strip-types", "--no-warnings", join(ROOT, "src", "cli.ts"), "atlas", "--port", "0"], { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] });
   let output = "";

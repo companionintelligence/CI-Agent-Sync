@@ -8,6 +8,7 @@ import { startAtlas } from "./atlas-web.ts";
 import { createBackup, renderArtifacts } from "./operations.ts";
 import { doctor } from "./doctor.ts";
 import { profileCommand } from "./profile.ts";
+import { platformCommand } from "./platform.ts";
 import { validateStore } from "./validate.ts";
 
 function usage(): void {
@@ -21,6 +22,7 @@ Usage:
   agentctl companion status|hub|memory|tui [options]
   agentctl conformance [--json] [--timeout SECONDS]
   agentctl harness-smoke [--json] [--live-local] [--agent NAME] [--timeout SECONDS]
+  agentctl platform preflight|evidence [--json] [--strict] [--output PATH]
   agentctl backup [--dry-run] [--output PATH]
   agentctl render [--agent NAME] [--machine NAME] [--output PATH]
   agentctl <compatibility command> [...]
@@ -104,6 +106,7 @@ async function agentctlCommand(args: string[]): Promise<number> {
     }
     case "conformance": return await conformanceCommand(args);
     case "harness-smoke": return await harnessSmokeCommand(args);
+    case "platform": return await platformCommand(args);
     case "readiness": return legacy("readiness.rb", args);
     case "report":
     case "export-report": return legacy("export-report.rb", args);
