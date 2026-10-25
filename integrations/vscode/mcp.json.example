@@ -55,7 +55,9 @@
       "command": "node",
       "args": ["${env:CI_ENGINEERING_ROOT}/tools/mcp-server.mjs", "--start"],
       "env": {
-        "CI_WORKSPACE": "${env:CI_ROOT}"
+        "CI_WORKSPACE": "${env:CI_ROOT}",
+        "HUB_ROOT": "${env:HUB_ROOT}",
+        "FLEET_HUB_API_KEYS_JSON": "${env:FLEET_HUB_API_KEYS_JSON}"
       }
     },
     "metricool": {

@@ -68,6 +68,13 @@ items:
     groups: [shared]
     description: Read-first Companion Hub control-room and CEO admin safety contract
 
+  - id: shared/fleet-qa-policy
+    version: 1
+    source: integrations/fleet-qa.yaml
+    destination: .agent-configs/fleet-qa.yaml
+    groups: [shared]
+    description: Portable CI-Engineering fleet-qa suites, target rules, and credential reference
+
   - id: shared/deployment-targets
     version: 1
     source: integrations/deployment-targets.yaml
@@ -130,6 +137,13 @@ items:
     destination: .agent-configs/workflows/ceo-operations.md
     groups: [shared]
     description: Portable CEO, launch-readiness, incident, and Hub operator workflow
+
+  - id: shared/platform-qa-workflow
+    version: 1
+    source: workflows/platform-qa.md
+    destination: .agent-configs/workflows/platform-qa.md
+    groups: [shared]
+    description: Portable whole-platform and marketplace fleet-qa workflow
 
   - id: shared/deployment-workflow
     version: 1

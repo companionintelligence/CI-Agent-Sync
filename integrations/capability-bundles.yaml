@@ -33,7 +33,15 @@ bundles:
     extends: [core]
     servers: [companion-hub]
     clients: [claude, codex, hermes, openclaw, opencode, vscode, aider-desk, pi, antigravity]
-    credentials: [companion-hub, companion-hub-qa, companion-hub-inference]
+    credentials: [companion-hub, companion-hub-qa, companion-hub-inference, companion-hub-fleet-qa]
+  platform-qa:
+    description: Explicit CI-Engineering fleet-qa control for Companion Hub platform and marketplace validation
+    extends: [core]
+    servers: [ci-engineering]
+    clients: [claude, codex, hermes, openclaw, opencode, vscode, aider-desk, pi, antigravity]
+    credentials: [companion-hub-fleet-qa]
+    high_risk: true
+    requires: [explicit_target_or_all, preflight_before_apps, explicit_confirmation_for_apps, post_run_evidence]
   operator-admin:
     description: Explicitly approved Hub administration after a read-only preflight
     extends: [operator-readonly]

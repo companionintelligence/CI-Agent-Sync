@@ -16,6 +16,7 @@ integrations:
   skills_registry: integrations/skills.yaml
   plugins_registry: integrations/plugins.yaml
   hub_operator: integrations/hub-operator.yaml
+  fleet_qa: integrations/fleet-qa.yaml
   repository_manifest: repos/companionintelligence.yaml
   workspace_manifest: repos/workspace.yaml
 
@@ -34,6 +35,7 @@ operations:
   memory_control_room: ./bin/agentctl memory smoke --json --strict --from-1password
   fleet_smoke: ./bin/agentctl fleet smoke --json --strict
   deployment_doctor: ./bin/agentctl deploy doctor --json
+  platform_qa_workflow: workflows/platform-qa.md
 
 agents:
   hermes:

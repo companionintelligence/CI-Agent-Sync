@@ -34,7 +34,7 @@ Commands:
   fallbacks [CHAIN]                 Show portable fallback chains and models
   doctor [--json]                   Run integrated machine health checks
 
-Providers: anthropic, openai, openrouter, ollama, omlx, companion-hub, companion-hub-qa, companion-hub-inference, companion-memory, omniroute, android-mcp, cloudflare
+Providers: anthropic, openai, openrouter, ollama, omlx, companion-hub, companion-hub-qa, companion-hub-inference, companion-hub-fleet-qa, companion-memory, omniroute, android-mcp, cloudflare
 EOF
 }
 
@@ -48,6 +48,7 @@ normalize_provider() {
     companion_hub|companionhub|companion-hub) print -r -- companion-hub ;;
     companion_hub_qa|hub-qa|hub-qa-read|companion-hub-qa) print -r -- companion-hub-qa ;;
     companion_hub_inference|hub-inference|companion-hub-inference) print -r -- companion-hub-inference ;;
+    companion_hub_fleet_qa|fleet-qa|hub-fleet-qa|companion-hub-fleet-qa) print -r -- companion-hub-fleet-qa ;;
     companion_memory|companionmemory|ci-memory|memory|companion-memory) print -r -- companion-memory ;;
     omniroute|omni-route) print -r -- omniroute ;;
     android|android-mcp|android-remote-control) print -r -- android-mcp ;;
@@ -66,6 +67,7 @@ provider_env() {
     companion-hub) print -r -- COMPANION_HUB_API_KEY ;;
     companion-hub-qa) print -r -- COMPANION_HUB_QA_API_KEY ;;
     companion-hub-inference) print -r -- COMPANION_HUB_INFERENCE_API_KEY ;;
+    companion-hub-fleet-qa) print -r -- FLEET_HUB_API_KEYS_JSON ;;
     companion-memory) print -r -- COMPANION_MEMORY_API_KEY ;;
     omniroute) print -r -- OMNIROUTE_API_KEY ;;
     android-mcp) print -r -- ANDROID_MCP_TOKEN ;;
@@ -85,6 +87,7 @@ provider_env_aliases() {
       ;;
     companion-hub-qa) print -r -- COMPANION_HUB_QA_API_KEY ;;
     companion-hub-inference) print -r -- COMPANION_HUB_INFERENCE_API_KEY ;;
+    companion-hub-fleet-qa) print -r -- FLEET_HUB_API_KEYS_JSON ;;
     *) print -r -- "$(provider_env "$1")" ;;
   esac
 }
@@ -242,7 +245,7 @@ credentials_status() {
   else
     print "  1Password CLI: not installed"
   fi
-  for provider in anthropic openai openrouter ollama omlx companion-hub companion-hub-qa companion-hub-inference companion-memory omniroute android-mcp cloudflare; do
+  for provider in anthropic openai openrouter ollama omlx companion-hub companion-hub-qa companion-hub-inference companion-hub-fleet-qa companion-memory omniroute android-mcp cloudflare; do
     typeset source="$(credential_source "$provider")"
     if [[ "$source" != "not set" ]]; then
       print "  ✓ $provider ($(provider_env "$provider")) — $source"
@@ -330,7 +333,7 @@ credentials_op() {
       if (( $# > 0 )); then
         selected=("$@")
       else
-        selected=(anthropic openai openrouter ollama omlx companion-hub companion-hub-qa companion-hub-inference companion-memory omniroute android-mcp cloudflare)
+        selected=(anthropic openai openrouter ollama omlx companion-hub companion-hub-qa companion-hub-inference companion-hub-fleet-qa companion-memory omniroute android-mcp cloudflare)
       fi
       op_session_available || { print -u2 "1Password is not authenticated. Enable desktop CLI integration and run: op signin"; return 2; }
       for provider in "${selected[@]}"; do

@@ -55,6 +55,9 @@ Companion Hub credentials are intentionally split by blast radius:
   install-queue observability.
 - `companion-hub-inference` is an `inference` key for model inventory and
   harmless OpenAI-compatible coding probes.
+- `companion-hub-fleet-qa` is a `qa:read` JSON map of per-node Hub local keys
+  used by CI-Engineering's fleet-qa pool-routing evidence path. It is not a
+  replacement for the Hub MCP, QA, or inference keys.
 
 Full/admin credentials stay out of the default portable profile. Any write
 workflow must name its target, show the read-only preflight, state rollback,
