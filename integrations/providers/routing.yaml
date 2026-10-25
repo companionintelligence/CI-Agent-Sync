@@ -45,6 +45,12 @@ routes:
     candidates: [anthropic, openai, openrouter]
     selection: explicit_client_or_gateway_policy
 
+  hosted_chatgpt:
+    primary: null
+    auth: native_chatgpt_account
+    clients: [chatgpt]
+    notes: "The ChatGPT desktop/account surface is hosted-account routing, not an injectable local-model or API-key route. Use Codex CLI for OpenAI API-key and local-provider routing."
+
 client_policy:
   hermes: [local, gateway, remote_providers]
   openclaw: [local, gateway, appliance_memory]
@@ -54,6 +60,7 @@ client_policy:
   vscode: [gateway, remote_providers, appliance_memory]
   aider-desk: [local, remote_providers]
   pi: [local, remote_providers]
+  chatgpt: [hosted_chatgpt]
 
 health_rules:
   - id: gateway-authenticated

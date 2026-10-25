@@ -54,6 +54,7 @@ agent-configs-companion-hub
 agent-configs-companion-memory
 agent-configs-omniroute
 agent-configs-android-mcp
+agent-configs-cloudflare
 ```
 
 ## Hermes
@@ -71,6 +72,12 @@ use `agent-store with <provider> -- <command>` or the client’s native
 environment/reference support. The shared wrapper keeps credentials process-
 local and avoids writing them into native config files. Native OAuth flows such
 as Metricool remain in the client’s own auth store.
+
+Deployment credentials are separate from model and Hub keys. Store a
+target-scoped Cloudflare API token as `agent-configs-cloudflare`; the portable
+workflow injects it only for an explicit Wrangler command. Do not copy the
+current laptop’s native Wrangler OAuth file. Hub fleet credentials should be
+scoped per target when the appliance does not share one owner/key namespace.
 
 Never commit a service-account token, `OP_SESSION_*` value, exported `.env`, or
 resolved secret. Rotate a provider in 1Password first, rerun `status`, then

@@ -44,6 +44,20 @@ def capture_with_timeout(command, timeout_seconds)
   AgentConfigProcess.capture_with_timeout(command, timeout_seconds)
 end
 
+$agent_config_op_items = nil
+
+def onepassword_item_names
+  return $agent_config_op_items unless $agent_config_op_items.nil?
+
+  binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
+  vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
+  output, _error, status = capture_with_timeout([binary, "item", "list", "--vault", vault, "--format=json"], 12)
+  parsed = JSON.parse(output) rescue []
+  $agent_config_op_items = status&.success? ? Array(parsed).filter_map { |item| item["title"] || item["id"] } : []
+rescue StandardError
+  $agent_config_op_items = []
+end
+
 def http_result(base, path, token = nil)
   uri = URI.join(base.end_with?("/") ? base : "#{base}/", path.delete_prefix("/"))
   http = Net::HTTP.new(uri.host, uri.port)
@@ -97,11 +111,9 @@ def secret_available?(provider)
   return false if ENV["AGENT_CONFIGS_SECRET_BACKEND"] == "native"
   binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
   return false unless system("which", binary, out: File::NULL, err: File::NULL)
-  _out, _err, status = capture_with_timeout([binary, "vault", "list", "--format=json"], 30)
-  return false if status.nil?
-  return false unless status.success?
   vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
-  _value, _error, read_status = capture_with_timeout([binary, "read", "--no-newline", "op://#{vault}/agent-configs-#{provider}/credential"], 30)
+  return false unless onepassword_item_names.include?("agent-configs-#{provider}")
+  _value, _error, read_status = capture_with_timeout([binary, "read", "--no-newline", "op://#{vault}/agent-configs-#{provider}/credential"], 12)
   return false if read_status.nil?
   read_status.success?
 rescue Timeout::Error, StandardError
@@ -113,9 +125,10 @@ def secret_value(provider)
   binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
   if system("which", binary, out: File::NULL, err: File::NULL)
     vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
-    output, _error, status = capture_with_timeout([binary, "read", "--no-newline", "op://#{vault}/agent-configs-#{provider}/credential"], 30)
-    return nil if status.nil?
-    return output.strip if status.success? && !output.strip.empty?
+    if onepassword_item_names.include?("agent-configs-#{provider}")
+      output, _error, status = capture_with_timeout([binary, "read", "--no-newline", "op://#{vault}/agent-configs-#{provider}/credential"], 12)
+      return output.strip if status&.success? && !output.strip.empty?
+    end
   end
   if RUBY_PLATFORM.include?("darwin") && system("which", "security", out: File::NULL, err: File::NULL)
     output, _error, status = Open3.capture3("security", "find-generic-password", "-a", ENV.fetch("USER", ""), "-s", "agent-configs/#{provider}", "-w")

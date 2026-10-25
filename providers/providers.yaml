@@ -51,6 +51,24 @@ providers:
     endpoint_env_aliases: [CI_SERVER_URL]
     primary_clients: [hermes, openclaw, claude, codex, opencode, vscode]
 
+  companion-hub-qa:
+    aliases: [companion_hub_qa, hub-qa, hub-qa-read]
+    env: COMPANION_HUB_QA_API_KEY
+    keychain_service: agent-configs/companion-hub-qa
+    endpoint_env: COMPANION_HUB_BASE_URL
+    primary_clients: [hermes, openclaw, claude, codex, opencode, vscode]
+    scope: qa:read
+    capability: read
+
+  companion-hub-inference:
+    aliases: [companion_hub_inference, hub-inference]
+    env: COMPANION_HUB_INFERENCE_API_KEY
+    keychain_service: agent-configs/companion-hub-inference
+    endpoint_env: COMPANION_HUB_BASE_URL
+    primary_clients: [hermes, openclaw, claude, codex, opencode, vscode]
+    scope: inference
+    capability: read
+
   companion-memory:
     aliases: [companion_memory, ci-memory, memory]
     env: COMPANION_MEMORY_API_KEY
@@ -70,3 +88,12 @@ providers:
     env: ANDROID_MCP_TOKEN
     keychain_service: agent-configs/android-mcp
     primary_clients: [claude, codex, opencode, vscode, hermes, openclaw, antigravity]
+
+  cloudflare:
+    aliases: [wrangler, cloudflare-deploy]
+    env: CLOUDFLARE_API_TOKEN
+    keychain_service: agent-configs/cloudflare
+    primary_clients: [claude, codex, hermes, openclaw, opencode, vscode, aider-desk, pi, antigravity]
+    class: deployment
+    scope: target_specific
+    capability: deploy

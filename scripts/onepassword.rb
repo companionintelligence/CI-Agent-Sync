@@ -10,7 +10,10 @@ require "timeout"
 require_relative "process_helpers"
 
 ROOT = File.expand_path("..", __dir__)
-PROVIDERS = %w[anthropic openai openrouter ollama omlx companion-hub companion-memory omniroute android-mcp].freeze
+PROVIDERS = %w[
+  anthropic openai openrouter ollama omlx companion-hub companion-hub-qa
+  companion-hub-inference companion-memory omniroute android-mcp cloudflare
+].freeze
 
 options = {
   vault: ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs"),
@@ -72,6 +75,19 @@ rescue JSON::ParserError
   [nil, false]
 end
 
+def item_names(options)
+  output, _error, status = run_op(options, "item", "list", "--vault", options[:vault], "--format=json")
+  return nil unless status.success?
+
+  parsed = JSON.parse(output)
+  Array(parsed).each_with_object({}) do |item, names|
+    name = item["title"] || item["id"]
+    names[name] = true if name && !name.empty?
+  end
+rescue JSON::ParserError
+  nil
+end
+
 def ensure_owned_item!(item, provider)
   return unless item
   tags = Array(item["tags"])
@@ -98,7 +114,7 @@ def write_item(options, provider, secret)
     end
     item["fields"] = fields
     input = JSON.generate(item)
-    stdin, stdout, stderr, wait = Open3.popen3(*op_command(options, "item", "edit", item_name(provider), "--vault", options[:vault], "-"))
+    stdin, stdout, stderr, wait = Open3.popen3(*op_command(options, "item", "edit", item_name(provider), "--vault", options[:vault], "-"), pgroup: true)
   else
     input = JSON.generate(
       "category" => "API_CREDENTIAL",
@@ -106,14 +122,45 @@ def write_item(options, provider, secret)
       "tags" => ["agent-configs", "provider:#{provider}"],
       "fields" => [{ "id" => "credential", "type" => "CONCEALED", "label" => "credential", "value" => secret }],
     )
-    stdin, stdout, stderr, wait = Open3.popen3(*op_command(options, "item", "create", "--vault", options[:vault], "-"))
+    stdin, stdout, stderr, wait = Open3.popen3(*op_command(options, "item", "create", "--vault", options[:vault], "-"), pgroup: true)
   end
-  stdin.write(input)
-  stdin.close
-  _result = stdout.read
-  error = stderr.read
-  status = wait.value
-  abort "1Password item write failed for #{provider}: #{error.lines.first.to_s.strip}" unless status.success?
+  error = ""
+  status = nil
+  timed_out = false
+  output_thread = Thread.new { stdout.read rescue "" }
+  error_thread = Thread.new { stderr.read rescue "" }
+  begin
+    Timeout.timeout(30) do
+      stdin.write(input)
+      stdin.close
+      status = wait.value
+    end
+  rescue Timeout::Error
+    timed_out = true
+    Process.kill("TERM", -wait.pid) rescue Process.kill("TERM", wait.pid) rescue nil
+    sleep 0.05
+    Process.kill("KILL", -wait.pid) rescue Process.kill("KILL", wait.pid) rescue nil
+    stdin.close rescue nil
+    stdout.close rescue nil
+    stderr.close rescue nil
+    output_thread.kill
+    error_thread.kill
+    output_thread.join(0.2)
+    error_thread.join(0.2)
+    wait.join(0.5)
+  ensure
+    stdin.close rescue nil
+    stdout.close rescue nil
+    stderr.close rescue nil
+  end
+  unless timed_out
+    output_thread.value rescue nil
+    error = error_thread.value rescue ""
+  end
+  output_thread.kill if timed_out
+  error_thread.kill if timed_out
+  abort "1Password item write timed out for #{provider}; approve the desktop CLI request and retry" if timed_out
+  abort "1Password item write failed for #{provider}: #{error.lines.first.to_s.strip}" unless status&.success?
   true
 end
 
@@ -135,9 +182,19 @@ when "status"
     exit 0
   end
   puts "1Password vault: #{options[:vault]}"
-  PROVIDERS.each do |provider|
-    _value, _error, status = run_op(options, "read", "--no-newline", reference(options, provider))
-    puts "  #{status.success? ? "✓" : "·"} #{provider} — #{status.success? ? "credential available" : "item or field missing"}"
+  names = item_names(options)
+  if names.nil?
+    puts "1Password items: unavailable — approve the desktop CLI request and retry"
+  else
+    PROVIDERS.each do |provider|
+      item = item_name(provider)
+      unless names[item]
+        puts "  · #{provider} — item missing"
+        next
+      end
+      _value, _error, status = run_op(options, "read", "--no-newline", reference(options, provider))
+      puts "  #{status.success? ? "✓" : "·"} #{provider} — #{status.success? ? "credential available" : "credential field missing"}"
+    end
   end
 when "refs"
   PROVIDERS.each { |provider| puts "#{provider}\top://#{options[:vault]}/#{item_name(provider)}/credential" }

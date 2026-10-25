@@ -2,6 +2,7 @@
 
 require "json"
 require "net/http"
+require "openssl"
 require "open3"
 require "optparse"
 require "time"
@@ -38,17 +39,29 @@ def capture_with_timeout(command, timeout_seconds)
   AgentConfigProcess.capture_with_timeout(command, timeout_seconds)
 end
 
+$agent_config_op_items = nil
+
+def onepassword_item_names
+  return $agent_config_op_items unless $agent_config_op_items.nil?
+
+  binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
+  vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
+  output, _error, status = capture_with_timeout([binary, "item", "list", "--vault", vault, "--format=json"], 12)
+  parsed = JSON.parse(output) rescue []
+  $agent_config_op_items = status&.success? ? Array(parsed).filter_map { |item| item["title"] || item["id"] } : []
+rescue StandardError
+  $agent_config_op_items = []
+end
+
 def op_secret_value(provider)
   return nil if ENV["AGENT_CONFIGS_SECRET_BACKEND"] == "native"
   binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
   return nil unless system("which", binary, out: File::NULL, err: File::NULL)
-  _vaults, _vaults_error, vaults_status = capture_with_timeout([binary, "vault", "list", "--format=json"], 30)
-  return nil if vaults_status.nil?
-  return nil unless vaults_status.success?
   vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
   item = "agent-configs-#{provider}"
+  return nil unless onepassword_item_names.include?(item)
   reference = "op://#{vault}/#{item}/credential"
-  output, _error, status = capture_with_timeout([binary, "read", "--no-newline", reference], 30)
+  output, _error, status = capture_with_timeout([binary, "read", "--no-newline", reference], 12)
   return nil if status.nil?
   output.strip if status.success? && !output.strip.empty?
 rescue Timeout::Error, StandardError
@@ -76,10 +89,22 @@ def expand_path(value, ci_root)
   value.to_s.gsub("${CI_ROOT}", ci_root).gsub("${HOME}", Dir.home)
 end
 
+def local_profile_endpoint(name)
+  profile_path = File.join(STORE_ROOT, "profiles", "machines", "local.yaml")
+  profile = YAML.safe_load_file(profile_path, aliases: false)
+  profile.dig("endpoints", name).to_s
+rescue StandardError
+  ""
+end
+
 def http_status(url, path, headers = {})
   uri = URI.join(url.end_with?("/") ? url : "#{url}/", path.delete_prefix("/"))
   http = Net::HTTP.new(uri.host, uri.port)
   http.use_ssl = uri.scheme == "https"
+  if http.use_ssl? && (uri.host == "localhost" || uri.host.end_with?(".localhost"))
+    http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+    http.verify_hostname = false if http.respond_to?(:verify_hostname=)
+  end
   http.open_timeout = 2
   http.read_timeout = 3
   request = Net::HTTP::Get.new(uri.request_uri)
@@ -100,7 +125,7 @@ end
   end
 end
 
-%w[code hermes openclaw claude codex opencode ollama npx uvx pnpm yarn docker].each do |command|
+%w[code hermes openclaw claude codex opencode ollama wrangler cihub tailscale npx uvx pnpm yarn docker].each do |command|
   resolved_command = command == "openclaw" ? File.join(STORE_ROOT, "bin", "openclaw-runtime") : command
   path = command == "openclaw" && File.executable?(resolved_command) ? resolved_command : `command -v #{command} 2>/dev/null`.strip
   if path.empty?
@@ -115,6 +140,7 @@ config_paths = {
   "hermes" => File.join(Dir.home, ".hermes", "config.yaml"),
   "openclaw" => File.join(Dir.home, ".openclaw", "openclaw.json"),
   "claude" => File.join(Dir.home, ".claude"),
+  "chatgpt" => File.join(Dir.home, "Library", "Application Support", "com.openai.chat"),
   "codex" => File.join(Dir.home, ".codex"),
   "opencode" => File.join(Dir.home, ".config", "opencode"),
   "ollama" => File.join(Dir.home, ".ollama"),
@@ -137,7 +163,7 @@ if command = `command -v openclaw 2>/dev/null`.strip
   add_check(checks, "runtime.openclaw.gateway", gateway_ok ? "ok" : "warn", gateway_ok ? "gateway health responded" : "gateway probe failed; use the desktop-matched runtime when installed")
 end
 
-providers = %w[anthropic openai openrouter ollama omlx companion-hub companion-memory omniroute android-mcp]
+providers = %w[anthropic openai openrouter ollama omlx companion-hub companion-hub-qa companion-hub-inference companion-memory omniroute android-mcp cloudflare]
 op_binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
 if system("which", op_binary, out: File::NULL, err: File::NULL)
   _vaults, _vaults_error, vaults_status = capture_with_timeout([op_binary, "vault", "list", "--format=json"], 30)
@@ -177,7 +203,7 @@ begin
     File.join(STORE_ROOT, "integrations", "vscode", "mcp.json.example"),
   ]
   examples.each { |path| JSON.parse(File.read(path)) }
-  %w[providers/providers.yaml providers/onepassword.yaml integrations/mcp/registry.yaml integrations/capability-bundles.yaml integrations/harnesses.yaml integrations/providers/routing.yaml integrations/providers/fallbacks.yaml repos/companionintelligence.yaml repos/workspace.yaml].each do |relative|
+  %w[providers/providers.yaml providers/onepassword.yaml integrations/mcp/registry.yaml integrations/capability-bundles.yaml integrations/harnesses.yaml integrations/providers/routing.yaml integrations/providers/fallbacks.yaml integrations/deployment-targets.yaml integrations/fleet/targets.yaml repos/companionintelligence.yaml repos/workspace.yaml].each do |relative|
     YAML.safe_load_file(File.join(STORE_ROOT, relative), aliases: true)
   end
   add_check(checks, "store.manifests", "ok", "YAML and JSON templates parse")
@@ -231,7 +257,7 @@ gateway_code = http_status(omniroute_url, "/v1/models", omniroute_headers)
 gateway_detail = gateway_code == 401 ? "HTTP 401; gateway is protected and needs its access key" : "HTTP #{gateway_code}"
 add_check(checks, "runtime.omniroute.models", gateway_code == 200 ? "ok" : "warn", gateway_detail)
 
-hub_url = ENV["COMPANION_HUB_BASE_URL"] || ENV["CI_SERVER_URL"]
+hub_url = ENV["COMPANION_HUB_BASE_URL"] || ENV["CI_SERVER_URL"] || local_profile_endpoint("companion_hub")
 if hub_url && !hub_url.empty?
   hub_key = secret_value("companion-hub")
   hub_headers = hub_key ? { "Authorization" => "Bearer #{hub_key}" } : {}
@@ -241,7 +267,7 @@ else
   add_check(checks, "runtime.companion-hub", "warn", "COMPANION_HUB_BASE_URL/CI_SERVER_URL is not configured")
 end
 
-memory_url = ENV["COMPANION_MEMORY_BASE_URL"]
+memory_url = ENV["COMPANION_MEMORY_BASE_URL"] || local_profile_endpoint("companion_memory")
 if memory_url && !memory_url.empty?
   memory_key = secret_value("companion-memory")
   memory_headers = memory_key ? { "Authorization" => "Bearer #{memory_key}" } : {}

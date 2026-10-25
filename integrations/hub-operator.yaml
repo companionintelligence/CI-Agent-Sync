@@ -1,0 +1,112 @@
+version: 1
+
+# The operator pack is deliberately read-first. It describes the evidence a
+# CEO/control-room session should collect before any Hub mutation is proposed.
+policy:
+  default_mode: read_only
+  no_implicit_writes: true
+  require_explicit_confirmation_for:
+    - app_install
+    - app_update
+    - app_start_stop_restart
+    - model_load_unload_or_pin
+    - fleet_pairing_or_unpairing
+    - registration_reset_or_repair
+    - backup_restore_or_delete
+    - account_role_or_api_key_changes
+    - marketplace_publish
+    - metricool_publish_or_schedule
+  preserve_evidence: true
+  redact_credentials_and_app_config: true
+
+credentials:
+  mcp:
+    provider: companion-hub
+    scope: mcp
+    capability: read
+    use: MCP initialize, tool discovery, and approved read tools
+  qa_read:
+    provider: companion-hub-qa
+    scope: qa:read
+    capability: read
+    use: pool status, routing log, app status, and install queue
+  inference:
+    provider: companion-hub-inference
+    scope: inference
+    capability: read
+    use: OpenAI-compatible model inventory and harmless coding probes
+  admin:
+    provider: native_hub_session_or_explicit_admin_key
+    scope: operator session or explicitly provisioned full key
+    capability: write
+    use: only after a named change, backup/rollback plan, and confirmation
+    portable_by_default: false
+
+lanes:
+  control_room:
+    purpose: "Fast, repeatable read-only view of one Hub before CEO or support work."
+    command: agentctl hub smoke --json --strict --from-1password
+    evidence:
+      - liveness and readiness
+      - registration phase and state drift
+      - qa-read pool status, routing log, and install queue
+      - inference model inventory
+      - MCP initialize and tools/list
+      - local cihub status, Docker, and Tailscale summary
+  launch_readiness:
+    purpose: "Prove the Hub can serve agents, models, MCP, and the core appliance path."
+    command: agentctl hub smoke --json --strict --from-1password
+    required: [health, qa_read, inference, mcp]
+    stop_if:
+      - readiness_failed
+      - registration_state_drift
+      - pool_identity_or_peer_auth_failure
+      - no_chat_model_available
+      - mcp_tools_empty
+  ceo_admin:
+    purpose: "Prepare an executive action with scoped evidence and an approval gate."
+    read_first:
+      - control_room
+      - app inventory and selected app status
+      - relevant backup inventory
+      - relevant fleet/pool status
+      - recent audit or operation evidence
+    mutation_contract:
+      - name the exact target and intended state
+      - show the read-only preflight
+      - state blast radius and rollback
+      - ask for confirmation immediately before the write
+      - re-run control_room after the write
+  marketing_production:
+    purpose: "Run Brand Studio → CI-Common → CI-Engineering → Metricool with a single approval boundary."
+    read_first:
+      - control_room
+      - brand and campaign context
+      - render/export validation
+      - Metricool account and destination status
+    mutation_contract:
+      - draft locally
+      - render and inspect
+      - obtain approval
+      - publish or schedule once
+      - record the resulting post/job id
+  incident_recovery:
+    purpose: "Recover a degraded Hub without turning diagnosis into an accidental reset."
+    steps:
+      - collect_control_room_report
+      - preserve_logs_and_current_state
+      - identify_one_failure_domain
+      - backup_before_reset_or_restore
+      - apply_one_scoped_repair
+      - re-run_control_room_report
+      - stop_if_identity_or_data_integrity_is_uncertain
+
+tests:
+  harmless_agent_prompt: "Write a pure Python is_palindrome(text) function that ignores case and non-alphanumeric characters. Return code only."
+  required_evidence:
+    - selected_provider
+    - model_id
+    - latency_seconds
+    - response_shape
+    - no_secret_values
+  harnesses: [chatgpt, hermes, openclaw, claude, codex, opencode, aider-desk, pi, antigravity, vscode]
