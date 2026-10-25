@@ -345,6 +345,7 @@ putting it in chat or a tracked file:
 ./bin/agent-store credentials set companion-hub-inference
 ./bin/agent-store credentials set companion-hub-fleet-qa
 ./bin/agent-store credentials set companion-memory
+./bin/agent-store credentials set companion-memory-cli
 ./bin/agent-store credentials set omniroute
 ./bin/agent-store credentials set android-mcp
 ./bin/agent-store credentials set cloudflare

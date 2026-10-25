@@ -86,6 +86,16 @@ providers:
     endpoint_env: COMPANION_MEMORY_BASE_URL
     primary_clients: [hermes, openclaw, claude, codex, opencode, vscode]
 
+  companion-memory-cli:
+    aliases: [companion_memory_cli, ci-memory-cli, memory-cli]
+    env: CI_API_KEY
+    env_aliases: [CI_SERVER_API_KEY]
+    keychain_service: agent-configs/companion-memory-cli
+    endpoint_env: COMPANION_MEMORY_BASE_URL
+    primary_clients: [hermes, openclaw, claude, codex, opencode, vscode]
+    scope: full_user_cli
+    capability: full
+
   omniroute:
     aliases: [omni-route]
     env: OMNIROUTE_API_KEY
