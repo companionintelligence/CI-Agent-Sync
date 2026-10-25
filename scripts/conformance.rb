@@ -97,11 +97,11 @@ def secret_available?(provider)
   return false if ENV["AGENT_CONFIGS_SECRET_BACKEND"] == "native"
   binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
   return false unless system("which", binary, out: File::NULL, err: File::NULL)
-  _out, _err, status = capture_with_timeout([binary, "whoami", "--format=json"], 3)
+  _out, _err, status = capture_with_timeout([binary, "vault", "list", "--format=json"], 30)
   return false if status.nil?
   return false unless status.success?
   vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
-  _value, _error, read_status = capture_with_timeout([binary, "read", "--no-newline", "op://#{vault}/agent-configs-#{provider}/credential"], 3)
+  _value, _error, read_status = capture_with_timeout([binary, "read", "--no-newline", "op://#{vault}/agent-configs-#{provider}/credential"], 30)
   return false if read_status.nil?
   read_status.success?
 rescue Timeout::Error, StandardError
@@ -113,7 +113,7 @@ def secret_value(provider)
   binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
   if system("which", binary, out: File::NULL, err: File::NULL)
     vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
-    output, _error, status = capture_with_timeout([binary, "read", "--no-newline", "op://#{vault}/agent-configs-#{provider}/credential"], 3)
+    output, _error, status = capture_with_timeout([binary, "read", "--no-newline", "op://#{vault}/agent-configs-#{provider}/credential"], 30)
     return nil if status.nil?
     return output.strip if status.success? && !output.strip.empty?
   end

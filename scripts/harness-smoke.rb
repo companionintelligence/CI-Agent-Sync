@@ -31,12 +31,12 @@ def op_secret_value(provider)
   return nil if ENV["AGENT_CONFIGS_SECRET_BACKEND"] == "native"
   binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
   return nil unless system("which", binary, out: File::NULL, err: File::NULL)
-  _whoami, _whoami_error, whoami_status = capture_with_timeout([binary, "whoami", "--format=json"], 3)
+  _vaults, _vaults_error, whoami_status = capture_with_timeout([binary, "vault", "list", "--format=json"], 30)
   return nil if whoami_status.nil?
   return nil unless whoami_status.success?
   vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
   reference = "op://#{vault}/agent-configs-#{provider}/credential"
-  output, _error, status = capture_with_timeout([binary, "read", "--no-newline", reference], 3)
+  output, _error, status = capture_with_timeout([binary, "read", "--no-newline", reference], 30)
   return nil if status.nil?
   output.strip if status.success? && !output.strip.empty?
 rescue Timeout::Error, StandardError

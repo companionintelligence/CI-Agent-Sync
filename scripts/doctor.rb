@@ -42,13 +42,13 @@ def op_secret_value(provider)
   return nil if ENV["AGENT_CONFIGS_SECRET_BACKEND"] == "native"
   binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
   return nil unless system("which", binary, out: File::NULL, err: File::NULL)
-  _whoami, _whoami_error, whoami_status = capture_with_timeout([binary, "whoami", "--format=json"], 3)
-  return nil if whoami_status.nil?
-  return nil unless whoami_status.success?
+  _vaults, _vaults_error, vaults_status = capture_with_timeout([binary, "vault", "list", "--format=json"], 30)
+  return nil if vaults_status.nil?
+  return nil unless vaults_status.success?
   vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
   item = "agent-configs-#{provider}"
   reference = "op://#{vault}/#{item}/credential"
-  output, _error, status = capture_with_timeout([binary, "read", "--no-newline", reference], 3)
+  output, _error, status = capture_with_timeout([binary, "read", "--no-newline", reference], 30)
   return nil if status.nil?
   output.strip if status.success? && !output.strip.empty?
 rescue Timeout::Error, StandardError
@@ -140,8 +140,8 @@ end
 providers = %w[anthropic openai openrouter ollama omlx companion-hub companion-memory omniroute android-mcp]
 op_binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
 if system("which", op_binary, out: File::NULL, err: File::NULL)
-  _whoami, _whoami_error, whoami_status = capture_with_timeout([op_binary, "whoami", "--format=json"], 3)
-  if whoami_status&.success?
+  _vaults, _vaults_error, vaults_status = capture_with_timeout([op_binary, "vault", "list", "--format=json"], 30)
+  if vaults_status&.success?
     add_check(checks, "credential-backend.onepassword", "ok", "1Password CLI authenticated; values are never printed")
   else
     add_check(checks, "credential-backend.onepassword", "warn", "1Password CLI installed but not authenticated")
