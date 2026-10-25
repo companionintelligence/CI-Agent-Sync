@@ -20,6 +20,7 @@ OptionParser.new do |parser|
   parser.on("--timeout SECONDS", Integer) { |value| options[:timeout] = value }
   parser.on("--help") { puts parser; exit 0 }
 end.parse!
+options[:timeout] = [[options[:timeout], 1].max, 300].min
 
 def expand_path(value)
   value.to_s
@@ -29,44 +30,49 @@ def expand_path(value)
 end
 
 $agent_config_op_items = nil
+$agent_config_op_secrets = {}
 
-def onepassword_item_names
+def onepassword_item_names(timeout_seconds = 12)
   return $agent_config_op_items unless $agent_config_op_items.nil?
 
   binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
   vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
-  output, _error, status = capture_with_timeout([binary, "item", "list", "--vault", vault, "--format=json"], 12)
+  output, _error, status = capture_with_timeout([binary, "item", "list", "--vault", vault, "--format=json"], timeout_seconds)
   parsed = JSON.parse(output) rescue []
   $agent_config_op_items = status&.success? ? Array(parsed).filter_map { |item| item["title"] || item["id"] } : []
 rescue StandardError
   $agent_config_op_items = []
 end
 
-def op_secret_value(provider)
+def op_secret_value(provider, timeout_seconds = 12)
+  return $agent_config_op_secrets[provider] if $agent_config_op_secrets.key?(provider)
+  $agent_config_op_secrets[provider] = nil
   return nil if ENV["AGENT_CONFIGS_SECRET_BACKEND"] == "native"
   binary = ENV.fetch("AGENT_CONFIGS_OP_BINARY", "op")
   return nil unless system("which", binary, out: File::NULL, err: File::NULL)
   vault = ENV.fetch("AGENT_CONFIGS_OP_VAULT", "Agent Configs")
-  return nil unless onepassword_item_names.include?("agent-configs-#{provider}")
+  return nil unless onepassword_item_names(timeout_seconds).include?("agent-configs-#{provider}")
   reference = "op://#{vault}/agent-configs-#{provider}/credential"
-  output, _error, status = capture_with_timeout([binary, "read", "--no-newline", reference], 12)
+  output, _error, status = capture_with_timeout([binary, "read", "--no-newline", reference], timeout_seconds)
   return nil if status.nil?
-  output.strip if status.success? && !output.strip.empty?
+  value = status.success? && !output.strip.empty? ? output.strip : nil
+  $agent_config_op_secrets[provider] = value
+  value
 rescue Timeout::Error, StandardError
   nil
 end
 
-def secret_value(provider)
-  op_value = op_secret_value(provider)
+def secret_value(provider, timeout_seconds = 12)
+  op_value = op_secret_value(provider, timeout_seconds)
   return op_value if op_value
 
   service = "agent-configs/#{provider}"
   if RUBY_PLATFORM.include?("darwin") && system("command", "-v", "security", out: File::NULL, err: File::NULL)
-    out, _err, status = Open3.capture3("security", "find-generic-password", "-a", ENV.fetch("USER", ""), "-s", service, "-w")
-    return out.strip if status.success? && !out.strip.empty?
+    out, _err, status = capture_with_timeout(["security", "find-generic-password", "-a", ENV.fetch("USER", ""), "-s", service, "-w"], timeout_seconds)
+    return out.strip if status&.success? && !out.strip.empty?
   elsif RUBY_PLATFORM.include?("linux") && system("command", "-v", "secret-tool", out: File::NULL, err: File::NULL)
-    out, _err, status = Open3.capture3("secret-tool", "lookup", "service", service, "account", ENV.fetch("USER", ""))
-    return out.strip if status.success? && !out.strip.empty?
+    out, _err, status = capture_with_timeout(["secret-tool", "lookup", "service", service, "account", ENV.fetch("USER", "")], timeout_seconds)
+    return out.strip if status&.success? && !out.strip.empty?
   end
   nil
 rescue StandardError
@@ -92,12 +98,12 @@ def capture_with_timeout(command, timeout_seconds)
   AgentConfigProcess.capture_with_timeout(command, timeout_seconds)
 end
 
-def http_probe(base, path, headers = {})
+def http_probe(base, path, headers = {}, timeout_seconds = 8)
   uri = URI.join(base.end_with?("/") ? base : "#{base}/", path.delete_prefix("/"))
   http = Net::HTTP.new(uri.host, uri.port)
   http.use_ssl = uri.scheme == "https"
-  http.open_timeout = 3
-  http.read_timeout = 8
+  http.open_timeout = [timeout_seconds, 3].min
+  http.read_timeout = timeout_seconds
   request = Net::HTTP::Get.new(uri.request_uri)
   headers.each { |key, value| request[key] = value }
   response = http.request(request)
@@ -130,10 +136,10 @@ omlx = ENV.fetch("OMLX_BASE_URL", "http://127.0.0.1:8000/v1")
 omniroute = ENV.fetch("OMNIROUTE_BASE_URL", "http://127.0.0.1:20128")
 [
   ["runtime.ollama", ollama, "/api/tags", nil],
-  ["runtime.omlx", omlx.sub(%r{/v1\z}, ""), "/v1/models", secret_value("omlx")],
-  ["runtime.omniroute", omniroute, "/v1/models", secret_value("omniroute")],
+  ["runtime.omlx", omlx.sub(%r{/v1\z}, ""), "/v1/models", secret_value("omlx", options[:timeout])],
+  ["runtime.omniroute", omniroute, "/v1/models", secret_value("omniroute", options[:timeout])],
 ].each do |id, base, path, key|
-  probe = http_probe(base, path, key ? { "Authorization" => "Bearer #{key}" } : {})
+  probe = http_probe(base, path, key ? { "Authorization" => "Bearer #{key}" } : {}, options[:timeout])
   detail = probe["detail"] || "HTTP #{probe["code"] || "unreachable"}"
   detail = "#{detail}; reachable but authentication is missing" if probe["code"] == 401
   checks << { "id" => id, "status" => probe["status"], "detail" => detail }
@@ -146,21 +152,21 @@ if options[:live_local]
     probe = command_probe(gateway_command, options[:timeout])
     checks << { "id" => "live.openclaw.gateway", "status" => probe["status"], "detail" => probe["detail"] }
   end
-  key = secret_value("omlx")
+  key = secret_value("omlx", options[:timeout])
   model = ENV.fetch("AGENTCTL_LOCAL_MODEL", "Qwen3.8-27B-oQ4e-fp16-mtp")
   if key
     begin
       uri = URI.join(omlx.end_with?("/") ? omlx : "#{omlx}/", "chat/completions")
       http = Net::HTTP.new(uri.host, uri.port)
       http.open_timeout = 3
-      http.read_timeout = 90
+      http.read_timeout = options[:timeout]
       request = Net::HTTP::Post.new(uri.request_uri)
       request["Authorization"] = "Bearer #{key}"
       request["Content-Type"] = "application/json"
       request.body = JSON.generate("model" => model, "messages" => [{ "role" => "user", "content" => "Return only the exact result of 2+2." }], "temperature" => 0, "max_tokens" => 64, "chat_template_kwargs" => { "enable_thinking" => false })
       response = nil
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      Timeout.timeout(95) { response = http.request(request) }
+      Timeout.timeout(options[:timeout]) { response = http.request(request) }
       elapsed = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).round(2)
       body = JSON.parse(response.body) rescue {}
       message = body.dig("choices", 0, "message") || {}
