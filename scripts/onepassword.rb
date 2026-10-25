@@ -36,7 +36,7 @@ def capture_with_timeout(command, timeout_seconds)
 end
 
 def run_op(options, *args)
-  output, error, status = capture_with_timeout(op_command(options, *args), 3)
+  output, error, status = capture_with_timeout(op_command(options, *args), 30)
   [output, error, status || FAILED_STATUS]
 end
 
@@ -46,7 +46,7 @@ def op_installed?
 end
 
 def signed_in?(options)
-  _out, _err, status = run_op(options, "whoami", "--format=json")
+  _out, _err, status = run_op(options, "vault", "list", "--format=json")
   status.success?
 end
 
@@ -101,7 +101,7 @@ def write_item(options, provider, secret)
     stdin, stdout, stderr, wait = Open3.popen3(*op_command(options, "item", "edit", item_name(provider), "--vault", options[:vault], "-"))
   else
     input = JSON.generate(
-      "category" => "PASSWORD",
+      "category" => "API_CREDENTIAL",
       "title" => item_name(provider),
       "tags" => ["agent-configs", "provider:#{provider}"],
       "fields" => [{ "id" => "credential", "type" => "CONCEALED", "label" => "credential", "value" => secret }],
