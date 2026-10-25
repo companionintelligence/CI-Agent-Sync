@@ -1,12 +1,102 @@
-# Liam's Magic Agent Config Store
+# Agent Atlas
 
-This is the local, versionable home for Liam's agent configuration templates,
-provider mappings, helper commands, redacted audits, and setup notes.
+> A portable map for every agent, model, and mission.
 
-The store is maintained in [mrhegemon/agent-configs](https://github.com/mrhegemon/agent-configs).
-It is a portable control plane, not a mirror of native app state: credential
-values stay in the shared 1Password vault, while reviewed recipes and redacted
-audits live here. Client-native OAuth state remains local to each app.
+Agent Atlas is the user-facing name for this repository, which remains
+`agent-configs` for Git and automation compatibility. It is the local,
+versionable home for Companion Intelligence harness recipes, provider routes,
+MCP bundles, workflow packs, redacted audits, and safe operator helpers.
+
+The store is maintained in
+[mrhegemon/agent-configs](https://github.com/mrhegemon/agent-configs). It is a
+portable control plane, not a mirror of native app state: credential values
+stay in the shared 1Password vault, while reviewed recipes and redacted audits
+live here. Client-native OAuth state, sessions, model caches, and device
+identity remain local to each app.
+
+![Agent Atlas logo](web/assets/agent-atlas-logo.png)
+
+## TL;DR
+
+| Goal | Run | Result |
+| --- | --- | --- |
+| Prepare a new machine | `./scripts/bootstrap-machine.zsh` | Installs the safe local shell of the store |
+| Connect credentials | `./bin/agentctl credentials op setup` then `./bin/agentctl credentials op import` | Uses 1Password without copying values into Git |
+| Open the GUI | `./bin/agent-atlas --open` or `./bin/agentctl atlas --open` | Starts the loopback-only Agent Atlas console |
+| Check the machine | `./bin/agentctl doctor --json` | Reports commands, configs, endpoints, and credential backend status |
+| Check the fleet | `./bin/agentctl fleet smoke --json --strict` | Verifies Tailscale and Hub liveness for named targets |
+| Audit Marketplace apps | `./bin/agentctl marketplace audit --strict` | Checks release tags, Hub/Memory wiring, and image pins |
+| Plan a sync | `./bin/agentctl sync` | Shows what would be distributed; use `--apply` only after review |
+
+The shortest useful setup is:
+
+```sh
+git clone https://github.com/mrhegemon/agent-configs.git
+cd agent-configs
+cp profiles/machines/macos-laptop.yaml.example profiles/machines/local.yaml
+./scripts/bootstrap-machine.zsh
+./bin/agentctl credentials op setup
+./bin/agentctl credentials op import
+./bin/agent-atlas --open
+```
+
+## Open the local console
+
+Agent Atlas is a zero-dependency Ruby web console backed by the real YAML store.
+It binds to `127.0.0.1:8787`, serves a responsive dashboard, and exposes only
+read-only inventory and evidence checks:
+
+```sh
+./bin/agent-atlas --open
+# equivalent entry point:
+./bin/agentctl atlas --open
+```
+
+Useful alternatives:
+
+```sh
+./bin/agent-atlas                 # start without opening a browser
+./bin/agent-atlas --port 9090    # choose another local port
+./bin/agent-atlas --check         # validate the bundled web assets
+```
+
+The console does not have write endpoints. It can run the existing doctor,
+fleet smoke, and Marketplace audit commands so you can see current evidence in
+one place. Use the CLI's plan/approval workflows for anything that changes a
+machine, fleet node, deployment, credential, or app.
+
+Full route and safety details are in [docs/agent-atlas.md](docs/agent-atlas.md).
+
+To expose the console beyond the laptop, you must opt in explicitly with
+`--allow-remote`; the console adds no authentication, so loopback is the
+recommended and supported default.
+
+## How the pieces fit
+
+```mermaid
+flowchart LR
+  Atlas[Agent Atlas<br/>portable policy] --> Vault[1Password<br/>credential values]
+  Atlas --> Harnesses[Claude · Codex · Hermes<br/>OpenClaw · OpenCode · VS Code]
+  Atlas --> Providers[OpenAI · Anthropic · OpenRouter<br/>Ollama · oMLX · Hub]
+  Atlas --> MCP[MCP registry<br/>reviewed bundles]
+  Harnesses --> Runtime[Native app state<br/>sessions · OAuth · caches]
+  Providers --> Hub[Companion Hub + Memory<br/>local and Tailscale fleet]
+  MCP --> Hub
+  Atlas --> Checks[Read-only evidence<br/>doctor · smoke · audit]
+```
+
+The operating rule is simple: policy travels, identity stays local, and every
+write crosses an explicit approval boundary.
+
+## What is portable
+
+| Layer | Stored in Agent Atlas | Deliberately left outside Git |
+| --- | --- | --- |
+| Policy | Provider names, fallback chains, MCP recipes, capability bundles, workflows | Secret values and one-off machine overrides |
+| Credentials | 1Password item references and environment mappings | API keys, OAuth refresh tokens, cookies, private keys |
+| Harnesses | Redacted config shapes, skills/plugins, setup and audit recipes | Sessions, transcripts, native databases, device identity |
+| Runtime | Read-only probes and evidence schemas | Model weights, app caches, running containers |
+| Distribution | Versioned sync manifest and rollback policy | Unreviewed arbitrary file copying |
 
 ## Secret policy
 
@@ -15,6 +105,71 @@ shared 1Password `Agent Configs` vault through `op://` references; Keychain and
 Secret Service are migration fallbacks only.
 Tool-specific OAuth files remain in their native application directories.
 Audits and config snapshots redact credential-bearing fields.
+
+## Harness coverage
+
+| Harness or runtime | Role in the stack | Portable layer | Native state stays in |
+| --- | --- | --- | --- |
+| ChatGPT | Hosted planning and review | Context, workflows, handoff recipes | ChatGPT account and desktop app |
+| Claude | Cloud/local coding and MCP | Provider routes, MCP bundles, skills | Claude app and OAuth store |
+| Codex | Coding, review, and deployment | Provider routes, MCP bundles, approval policy | Codex app and CLI state |
+| Hermes | Local-first coding and tools | Hermes config shape, provider fallback, MCP recipes | `~/.hermes` |
+| OpenClaw | Gateway-based coding and automation | Gateway recipe, local model handoff, Hub wiring | `~/.openclaw` and gateway identity |
+| OpenCode | Multi-provider coding | Provider catalog, plugins, MCP recipes | OpenCode config and sessions |
+| Aider Desk | Desktop coding companion | MCP recipe and provider mapping | Native desktop app data |
+| Pi | Lightweight coding surface | Provider mapping and MCP recipe | `~/.pi` |
+| Antigravity | Desktop coding and engineering | MCP bundles and safe operating context | Native desktop app data |
+| VS Code | Editor, browser, and development MCP | Extensions, settings, MCP template | VS Code User data |
+| Ollama / oMLX | Local inference backends | Endpoint names and fallback policy | Model weights and runtime processes |
+
+## Capability bundle guide
+
+| Bundle | Best for | Adds | Risk posture |
+| --- | --- | --- | --- |
+| `core` | Everyday work | Hub, Memory, Engineering read surfaces | Read-oriented default |
+| `development` | Coding and docs | CI-Common, MarkItDown, Playwright, GitHub | Review before external writes |
+| `marketing` | Product videos and social | Brand Studio, CI-Common, Metricool | Publishing remains approval-gated |
+| `operator-readonly` | CEO and launch readiness | Hub control-room observability | Read-only evidence |
+| `platform-qa` | Marketplace and fleet validation | CI-Engineering fleet QA | Explicit target and confirmation |
+| `mobile` | Android workflows | Android remote control MCP | High-risk, opt-in |
+| `operator-admin` | Hub administration | Approved Hub write path | High-risk, preflight required |
+| `deployment-admin` | Cloudflare and Hub deploys | Deployment credentials and recipes | High-risk, post-deploy probe |
+
+## Sync and release path
+
+```mermaid
+flowchart TD
+  Store[Agent Atlas Git store] --> Sync[Plan-first sync manifest]
+  Sync --> Clients[Claude · Codex · Hermes · OpenClaw<br/>OpenCode · VS Code · Pi · Aider Desk]
+  Store --> Contract[Marketplace harness contract]
+  Contract --> Catalog[CI-Marketplace manifests]
+  Catalog --> Images[Versioned sha256-pinned images]
+  Images --> Hub[Companion Hub app runtime]
+  Vault[1Password] --> Clients
+  Vault --> Hub
+  Hub --> Evidence[Hub / Memory / Tailscale evidence]
+  Evidence --> Store
+```
+
+### Marketplace bridge
+
+| Source of truth | What it owns | How Atlas checks it |
+| --- | --- | --- |
+| `agent-configs` | Portable policy and public harness expectations | `agentctl validate`, `agentctl marketplace audit` |
+| CI-Hermes / CI-OpenClaw | Source releases and native runtime behavior | Optional local source-tag comparison |
+| CI-Marketplace | Installable manifests and image references | Catalog contract tests and image-pin checks |
+| Companion Hub | Active credentials, models, routes, and runtime state | Read-only Hub/fleet probes |
+
+The contract is deliberately public and credential-free:
+[integrations/marketplace-harnesses.yaml](integrations/marketplace-harnesses.yaml).
+Use the audit when a source release or catalog manifest changes:
+
+```sh
+./bin/agentctl marketplace audit \
+  --marketplace /path/to/CI-Marketplace \
+  --sources-root /path/to/source-checkouts \
+  --strict
+```
 
 Start here:
 
