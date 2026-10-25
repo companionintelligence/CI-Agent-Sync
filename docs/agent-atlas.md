@@ -88,6 +88,14 @@ npm run build
 ```
 
 The TypeScript check compiles the control plane and browser source, validates
-the store manifests, and checks the vendored CI-Common assets. The legacy Ruby
-fixture remains available for compatibility coverage while specialized Ruby
-commands are being ported.
+the store manifests, and checks the vendored CI-Common assets. Use the
+TypeScript-backed diagnostics for normal operation:
+
+```sh
+./bin/agentctl doctor --json
+./bin/agentctl conformance --json
+./bin/agentctl harness-smoke --json
+```
+
+The legacy Ruby fixture remains available for compatibility coverage while
+specialized Ruby commands are being ported.

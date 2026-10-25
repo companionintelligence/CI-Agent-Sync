@@ -44,6 +44,8 @@ Use the existing commands to inspect a machine:
 ./bin/agentctl doctor --json
 ./bin/agentctl companion status --json --timeout 20
 ./bin/agentctl test
+./bin/agentctl conformance --json --timeout 15
+./bin/agentctl harness-smoke --json --timeout 12
 ./bin/agentctl fleet smoke --json
 ```
 
@@ -92,8 +94,8 @@ The repository test suite covers both the happy path and failure boundaries:
 ```sh
 npm run build
 npm test
-ruby scripts/test_process_helpers.rb
-ruby scripts/test_harness_probe.rb
+./bin/agentctl conformance --json --timeout 15
+./bin/agentctl harness-smoke --json --timeout 12
 ./bin/agentctl check
 ```
 
@@ -101,7 +103,7 @@ Live tests should be run separately because they depend on the laptop's
 current credentials and service state:
 
 ```sh
-ruby scripts/harness-smoke.rb --json --live-local --timeout 20
+./bin/agentctl harness-smoke --json --live-local --timeout 20
 ./bin/agentctl companion status --json --timeout 20
 ```
 

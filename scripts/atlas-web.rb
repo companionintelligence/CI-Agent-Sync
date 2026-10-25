@@ -130,7 +130,7 @@ end
 def check_command(kind)
   case kind
   when "doctor"
-    [RbConfig.ruby, File.join(STORE_ROOT, "scripts", "doctor.rb"), "--json"]
+    [File.join(STORE_ROOT, "bin", "agentctl"), "doctor", "--json"]
   when "fleet"
     [RbConfig.ruby, File.join(STORE_ROOT, "scripts", "hub-fleet-smoke.rb"), "--json"]
   when "marketplace"

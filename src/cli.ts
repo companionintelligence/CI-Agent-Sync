@@ -3,6 +3,7 @@
 import { join } from "node:path";
 import { companionCommand } from "./companion.ts";
 import { ROOT, commandPath, legacyScript, legacyStore, outputResult, parseArgs, runCommand, runInteractive } from "./core.ts";
+import { conformanceCommand, harnessSmokeCommand } from "./diagnostics.ts";
 import { startAtlas } from "./atlas-web.ts";
 import { createBackup, renderArtifacts } from "./operations.ts";
 import { doctor } from "./doctor.ts";
@@ -18,6 +19,8 @@ Usage:
   agentctl validate [--json]
   agentctl profile list|show NAME [--json]
   agentctl companion status|hub|memory|tui [options]
+  agentctl conformance [--json] [--timeout SECONDS]
+  agentctl harness-smoke [--json] [--live-local] [--agent NAME] [--timeout SECONDS]
   agentctl backup [--dry-run] [--output PATH]
   agentctl render [--agent NAME] [--machine NAME] [--output PATH]
   agentctl <compatibility command> [...]
@@ -99,7 +102,8 @@ async function agentctlCommand(args: string[]): Promise<number> {
       const result = runCommand("npm", ["test", "--", ...args], { cwd: ROOT, timeoutMs: 120_000 });
       return outputResult(result);
     }
-    case "conformance": return legacy("conformance.rb", args);
+    case "conformance": return await conformanceCommand(args);
+    case "harness-smoke": return await harnessSmokeCommand(args);
     case "readiness": return legacy("readiness.rb", args);
     case "report":
     case "export-report": return legacy("export-report.rb", args);

@@ -6,6 +6,41 @@ require "open3"
 module AgentConfigProcess
   module_function
 
+  # `hermes --version` initialises the full application and can wait for a
+  # desktop secret-store approval. Diagnostics only need the installed build
+  # number, so prefer Hermes' own interpreter and package metadata when its
+  # launcher exposes one. Fall back to the public command on other installs.
+  def hermes_version_command(fallback = ["hermes", "--version"])
+    path = ENV["AGENT_CONFIGS_HERMES_BIN"].to_s.strip
+    path = `command -v hermes 2>/dev/null`.strip if path.empty?
+    return fallback unless File.file?(path)
+
+    source = File.read(path, 16_384)
+    match = source.match(/exec\s+(?:"([^"]+)"|'([^']+)'|(\S+))\s+"\$@"/)
+    interpreter = match && [match[1], match[2], match[3]].compact.first
+    return fallback unless interpreter && File.executable?(interpreter)
+
+    # Hermes' outer launcher delegates to a venv console script. That script
+    # is itself a tiny Python launcher, so use the sibling interpreter rather
+    # than passing `-c` to the Hermes entrypoint.
+    if File.read(interpreter, 16_384).include?("hermes_cli")
+      python = File.join(File.dirname(interpreter), "python3")
+      interpreter = python if File.executable?(python)
+    end
+
+    [interpreter, "-c", "import hermes_cli; print(f'Hermes Agent v{hermes_cli.__version__}')"]
+  rescue StandardError
+    fallback
+  end
+
+  def onepassword_timeout(kind = :probe)
+    defaults = { probe: 5, read: 12 }
+    key = kind == :read ? "AGENT_CONFIGS_OP_READ_TIMEOUT_SECONDS" : "AGENT_CONFIGS_OP_PROBE_TIMEOUT_SECONDS"
+    Integer(ENV.fetch(key, defaults.fetch(kind)), 10)
+  rescue ArgumentError, KeyError
+    defaults.fetch(kind)
+  end
+
   def capture_with_timeout(command, timeout_seconds)
     Open3.popen3(*command, in: File::NULL, pgroup: true) do |stdin, stdout, stderr, wait_thread|
       # Drain both pipes while the child runs. Waiting for exit before reading
