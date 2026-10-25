@@ -99,7 +99,7 @@ module CompanionCli
     end
 
     def run(surface, args, timeout_seconds: 30, from_1password: false)
-      command = command_with_credentials(surface.command + args, "companion-memory") if from_1password
+      command = command_with_credentials(surface.command + args, "companion-memory-cli") if from_1password && surface.id == "companion-memory"
       command ||= surface.command + args
       output = ""
       error = ""
@@ -144,7 +144,7 @@ module CompanionCli
     end
 
     def stream(surface, args, from_1password: false)
-      command = command_with_credentials(surface.command + args, "companion-memory") if from_1password
+      command = command_with_credentials(surface.command + args, "companion-memory-cli") if from_1password && surface.id == "companion-memory"
       command ||= surface.command + args
       status = if surface.cwd
                  system(*command, chdir: surface.cwd)

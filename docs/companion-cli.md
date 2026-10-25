@@ -39,7 +39,7 @@ health-check job:
 | Surface | Native command | CI Agent Sync behavior |
 | --- | --- | --- |
 | Companion Hub | `cihub` | Finds the installed CLI, then falls back to a local `Companion-Hub` checkout and runs `bin/cihub.cjs`. |
-| Companion Memory | `ci` | Finds the installed CLI, a built `@ci/cli`, or runs `yarn workspace @ci/cli dev` from a local `CI-Memory` checkout. |
+| Companion Memory | `ci` | Finds the installed CLI, a built `@ci/cli`, or runs the source checkout entry point. Use the separate full CLI credential for GraphQL checks. |
 | Combined status | Hub `status` + Memory `doctor --graphql` | Runs both with bounded timeouts and emits a stable JSON envelope. |
 | Terminal UI | The same native commands | Provides a read-oriented menu for status, pool, Memory inference, readiness, and an explicitly confirmed redacted backup. |
 
@@ -75,10 +75,20 @@ export COMPANION_MEMORY_BASE_URL=https://companion-memory.localhost
 ```
 
 Prefer the existing 1Password wrapper rather than putting a key in shell
-history. The bridge runs `agent-store with companion-memory -- ...`; the
-wrapper maps the value to the native `ci` CLI's `CI_API_KEY` and
-`CI_SERVER_API_KEY` names only inside the child process. The bridge does not
-read, persist, or print the value.
+history. The bridge runs `agent-store with companion-memory-cli -- ...` for
+the native `ci` CLI; the wrapper maps the value to `CI_API_KEY` and
+`CI_SERVER_API_KEY` only inside the child process. The bridge does not read,
+persist, or print the value.
+
+Memory intentionally uses two credentials:
+
+| Credential | 1Password item | Scope/capability | Used by |
+| --- | --- | --- | --- |
+| MCP | `agent-configs-companion-memory` | `mcp` + `intents`, read | `/api/mcp` in agent clients |
+| CLI | `agent-configs-companion-memory-cli` | empty scope array, full | native `ci` CLI and GraphQL doctor |
+
+An empty-scope CLI key is deliberate: GraphQL is not a scoped route in the
+Memory server, so an `mcp` + `intents` key must not be reused for the CLI.
 
 ## Combined status contract
 
