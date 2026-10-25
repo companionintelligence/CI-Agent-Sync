@@ -42,6 +42,8 @@ Use the existing commands to inspect a machine:
 
 ```sh
 ./bin/agentctl doctor --json
+./bin/agentctl platform preflight --json
+./bin/agentctl platform evidence --strict
 ./bin/agentctl companion status --json --timeout 20
 ./bin/agentctl test
 ./bin/agentctl conformance --json --timeout 15
@@ -123,6 +125,13 @@ Reliability claims should be backed by a timestamped JSON result containing:
 - elapsed time;
 - repair or approval required;
 - follow-up verification result.
+
+`platform evidence` creates the portable envelope for these claims. It records
+repository commits, non-secret input fingerprints, service probe results,
+Tailscale peer metadata, and the Marketplace gate result. It deliberately does
+not claim that a fleet run, customer product path, native hardware target, or
+Portal deployment passed; those artifacts must be attached to the same release
+record separately.
 
 Before native repairs:
 

@@ -11,7 +11,40 @@ store_root="${0:A:h:h}"
 bundled_runtime='/Applications/OpenClaw.app/Contents/Resources/runtime'
 bundled_openclaw="$bundled_runtime/lib/node_modules/openclaw/openclaw.mjs"
 
-node_bin="${OPENCLAW_NODE_BIN:-$(whence -p node 2>/dev/null || true)}"
+node_supported() {
+  local candidate="$1" version major minor patch
+  [[ -x "$candidate" ]] || return 1
+  version="$($candidate -p 'process.versions.node' 2>/dev/null || true)"
+  IFS=. read -r major minor patch <<< "$version"
+  [[ "$major" == <-> && "$minor" == <-> && "$patch" == <-> ]] || return 1
+  if (( major > 26 )); then return 0; fi
+  if (( major == 24 && (minor > 22 || (minor == 22 && patch >= 1)) )); then return 0; fi
+  if (( major == 26 && (minor > 12 || (minor == 12 && patch >= 1)) )); then return 0; fi
+  return 1
+}
+
+node_bin="${OPENCLAW_NODE_BIN:-}"
+if [[ -z "$node_bin" ]]; then
+  # OpenClaw's sqlite-backed gateway needs the embedded-NUL fix in Node
+  # 24.22.1+ or 26.12.1+. Prefer an installed compatible NVM runtime even when
+  # the shell's default Node is older. Never select Bun for this path.
+  nvm_root="${NVM_DIR:-$HOME/.nvm}/versions/node"
+  for candidate in "$nvm_root"/*/bin/node(N); do
+    if node_supported "$candidate"; then
+      node_bin="$candidate"
+      break
+    fi
+  done
+  if [[ -z "$node_bin" ]]; then
+    candidate="$(whence -p node 2>/dev/null || true)"
+    node_supported "$candidate" && node_bin="$candidate"
+  fi
+fi
+
+if [[ -z "$node_bin" ]]; then
+  print -u2 "No supported Node runtime found for OpenClaw; set OPENCLAW_NODE_BIN to Node 24.22.1+ or 26.12.1+"
+  exit 1
+fi
 if [[ -n "$node_bin" && -x "$node_bin" && -f "$bundled_openclaw" ]]; then
   exec "$node_bin" "$bundled_openclaw" "$@"
 fi

@@ -21,22 +21,30 @@ servers. It stores policy and reproducible recipes, not native app state.
 6. `agentctl report --json --from-1password --deploy` writes a portable,
    redacted evidence bundle containing readiness, conformance, harness smoke,
    and the operator contract. It never copies native app state or credentials.
-7. `agentctl ledger plan|approve|complete|cancel|list` records a short-lived,
+7. `agentctl platform preflight --json` performs a read-only platform-wide
+   check of repository drift, local service reachability, 1Password auth,
+   Tailscale inventory, provider/model fingerprints, and Marketplace promotion
+   status. It does not start a suite, mutate a node, or print credentials.
+8. `agentctl platform evidence --strict` saves the preflight and a manifest
+   with repository commits, input hashes, and an artifact checksum under the
+   ignored `local/evidence/` directory. Treat this as the release bundle
+   envelope; attach fresh Fleet QA and Portal evidence separately.
+9. `agentctl ledger plan|approve|complete|cancel|list` records a short-lived,
    explicit approval before a downstream mutation. The ledger never performs
    the mutation itself.
-8. `agentctl profile list|show NAME --json` exposes the same CEO,
+10. `agentctl profile list|show NAME --json` exposes the same CEO,
    engineering, and marketing policy bundles to any harness without copying
    native app state or credentials.
-9. `agentctl hub smoke --json --strict --from-1password` runs the read-only
+11. `agentctl hub smoke --json --strict --from-1password` runs the read-only
    Companion Hub control room: health, registration, qa-read surfaces,
    inference inventory, MCP tool discovery, and local CLI status.
-10. `agentctl backup` creates a timestamped redacted recovery bundle.
-11. `agentctl memory smoke`, `agentctl fleet smoke`, and `agentctl deploy doctor`
+12. `agentctl backup` creates a timestamped redacted recovery bundle.
+13. `agentctl memory smoke`, `agentctl fleet smoke`, and `agentctl deploy doctor`
    verify the local Memory origin, Tailscale Hub targets, and Cloudflare/Hub
    deployment identity without performing a write.
-12. `agentctl render` generates portable VS Code, workspace, and Aider Desk
+14. `agentctl render` generates portable VS Code, workspace, and Aider Desk
    artifacts under ignored `local/rendered/`.
-13. `agentctl sync` distributes only the reviewed manifest into clean target
+15. `agentctl sync` distributes only the reviewed manifest into clean target
    repositories. Applying a sync creates a local rollback backup first.
 
 ## Three separate stores
