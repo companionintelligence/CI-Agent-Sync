@@ -38,6 +38,15 @@ plugins:
     requires: [loopback-gateway, gateway-access-key]
     notes: Keep loopback binding; do not claim routing is operational until /v1/models returns 200.
 
+  - id: "@vymalo/opencode-oauth2"
+    host: opencode
+    source: npm
+    owner: ADORSYS-GIS/lightbridge-opencode-toolbeit
+    observed: candidate_not_installed
+    install: review the package, then add it to the opencode.json plugin array
+    requires: [identity-provider-client-config]
+    notes: OAuth2 gateway auth. Do not stack with repo-auth on one provider (both set Authorization). The same toolbelt's browser plugin controls a real browser profile; treat it as high-risk and opt-in with a throwaway profile.
+
   - id: metricool
     host: codex
     source: codex-app-plugin

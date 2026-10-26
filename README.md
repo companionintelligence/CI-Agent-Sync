@@ -162,6 +162,15 @@ Audits and config snapshots redact credential-bearing fields.
 | VS Code | Editor, browser, and development MCP | Extensions, settings, MCP template | VS Code User data |
 | Ollama / oMLX | Local inference backends | Endpoint names and fallback policy | Model weights and runtime processes |
 
+## Default skills
+
+[integrations/skills.yaml](integrations/skills.yaml) lists `default_skills`
+that every harness should carry, starting with
+[humanizer](https://github.com/blader/humanizer) (MIT, pinned to a reviewed
+commit). Each harness has a declared install path or an explicit exemption, and
+`agentctl validate` fails if a harness is added without one. Installs remain
+manual and audit-first.
+
 ## Capability bundle guide
 
 | Bundle | Best for | Adds | Risk posture |
