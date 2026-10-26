@@ -18,7 +18,7 @@ default_skills:
     purpose: Rewrite AI-sounding prose to read as human-written without changing meaning
     review: read SKILL.md before install; it is prose guidance only and must not run scripts without approval
     installs:
-      claude: /plugin marketplace add blader/humanizer, then /plugin install humanizer@humanizer (Claude Code 2.1.142+); older versions use the npx command below
+      claude: /plugin marketplace add blader/humanizer, then /plugin install humanizer@humanizer (Claude Code 2.1.142+); older versions use npx skills add blader/humanizer --global --agent claude-code
       codex: npx skills add blader/humanizer --global --agent codex
       opencode: copy SKILL.md to ~/.config/opencode/skills/humanizer/SKILL.md
       hermes: copy SKILL.md to ~/.hermes/skills/humanizer/SKILL.md
