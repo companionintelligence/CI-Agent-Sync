@@ -6,6 +6,30 @@ policy:
   copy_native_state: false
   trust: read_skill_instructions_before_execution
 
+# Skills every harness should carry by default. Installs stay audit-then-explicit:
+# `agentctl validate` only checks that each harness has a declared install path.
+default_skills:
+  - id: humanizer
+    repository: blader/humanizer
+    license: MIT
+    # Pin to a reviewed commit; bump only after reading the new SKILL.md.
+    pinned_commit: 8c307f367c91bd974002f10f2be2965d642c13df
+    skill_file: SKILL.md
+    purpose: Rewrite AI-sounding prose to read as human-written without changing meaning
+    review: read SKILL.md before install; it is prose guidance only and must not run scripts without approval
+    installs:
+      claude: /plugin marketplace add blader/humanizer, then /plugin install humanizer@humanizer (Claude Code 2.1.142+); older versions use the npx command below
+      codex: npx skills add blader/humanizer --global --agent codex
+      opencode: copy SKILL.md to ~/.config/opencode/skills/humanizer/SKILL.md
+      hermes: copy SKILL.md to ~/.hermes/skills/humanizer/SKILL.md
+      openclaw: copy SKILL.md to ~/.openclaw/skills/humanizer/SKILL.md
+      vscode: npx skills add blader/humanizer --global --agent github-copilot
+      antigravity: npx skills add blader/humanizer --global --agent '*'
+      pi: copy SKILL.md to ~/.pi/skills/humanizer/SKILL.md
+      aider-desk: copy SKILL.md into the app's skills folder; verify the path in the app first
+      chatgpt: download the repo ZIP and upload it as a skill in the app settings
+    not_applicable: [ollama]
+
 sources:
   - id: companion-hub-agent-skills
     repository: companionintelligence/Companion-Hub
