@@ -19,5 +19,9 @@ jobs:
         run: npm ci
       - name: Build TypeScript control plane and browser bundle
         run: npm run build
+      - name: Validate store cross-references and default skills
+        run: node --experimental-strip-types --no-warnings src/cli.ts validate
+      - name: Run TypeScript control-plane tests
+        run: npm test
       - name: Verify scripts and secret hygiene
         run: ./scripts/verify.sh

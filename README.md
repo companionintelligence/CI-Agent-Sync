@@ -170,7 +170,7 @@ that every harness should carry, starting with
 commit). Each harness has a declared install path or an explicit exemption, and
 `agentctl validate` fails if a harness is added without one. Installs remain
 manual and audit-first; `./bin/agentctl skills plan` shows which harnesses already
-have each skill and the reviewed install step for the rest (it never installs).
+have each skill and the reviewed install step for the rest (it never installs). `skills apply --confirm` writes only the hash-verified, pinned SKILL.md to declared targets and never overwrites.
 
 ## Capability bundle guide
 

@@ -50,7 +50,9 @@ function hermesVersionCommand(): [string, string[]] {
 }
 
 function commandVersionText(command: string): string | null {
-  const [executable, args] = command === "hermes" ? hermesVersionCommand() : [command, ["--version"]] as [string, string[]];
+  // OpenClaw resolves through the store's runtime selector, matching conformance;
+  // a bare PATH lookup can hit an older npm CLI that rejects the desktop config.
+  const [executable, args] = command === "hermes" ? hermesVersionCommand() : command === "openclaw" ? [join(ROOT, "bin", "openclaw-runtime"), ["--version"]] as [string, string[]] : [command, ["--version"]] as [string, string[]];
   const result = runCommand(executable, args, { timeoutMs: 2_500 });
   return result.exitCode === 0 ? result.stdout.split(/\r?\n/).find((line) => line.trim())?.trim() || null : null;
 }
@@ -202,6 +204,9 @@ export async function doctor(options: { json?: boolean; strict?: boolean } = {})
     const path = commandPath(command);
     add(checks, `command.${command}`, path ? "ok" : "warn", path ? `${commandVersionText(command) || "installed"} — ${path}` : "not installed on this machine");
   }
+
+  const shadowed = (process.env.PATH || "").split(":").filter(Boolean).map((dir) => join(dir, "openclaw")).filter((candidate, index, all) => existsSync(candidate) && all.indexOf(candidate) === index);
+  if (shadowed.length > 1) add(checks, "command.openclaw.shadowed", "warn", `${shadowed.length} openclaw binaries on PATH (${shadowed.join(", ")}); use bin/openclaw-runtime and remove stale installs`);
 
   for (const [name, path] of Object.entries(configPaths())) add(checks, `config.${name}`, existsSync(path) ? "ok" : "warn", existsSync(path) ? "present" : "missing");
 

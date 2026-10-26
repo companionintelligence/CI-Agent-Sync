@@ -15,6 +15,15 @@ default_skills:
     # Pin to a reviewed commit; bump only after reading the new SKILL.md.
     pinned_commit: 8c307f367c91bd974002f10f2be2965d642c13df
     skill_file: SKILL.md
+    skill_sha256: 0612f1dfb1672b0ea9b97e139bf1f06cabe98d8b27424fe8ff01e1fb4cc99cad
+    # Harnesses `agentctl skills apply --confirm` may write directly (SKILL.md only).
+    copy_targets:
+      opencode: ~/.config/opencode/skills/humanizer/SKILL.md
+      hermes: ~/.hermes/skills/humanizer/SKILL.md
+      openclaw: ~/.openclaw/skills/humanizer/SKILL.md
+      pi: ~/.pi/skills/humanizer/SKILL.md
+      claude: ~/.claude/skills/humanizer/SKILL.md
+      codex: ~/.agents/skills/humanizer/SKILL.md
     purpose: Rewrite AI-sounding prose to read as human-written without changing meaning
     review: read SKILL.md before install; it is prose guidance only and must not run scripts without approval
     installs:

@@ -14,6 +14,11 @@ async function main(): Promise<void> {
   const validation = runCommand("node", ["--experimental-strip-types", "--no-warnings", join(ROOT, "src", "cli.ts"), "check"], { cwd: ROOT, timeoutMs: 60_000 });
   assert(validation.exitCode === 0, `store validation failed: ${validation.stderr || validation.stdout}`);
 
+  const skillsPlan = runCommand("node", ["--experimental-strip-types", "--no-warnings", join(ROOT, "src", "cli.ts"), "skills", "plan", "--json"], { cwd: ROOT, timeoutMs: 20_000 });
+  assert(skillsPlan.exitCode === 0 && JSON.parse(skillsPlan.stdout).rows.length > 0, "skills plan did not report rows");
+  const skillsDry = runCommand("node", ["--experimental-strip-types", "--no-warnings", join(ROOT, "src", "cli.ts"), "skills", "apply"], { cwd: ROOT, timeoutMs: 20_000 });
+  assert(skillsDry.exitCode === 0 && !/wrote /.test(skillsDry.stdout), "skills apply wrote files without --confirm");
+
   const timeoutProbe = await runCommandAsync(process.execPath, ["-e", "setTimeout(() => {}, 5000)"], { cwd: ROOT, timeoutMs: 100 });
   assert(timeoutProbe.timedOut && timeoutProbe.exitCode === null && timeoutProbe.errorCode === "ETIMEDOUT", "async command timeout did not fail closed");
   const outputProbe = await runCommandAsync(process.execPath, ["-e", "process.stdout.write('x'.repeat(70000))"], { cwd: ROOT, timeoutMs: 2_000, maxBuffer: 1_024 });
