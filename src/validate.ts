@@ -50,6 +50,15 @@ export function validateStore(options: { json?: boolean } = {}): { exitCode: num
     for (const [name, server] of Object.entries(registry)) for (const client of [...(server as any).clients || [], ...(server as any).optional_clients || []].filter((value, index, values) => values.indexOf(value) === index)) add(checks, `reference.mcp.${name}.${client}`, harnesses[client] ? "ok" : "error", harnesses[client] ? "client is declared" : "client missing from integrations/harnesses.yaml");
     for (const [name, bundle] of Object.entries(bundles.bundles || {})) for (const server of (bundle as any).servers || []) add(checks, `reference.bundle.${name}.${server}`, registry[server] ? "ok" : "error", registry[server] ? "server is declared" : "server missing from MCP registry");
     for (const [name, contract] of Object.entries(marketplace)) add(checks, `reference.marketplace-harness.${name}`, harnesses[name] && /^[a-z0-9][a-z0-9-]+$/.test(String((contract as any).marketplace_slug || "")) ? "ok" : "error", harnesses[name] ? "harness and marketplace slug are declared" : "invalid harness or marketplace slug");
+    const defaultSkills = readYaml<any>("integrations/skills.yaml").default_skills || [];
+    for (const skill of defaultSkills) {
+      const skipped = skill.not_applicable || [];
+      for (const harness of Object.keys(harnesses)) {
+        const covered = skipped.includes(harness) || String((skill.installs || {})[harness] || "").length > 0;
+        add(checks, `reference.default-skill.${skill.id}.${harness}`, covered ? "ok" : "error", covered ? "install path declared" : "harness has no install path or exemption");
+      }
+      add(checks, `default-skill.${skill.id}.pin`, /^[0-9a-f]{40}$/.test(String(skill.pinned_commit || "")) ? "ok" : "error", "pinned to a full commit SHA");
+    }
     const routeValues = Object.values(routing.routes || {}) as any[];
     add(checks, "routing.providers", routeValues.every((route) => !route.primary || providers[route.primary]) ? "ok" : "error", "routing providers are declared");
     for (const [name, metadata] of Object.entries(onePassword.providers || {})) add(checks, `reference.onepassword.${name}`, providers[name] && String((metadata as any).reference || "").startsWith("op://") && /^[A-Z][A-Z0-9_]*$/.test(String((metadata as any).env || "")) ? "ok" : "error", providers[name] ? "reference and environment mapping are valid" : "invalid 1Password mapping");
