@@ -169,7 +169,8 @@ that every harness should carry, starting with
 [humanizer](https://github.com/blader/humanizer) (MIT, pinned to a reviewed
 commit). Each harness has a declared install path or an explicit exemption, and
 `agentctl validate` fails if a harness is added without one. Installs remain
-manual and audit-first.
+manual and audit-first; `./bin/agentctl skills plan` shows which harnesses already
+have each skill and the reviewed install step for the rest (it never installs).
 
 ## Capability bundle guide
 
