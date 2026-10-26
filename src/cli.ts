@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { skillsCommand } from "./skills.ts";
 import { join } from "node:path";
 import { companionCommand } from "./companion.ts";
 import { ROOT, commandPath, legacyScript, legacyStore, outputResult, parseArgs, runCommand, runInteractive } from "./core.ts";
@@ -87,6 +88,7 @@ async function agentctlCommand(args: string[]): Promise<number> {
     case "validate": return validateStore({ json: args.includes("--json") }).exitCode;
     case "profile":
     case "profiles": return profileCommand(args);
+    case "skills": return skillsCommand(args);
     case "companion": return companionCommand(args);
     case "tui": return companionCommand(["tui", ...args]);
     case "backup": return parseBackup(args);
