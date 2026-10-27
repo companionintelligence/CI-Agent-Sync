@@ -1,6 +1,9 @@
-# CI Agent Sync
+<h1 align="center">CI Agent Sync</h1>
 
-> A portable map for every agent, model, and mission.
+<p align="center"><strong>A portable map for every agent, model, and mission.</strong></p>
+
+<p align="center"><a href="https://github.com/companionintelligence/CI-Agent-Sync">Source</a></p>
+
 
 CI Agent Sync is the user-facing name for this repository. It is the local,
 versionable home for Companion Intelligence harness recipes, provider routes,
