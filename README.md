@@ -2,7 +2,7 @@
 
 <p align="center"><strong>A portable map for every agent, model, and mission.</strong></p>
 
-<p align="center"><a href="https://github.com/companionintelligence/CI-Agent-Sync">Source</a></p>
+<p align="center"><a href="https://github.com/companionintelligence/CI-Agent-Sync">Source</a> · <a href="https://docs.ci.computer/docs/reference/open-source-systems">Systems map</a></p>
 
 
 CI Agent Sync is the user-facing name for this repository. It is the local,
