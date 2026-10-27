@@ -1,6 +1,9 @@
-# CI Agent Sync
+<h1 align="center">CI Agent Sync</h1>
 
-> A portable map for every agent, model, and mission.
+<p align="center"><strong>A portable map for every agent, model, and mission.</strong></p>
+
+<p align="center"><a href="https://github.com/companionintelligence/CI-Agent-Sync">Source</a> · <a href="https://docs.ci.computer/docs/reference/open-source-systems">Systems map</a></p>
+
 
 CI Agent Sync is the user-facing name for this repository. It is the local,
 versionable home for Companion Intelligence harness recipes, provider routes,
@@ -444,3 +447,17 @@ The mobile references are catalogued in
 remote-control MCP is deliberately opt-in and high-risk; the private Companion
 Scan document is stored as a link only, without importing its credentials or
 device-specific endpoints.
+
+<!-- companion-hub-readme-deep-review -->
+
+## Safety and release checkpoints
+
+| Stage | Check |
+|---|---|
+| Prepare | Run the setup wizard and validate the selected repository and target |
+| Review | Inspect the generated bundle and its declared capabilities before approval |
+| Sync | Use the documented sync/release path and review the resulting change |
+| Bridge | Confirm the returned target/preflight identifier before approving it |
+
+The secret policy and harness coverage sections describe which values may be synchronized and which checks run locally. Treat generated capability bundles and target identifiers as review material; do not approve a target based only on its display name.
+
