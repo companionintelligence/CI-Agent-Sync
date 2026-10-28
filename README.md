@@ -2,8 +2,16 @@
 
 <p align="center"><strong>A portable map for every agent, model, and mission.</strong></p>
 
-<p align="center"><a href="https://github.com/companionintelligence/CI-Agent-Sync">Source</a> · <a href="https://docs.ci.computer/docs/reference/open-source-systems">Systems map</a></p>
+[![release](https://img.shields.io/badge/release-not%20published-757575?style=flat-square)](https://github.com/companionintelligence/CI-Agent-Sync/releases)
+[![platform](https://img.shields.io/badge/platform-Node.js%20%C2%B7%20TypeScript-0a6358?style=flat-square)](https://github.com/companionintelligence/CI-Agent-Sync)
+[![License](https://img.shields.io/badge/license-Not%20specified-757575?style=flat-square)](https://github.com/companionintelligence/CI-Agent-Sync?tab=readme-ov-file#license)
+[![Discord](https://img.shields.io/badge/chat-Discord-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.com/invite/yQp9hwpzAa)
 
+<p align="center"><a href="https://github.com/companionintelligence/CI-Agent-Sync">Source</a> · <a href="https://docs.ci.computer/docs/reference/open-source-systems">Systems map</a> · <a href="README.md#how-the-pieces-fit">Documentation</a></p>
+
+<p align="center">
+  <a href="#open-the-setup-wizard"><img src="https://img.shields.io/badge/Open%20the%20setup%20guide-Open%20the%20setup%20guide-0a6358?style=for-the-badge&logo=github&logoColor=white" alt="Open the setup guide" height="30"></a>
+</p>
 
 CI Agent Sync is the user-facing name for this repository. It is the local,
 versionable home for Companion Intelligence harness recipes, provider routes,
@@ -94,6 +102,19 @@ To expose the console beyond the laptop, you must opt in explicitly with
 `--allow-remote`; the console adds no authentication, so loopback is the
 recommended and supported default.
 
+
+## How it fits together
+
+Recipes describe provider, MCP and workflow settings; adapters validate and preview target changes before the user applies them.
+
+```mermaid
+flowchart LR
+  Recipes[Versioned recipes] --> Describe[Describe and validate]
+  Describe --> Preview[Target preflight and diff]
+  Preview -->|user approves| Adapter[Harness adapter]
+  Adapter --> Target[Agent harness configuration]
+```
+
 ## How the pieces fit
 
 ```mermaid
@@ -130,6 +151,16 @@ The public entry points are now TypeScript-backed: `bin/agentctl`,
 `bin/agent-store`, and `bin/agent-atlas`. Run `npm run build` when changing
 TypeScript or the browser source, then use `./bin/agentctl check` before
 publishing a change.
+
+
+## Features
+
+| Feature | What it provides |
+|---|---|
+| **Harness recipes** | Version provider routes, MCP bundles, workflows and profiles as portable config. |
+| **Preview before apply** | Describe, validate and show a diff before changing a target harness. |
+| **Secret-safe portability** | Keep credential values outside the portable store and require target preflight. |
+
 
 ## What is portable
 
