@@ -4,7 +4,7 @@
 
 [![release](https://img.shields.io/badge/release-not%20published-757575?style=flat-square)](https://github.com/companionintelligence/CI-Agent-Sync/releases)
 [![platform](https://img.shields.io/badge/platform-Node.js%20%C2%B7%20TypeScript-0a6358?style=flat-square)](https://github.com/companionintelligence/CI-Agent-Sync)
-[![License](https://img.shields.io/badge/license-Not%20specified-757575?style=flat-square)](https://github.com/companionintelligence/CI-Agent-Sync?tab=readme-ov-file#license)
+[![License](https://img.shields.io/badge/license-PolyForm%20NC%201.0.0-0a6358?style=flat-square)](https://github.com/companionintelligence/CI-Agent-Sync?tab=readme-ov-file#license)
 [![Discord](https://img.shields.io/badge/chat-Discord-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.com/invite/yQp9hwpzAa)
 
 <p align="center"><a href="https://github.com/companionintelligence/CI-Agent-Sync">Source</a> · <a href="https://docs.ci.computer/docs/reference/open-source-systems">Systems map</a> · <a href="README.md#how-the-pieces-fit">Documentation</a></p>
@@ -492,3 +492,9 @@ device-specific endpoints.
 
 The secret policy and harness coverage sections describe which values may be synchronized and which checks run locally. Treat generated capability bundles and target identifiers as review material; do not approve a target based only on its display name.
 
+
+## License
+
+CI-Agent-Sync is free for noncommercial use under the [PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0). The full text is in [LICENSE](LICENSE); common questions are answered in the [License FAQ](docs/License-FAQ.md).
+
+Required Notice: Copyright LifeScope INC, DBA Companion Intelligence (https://ci.computer)
