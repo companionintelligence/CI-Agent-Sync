@@ -21,3 +21,13 @@ jobs:
         run: npm run build
       - name: Verify scripts and secret hygiene
         run: ./scripts/verify.sh
+      # The npm package is only ever built at dispatch time by npm-publish.yml, so a
+      # change to tsconfig.build.json, "files" or the guard would otherwise first fail
+      # there. These two steps exercise them on every push.
+      - name: Test the npm tarball guard and the publish interlock
+        run: .github/scripts/test-check-npm-tarball.sh
+      - name: Build the npm tarball and check it
+        run: |
+          npm run build:cli
+          tarball="$(npm pack --ignore-scripts --silent --pack-destination "${RUNNER_TEMP}")"
+          node .github/scripts/check-npm-tarball.mjs "${RUNNER_TEMP}/${tarball}"
