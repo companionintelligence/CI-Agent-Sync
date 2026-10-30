@@ -336,6 +336,15 @@ export function legacyStore(args: string[] = [], timeoutMs = 60_000): CommandRes
   return runCommand(join(ROOT, "bin", "agent-store-legacy"), args, { timeoutMs });
 }
 
+// Arguments for `node` that run this control plane again. A checkout and the Homebrew
+// install run the TypeScript directly; an npm install has no src/ and ships the compiled
+// dist/ instead, because Node will not strip types under node_modules.
+export function selfInvocation(args: string[]): string[] {
+  const source = join(ROOT, "src", "cli.ts");
+  if (existsSync(source)) return ["--experimental-strip-types", "--no-warnings", source, ...args];
+  return ["--no-warnings", join(ROOT, "dist", "cli.js"), ...args];
+}
+
 export function outputResult(result: CommandResult): number {
   if (result.stdout) process.stdout.write(result.stdout);
   if (result.stderr) process.stderr.write(result.stderr);

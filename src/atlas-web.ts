@@ -166,6 +166,10 @@ export async function startAtlas(args: string[]): Promise<number> {
   const open = args.includes("--open");
   const quiet = args.includes("--quiet");
   const allowRemote = args.includes("--allow-remote");
+  if (args.includes("--help") || args.includes("-h")) {
+    console.log("Usage: agent-atlas [--open] [--bind ADDRESS] [--port PORT] [--allow-remote] [--quiet] [--check]");
+    return 0;
+  }
   if (args.includes("--check")) return checkAssets();
   if (!Number.isInteger(port) || port < 0 || port > 65_535) { console.error(`Invalid port: ${portValue}`); return 2; }
   if (!allowRemote && !["127.0.0.1", "localhost", "::1"].includes(bind)) { console.error("Refusing non-loopback bind without --allow-remote"); return 2; }

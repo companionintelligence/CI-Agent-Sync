@@ -16,6 +16,7 @@ import {
   readYaml,
   relPath,
   runCommand,
+  selfInvocation,
   sha256,
   writeJson,
   writeText,
@@ -245,7 +246,7 @@ export function createBackup(options: { output?: string; dryRun?: boolean } = {}
   // Keep backups on the TypeScript control-plane path. The old Ruby doctor
   // remains available only for explicit legacy callers; backup should not
   // reintroduce it as an implicit dependency.
-  const doctor = runCommand(process.execPath, ["--experimental-strip-types", "--no-warnings", join(ROOT, "src", "cli.ts"), "doctor", "--json"], { cwd: ROOT, timeoutMs: 45_000 });
+  const doctor = runCommand(process.execPath, selfInvocation(["doctor", "--json"]), { cwd: ROOT, timeoutMs: 45_000 });
   writeText(join(output, "doctor.json"), doctor.stdout || JSON.stringify({ schema_version: 1, summary: { error: 1 }, error: "doctor did not return JSON" }, null, 2));
   records.push({ path: "doctor.json", status: doctor.exitCode === 0 ? "ok" : "warnings-or-errors", stderr_present: Boolean(doctor.stderr) });
   writeJson(join(output, "manifest.json"), { schema_version: 1, created_at: isoNow(), redacted: true, native_auth_and_state_included: false, files: records });
