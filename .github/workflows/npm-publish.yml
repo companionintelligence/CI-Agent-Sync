@@ -46,12 +46,16 @@ name: Publish to npm
 #        npm publish --access public --tag reserve
 #      (it asks for your 2FA code). Never publish a real version by hand: `files` outranks
 #      .gitignore, so a publish from a working tree ships whatever is lying in it, and the
-#      tracked-files check below only runs in this workflow. `prepublishOnly` refuses a
-#      plain `npm publish` from a checkout, but only as an accident guard: --ignore-scripts,
-#      npm_config_ignore_scripts=true, `ignore-scripts=true` in a .npmrc and
-#      GITHUB_ACTIONS=true all skip or satisfy it. From a laptop, what limits a publish is
-#      who has publish rights on the package. The placeholder is not affected by the guard;
-#      it is a different package.json.
+#      tracked-files check below only runs in this workflow. That is why package.json says
+#      "private": true in git. npm refuses to publish a private package (EPRIVATE) whatever
+#      flags or environment are set, including --ignore-scripts, a .npmrc with
+#      ignore-scripts=true and GITHUB_ACTIONS=true. The `build` job deletes the field from
+#      the packed manifest only, immediately before `npm pack`, so the tarball it makes is
+#      the one thing that can be published. `prepublishOnly` says why first, and also covers
+#      `--dry-run`, which EPRIVATE does not. Someone who deliberately deletes the field can
+#      still publish whatever is in their tree; from a laptop, what limits that is who has
+#      publish rights on the package. The placeholder is not affected: it is a different
+#      package.json.
 #   c. On npmjs.com: @companionintelligence/agent-sync → Settings → Trusted Publisher →
 #      GitHub Actions, and enter exactly this (every field is case-sensitive, and npm
 #      cannot edit a connection afterwards: to change it, delete it and make a new one):
@@ -245,6 +249,13 @@ jobs:
           # so the package ships compiled JavaScript rather than src/.
           npm run build:cli
 
+          # package.json says "private": true in git, so a publish from a checkout fails
+          # with EPRIVATE whatever flags or environment are set. The release tarball is the
+          # one thing that has to be publishable, so the field is removed here, in this
+          # ephemeral checkout, immediately before packing, and nowhere else. The next step
+          # fails the build if the packed manifest still has it.
+          npm pkg delete private
+
           mkdir -p "${RUNNER_TEMP}/pack"
           # --ignore-scripts because prepack just ran above; --silent keeps stdout to the
           # filename npm prints.
@@ -271,7 +282,8 @@ jobs:
           # may hold only compiled tracked sources), on common credential-like names, and
           # on a missing entry the package cannot run without. A file that IS tracked is
           # published as it is; the script says what its rules do and do not cover.
-          node .github/scripts/check-npm-tarball.mjs "${TARBALL}"
+          # --publishable also fails a tarball whose package.json is still private.
+          node .github/scripts/check-npm-tarball.mjs "${TARBALL}" --publishable
 
           # And it must be the package this run set out to build.
           packed="$(tar -xOzf "${TARBALL}" package/package.json | jq -r '.name + "@" + .version')"
@@ -466,6 +478,8 @@ jobs:
           packed="$(tar -xOzf "${tarball}" package/package.json | jq -r '.name + "@" + .version')"
           [[ "${packed}" == "${PACKAGE}@${VERSION}" ]] \
             || { echo "::error::the tarball holds ${packed}, expected ${PACKAGE}@${VERSION}"; exit 1; }
+          tar -xOzf "${tarball}" package/package.json | jq -e '.private != true' >/dev/null \
+            || { echo "::error::the tarball's package.json says private: true, so npm would refuse to publish it (EPRIVATE)"; exit 1; }
           echo "path=${tarball}" >> "$GITHUB_OUTPUT"
           echo "Publishing ${packed} from ${NAME} (sha256 ${actual})"
 

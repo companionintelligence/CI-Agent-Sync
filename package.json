@@ -1,6 +1,7 @@
 {
   "name": "@companionintelligence/agent-sync",
   "version": "0.2.0",
+  "private": true,
   "license": "PolyForm-Noncommercial-1.0.0",
   "description": "Portable Companion Intelligence agent control plane",
   "keywords": [
