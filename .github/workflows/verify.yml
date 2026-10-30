@@ -26,8 +26,12 @@ jobs:
       # there. These two steps exercise them on every push.
       - name: Test the npm tarball guard and the publish interlock
         run: .github/scripts/test-check-npm-tarball.sh
-      - name: Build the npm tarball and check it
+      # package.json is private in git (the hard stop for a local publish) and the release
+      # build deletes the field right before packing, so do the same here and require the
+      # result to be publishable.
+      - name: Build the npm tarball the way the release does, and check it
         run: |
           npm run build:cli
+          npm pkg delete private
           tarball="$(npm pack --ignore-scripts --silent --pack-destination "${RUNNER_TEMP}")"
-          node .github/scripts/check-npm-tarball.mjs "${RUNNER_TEMP}/${tarball}"
+          node .github/scripts/check-npm-tarball.mjs "${RUNNER_TEMP}/${tarball}" --publishable

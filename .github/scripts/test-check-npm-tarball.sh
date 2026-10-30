@@ -195,7 +195,7 @@ verify_pass files-as-committed
 verify_pass files-without-exclusions
 if [ "${PASS_LEAKED}" -gt 0 ]; then pass "the exclusions are what keeps ${PASS_LEAKED} of them out when absent, so (a) is not vacuous"; else bad "stripping the exclusions leaked nothing, so this test proves nothing"; fi
 
-# ── 3. the publish interlock ─────────────────────────────────────────────────────────
+# ── 3. the publish interlock (the friendly first layer; skippable, see 3b for the hard stop)
 echo "publish interlock"
 git -C "${tree}" checkout -q -- package.json
 
@@ -219,6 +219,78 @@ if (cd "${tree}" && env -u GITHUB_ACTIONS npm publish "${clean}" --dry-run --reg
   pass "npm publish <tarball> is not blocked by the interlock (it skips lifecycle scripts)"
 else
   bad "npm publish <tarball> --dry-run failed: $(tail -3 "${work}/publish-tarball")"
+fi
+
+# ── 3b. the hard stop: private in git, publishable only after the release build's deletion
+echo "hard stop (private: true in git)"
+tree2="${work}/tree2"
+git clone -q --no-hardlinks "${root}" "${tree2}"
+ln -s "${root}/node_modules" "${tree2}/node_modules"
+(cd "${tree2}" && npm run build:cli --silent)
+
+if [ "$(cd "${tree2}" && node -p 'require("./package.json").private')" = "true" ]; then
+  pass "the committed package.json says private: true"
+else
+  bad "the committed package.json is not private, so nothing but prepublishOnly stands in the way of a local publish"
+fi
+
+# Real publishes, not --dry-run (npm raises EPRIVATE only when it is about to upload). The
+# registry is a dead local port and the token is a fake for that port, so nothing can leave
+# this machine and EPRIVATE is the first thing that can stop each one.
+dead="http://127.0.0.1:9/"
+printf '//127.0.0.1:9/:_authToken=not-a-real-token\n' >"${work}/npmrc-token"
+printf '//127.0.0.1:9/:_authToken=not-a-real-token\nignore-scripts=true\n' >"${work}/npmrc-token-ignore-scripts"
+
+# real_publish <userconfig> <command...>: run the command in the private tree against the dead registry
+real_publish() {
+  local userconfig="$1"
+  shift
+  (cd "${tree2}" && NPM_CONFIG_USERCONFIG="${userconfig}" "$@" --registry "${dead}" --fetch-retries=0) 2>&1
+}
+# expect_eprivate <label> <output> <exit status>
+expect_eprivate() {
+  if [ "$3" != 0 ] && grep -q EPRIVATE <<<"$2"; then
+    pass "a real publish from the tree fails with EPRIVATE: $1"
+  else
+    bad "$1: expected EPRIVATE, got exit $3: $(tail -3 <<<"$2")"
+  fi
+}
+out="$(real_publish "${work}/npmrc-token" env -u GITHUB_ACTIONS npm publish --ignore-scripts)" && status=0 || status=$?
+expect_eprivate "--ignore-scripts" "${out}" "${status}"
+out="$(real_publish "${work}/npmrc-token" env -u GITHUB_ACTIONS npm_config_ignore_scripts=true npm publish)" && status=0 || status=$?
+expect_eprivate "npm_config_ignore_scripts=true" "${out}" "${status}"
+out="$(real_publish "${work}/npmrc-token-ignore-scripts" env -u GITHUB_ACTIONS npm publish)" && status=0 || status=$?
+expect_eprivate "ignore-scripts=true in a user .npmrc" "${out}" "${status}"
+out="$(real_publish "${work}/npmrc-token" env GITHUB_ACTIONS=true npm publish)" && status=0 || status=$?
+expect_eprivate "GITHUB_ACTIONS=true" "${out}" "${status}"
+
+# The release build deletes the field right before packing (npm-publish.yml). Packed as it
+# is, the tree must fail --publishable (so that assertion can fail); packed after the
+# deletion it must pass, and a real publish of it must get past the private check.
+mkdir -p "${work}/private-pack" "${work}/release-pack"
+private_tgz="${work}/private-pack/$(cd "${tree2}" && npm pack --ignore-scripts --silent --pack-destination "${work}/private-pack")"
+if (cd "${tree2}" && node "${check}" "${private_tgz}" --publishable) >/dev/null 2>&1; then
+  bad "a tarball packed straight from the private tree passes --publishable"
+else
+  pass "a tarball packed straight from the private tree fails --publishable"
+fi
+(cd "${tree2}" && npm pkg delete private >/dev/null)
+release_tgz="${work}/release-pack/$(cd "${tree2}" && npm pack --ignore-scripts --silent --pack-destination "${work}/release-pack")"
+if out="$(cd "${tree2}" && node "${check}" "${release_tgz}" --publishable 2>&1)"; then
+  pass "the tarball packed after the deletion passes --publishable"
+else
+  bad "the tarball packed after the deletion failed --publishable: ${out}"
+fi
+if [ "$(git -C "${tree2}" diff --numstat -- package.json | awk '{print $1 "+" $2}')" = "0+1" ]; then
+  pass "npm pkg delete private removes that one line of package.json and nothing else"
+else
+  bad "npm pkg delete private changed package.json by more than the private line: $(git -C "${tree2}" diff --numstat -- package.json)"
+fi
+out="$(real_publish "${work}/npmrc-token" env -u GITHUB_ACTIONS npm publish "${release_tgz}")" && status=0 || status=$?
+if [ "${status}" != 0 ] && ! grep -q EPRIVATE <<<"${out}"; then
+  pass "a real publish of the release tarball gets past the private check (it stops at the dead registry)"
+else
+  bad "a real publish of the release tarball: exit ${status}: $(tail -3 <<<"${out}")"
 fi
 
 # ── 4. the smoke test's doctor.json assertion ────────────────────────────────────────
