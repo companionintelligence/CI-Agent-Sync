@@ -3,4 +3,9 @@
 set -euo pipefail
 
 STORE_ROOT="${0:A:h:h}"
-exec node --experimental-strip-types --no-warnings "$STORE_ROOT/src/cli.ts" atlas "$@"
+# A checkout and the Homebrew install run the TypeScript directly. An npm install has
+# no src/ and ships the compiled dist/ instead (Node will not strip types under node_modules).
+if [[ -f "$STORE_ROOT/src/cli.ts" ]]; then
+  exec node --experimental-strip-types --no-warnings "$STORE_ROOT/src/cli.ts" atlas "$@"
+fi
+exec node --no-warnings "$STORE_ROOT/dist/cli.js" atlas "$@"
