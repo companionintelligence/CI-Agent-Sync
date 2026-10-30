@@ -44,10 +44,14 @@ name: Publish to npm
 #      carry provenance). From an empty directory, with a package.json holding the name,
 #      version "0.0.0-reserve.0", the licence and this repository, run
 #        npm publish --access public --tag reserve
-#      (it asks for your 2FA code). Never publish a real version by hand: from a checkout
-#      `prepublishOnly` refuses, because `files` outranks .gitignore and a publish from a
-#      working tree ships whatever is lying in it. The placeholder is not affected; it is
-#      a different package.json.
+#      (it asks for your 2FA code). Never publish a real version by hand: `files` outranks
+#      .gitignore, so a publish from a working tree ships whatever is lying in it, and the
+#      tracked-files check below only runs in this workflow. `prepublishOnly` refuses a
+#      plain `npm publish` from a checkout, but only as an accident guard: --ignore-scripts,
+#      npm_config_ignore_scripts=true, `ignore-scripts=true` in a .npmrc and
+#      GITHUB_ACTIONS=true all skip or satisfy it. From a laptop, what limits a publish is
+#      who has publish rights on the package. The placeholder is not affected by the guard;
+#      it is a different package.json.
 #   c. On npmjs.com: @companionintelligence/agent-sync → Settings → Trusted Publisher →
 #      GitHub Actions, and enter exactly this (every field is case-sensitive, and npm
 #      cannot edit a connection afterwards: to change it, delete it and make a new one):
@@ -69,7 +73,9 @@ name: Publish to npm
 #
 # The actions that carry the tarball (upload-artifact in `build`, download-artifact in
 # `publish`) or run next to the OIDC credential (setup-node in `publish`) are pinned to
-# commit SHAs, so a moved tag cannot change what gets published. Bump them deliberately.
+# commit SHAs, and so is the npm CLI the `publish` job installs (an exact version, not a
+# range), so a moved tag or a newly published release cannot change what runs next to the
+# credential or what gets published. Bump them deliberately.
 on:
   workflow_dispatch:
     inputs:
@@ -262,8 +268,9 @@ jobs:
           set -euo pipefail
           # `files` in package.json outranks .gitignore, so a tarball can hold files git
           # has never seen. This fails on any file git does not track at this tag (dist/
-          # may hold only compiled tracked sources), on credential-like names, and on a
-          # missing entry the package cannot run without. See the script for the rules.
+          # may hold only compiled tracked sources), on common credential-like names, and
+          # on a missing entry the package cannot run without. A file that IS tracked is
+          # published as it is; the script says what its rules do and do not cover.
           node .github/scripts/check-npm-tarball.mjs "${TARBALL}"
 
           # And it must be the package this run set out to build.
@@ -296,11 +303,11 @@ jobs:
           "${bin}/agentctl" validate >/dev/null
 
           # backup is the one command that re-invokes the CLI itself (to capture doctor
-          # output). Pointed at src/ it would still exit 0 and write an error stub into
-          # doctor.json, so look inside.
+          # output). Pointed at src/, which an install does not have, it still exits 0 and
+          # writes an error stub into doctor.json, so look inside. The stub has a
+          # schema_version too; the script asserts on what only real doctor output has.
           "${bin}/agentctl" backup --output "${smoke}/backup" >/dev/null
-          grep -q '"schema_version"' "${smoke}/backup/doctor.json" \
-            || { echo "::error::backup wrote a doctor.json that is not doctor output: the packaged CLI cannot re-invoke itself"; cat "${smoke}/backup/doctor.json"; exit 1; }
+          "${GITHUB_WORKSPACE}/.github/scripts/assert-doctor-json.sh" "${smoke}/backup/doctor.json"
 
           # The Atlas web UI, started through its own bin on a free port.
           atlas_log="${smoke}/atlas.log"
@@ -429,8 +436,12 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - name: Use an npm CLI that supports trusted publishing
-        # Trusted publishing needs npm >= 11.5.1; Node 22 ships an older one.
-        run: npm install -g npm@^11.5.1 && npm --version
+        # Trusted publishing needs npm >= 11.5.1 (`npm stage publish` >= 11.15.0), and Node
+        # 22 ships an older one. CI-Hermes uses the range ^11.5.1; this job pins the exact
+        # version CI-Hermes's successful OIDC publish ran (11.21.1), because it is the only
+        # job holding the credential and a range lets a newly published 11.x run next to it.
+        # Bump it deliberately.
+        run: npm install -g npm@11.21.1 && npm --version
 
       - name: Download the tarball that was built and checked
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0

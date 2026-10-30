@@ -14,9 +14,16 @@
 //      dist/, which is build output: it may hold only the compiled form of a tracked
 //      src/ file. A key, a token, a raw agent-config snapshot or any other local file
 //      has no entry in git, so it fails here whatever it is called.
-//   2. Names that look like credentials or local state fail even when they ARE tracked,
-//      because publishing to npm is permanent and the repository may be private.
+//   2. Common credential and local-state name patterns fail even when the file IS tracked,
+//      because publishing to npm is permanent. This list is best effort and cannot be
+//      complete: a tracked file whose name it does not know is published as it is.
 //   3. The entries the package cannot run without must be there.
+//
+// What that guarantees: nothing git does not track at <rev> is in the tarball (compiled
+// dist/ aside), and none of the patterns below is. What it does not: a tracked file is
+// published as it is, whatever it contains and whatever it is called. What is tracked, and
+// so already public in the repository, is the owner's call, not something a list of names
+// can settle.
 //
 // Exit 0: clean. Exit 1: it lists the offending paths (the first 200 findings, or all
 // of them with --all). Exit 2: it could not check (unreadable tarball, git failure, bad
@@ -183,4 +190,4 @@ if (problems.length > 0) {
 }
 
 const files = entries.filter((entry) => !entry.endsWith("/")).length;
-console.log(`npm tarball check passed: ${files} files, all tracked by ${where} or compiled from a tracked src/ file, no credential-like names, every required entry present`);
+console.log(`npm tarball check passed: ${files} files, all tracked by ${where} or compiled from a tracked src/ file, none matching the credential name patterns, every required entry present`);

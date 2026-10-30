@@ -11,6 +11,8 @@
 
 set -euo pipefail
 
+command -v jq >/dev/null || { echo "jq is required (the doctor.json assertion uses it)" >&2; exit 2; }
+
 root="$(git rev-parse --show-toplevel)"
 check="${root}/.github/scripts/check-npm-tarball.mjs"
 work="$(mktemp -d)"
@@ -217,6 +219,26 @@ if (cd "${tree}" && env -u GITHUB_ACTIONS npm publish "${clean}" --dry-run --reg
   pass "npm publish <tarball> is not blocked by the interlock (it skips lifecycle scripts)"
 else
   bad "npm publish <tarball> --dry-run failed: $(tail -3 "${work}/publish-tarball")"
+fi
+
+# ── 4. the smoke test's doctor.json assertion ────────────────────────────────────────
+echo "doctor.json assertion"
+assert_doctor="${root}/.github/scripts/assert-doctor-json.sh"
+# What createBackup writes when the child `doctor --json` run produced nothing. It has a
+# schema_version, which is why asserting on that key (the first version of the smoke test
+# did) could not fail on the bug the assertion exists for.
+printf '{\n  "schema_version": 1,\n  "summary": {\n    "error": 1\n  },\n  "error": "doctor did not return JSON"\n}\n' >"${work}/doctor-stub.json"
+if "${assert_doctor}" "${work}/doctor-stub.json" >/dev/null 2>&1; then
+  bad "the stub a failed backup writes passes the doctor.json assertion"
+else
+  pass "the stub a failed backup writes fails it, although it has a schema_version"
+fi
+mkdir -p "${work}/home"
+if (cd "${tree}" && HOME="${work}/home" node dist/cli.js backup --output "${work}/backup" >/dev/null 2>&1) \
+  && "${assert_doctor}" "${work}/backup/doctor.json" >/dev/null 2>&1; then
+  pass "the doctor.json a real backup writes passes it"
+else
+  bad "the doctor.json a real backup writes failed the assertion"
 fi
 
 echo
