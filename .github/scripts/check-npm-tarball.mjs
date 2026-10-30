@@ -2,7 +2,7 @@
 
 // Guards the npm tarball before it can be published (see .github/workflows/npm-publish.yml).
 //
-//   node .github/scripts/check-npm-tarball.mjs <tarball.tgz> [--rev <git rev>] [--all]
+//   node .github/scripts/check-npm-tarball.mjs <tarball.tgz> [--rev <git rev>] [--publishable] [--all]
 //   node .github/scripts/check-npm-tarball.mjs --entries <file> --tracked <file> [--all]
 //
 // "files" in package.json outranks .gitignore, so whatever sits in a shipped directory
@@ -18,6 +18,12 @@
 //      because publishing to npm is permanent. This list is best effort and cannot be
 //      complete: a tracked file whose name it does not know is published as it is.
 //   3. The entries the package cannot run without must be there.
+//   4. With --publishable (the release build), the packed package.json must not say
+//      "private": true. The repository's package.json does: it is the hard stop for a
+//      local `npm publish`, which npm refuses with EPRIVATE whatever flags or environment
+//      are set. The release build deletes the field immediately before packing, so this
+//      fails a release tarball that still has it, and a tarball packed straight from a
+//      checkout fails it too, which is what makes the deletion testable.
 //
 // What that guarantees: nothing git does not track at <rev> is in the tarball (compiled
 // dist/ aside), and none of the patterns below is. What it does not: a tracked file is
@@ -88,11 +94,13 @@ function fail(message) {
 }
 
 function parseArguments(argv) {
-  const options = { tarball: null, rev: "HEAD", entries: null, tracked: null, all: false };
+  const options = { tarball: null, rev: "HEAD", entries: null, tracked: null, all: false, publishable: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--all") {
       options.all = true;
+    } else if (arg === "--publishable") {
+      options.publishable = true;
     } else if (arg === "--rev" || arg === "--entries" || arg === "--tracked") {
       const value = argv[++i];
       if (!value) fail(`${arg} needs a value`);
@@ -107,7 +115,10 @@ function parseArguments(argv) {
   }
   const lists = options.entries !== null && options.tracked !== null;
   if (options.tarball === null && !lists) {
-    fail("usage: check-npm-tarball.mjs <tarball.tgz> [--rev <git rev>] [--all]\n   or: check-npm-tarball.mjs --entries <file> --tracked <file> [--all]");
+    fail("usage: check-npm-tarball.mjs <tarball.tgz> [--rev <git rev>] [--publishable] [--all]\n   or: check-npm-tarball.mjs --entries <file> --tracked <file> [--all]");
+  }
+  if (options.publishable && options.tarball === null) {
+    fail("--publishable reads the tarball's package.json, so it needs a tarball");
   }
   if (options.tarball !== null && (options.entries !== null || options.tracked !== null)) {
     fail("give either a tarball or --entries with --tracked, not both");
@@ -176,6 +187,18 @@ for (const required of REQUIRED) {
   if (!present.has(required)) problems.push([required, "missing, and the package cannot run without it; check \"files\" in package.json"]);
 }
 
+if (options.publishable) {
+  let manifest;
+  try {
+    manifest = JSON.parse(execFileSync("tar", ["-xOzf", options.tarball, "package/package.json"], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 }));
+  } catch (error) {
+    fail(`could not read package/package.json from ${options.tarball}: ${error.message}`);
+  }
+  if (manifest.private === true) {
+    problems.push(["package.json", "says \"private\": true, so npm refuses to publish this tarball (EPRIVATE); the release build deletes the field before packing"]);
+  }
+}
+
 if (problems.length > 0) {
   const paths = new Set(problems.map(([path]) => path));
   const width = Math.max(...problems.map(([, why]) => why.length));
@@ -184,10 +207,10 @@ if (problems.length > 0) {
   for (const [path, why] of shown) console.error(`  ${why.padEnd(width)}  ${path}`);
   if (shown.length < problems.length) console.error(`  ... and ${problems.length - shown.length} more findings (--all lists them)`);
   if (process.env.GITHUB_ACTIONS === "true") {
-    console.error(`::error::the tarball contains ${paths.size} path(s) that must not be published, or lacks a required one; see the list above`);
+    console.error(`::error::the tarball check failed on ${paths.size} path(s); see the list above`);
   }
   process.exit(1);
 }
 
 const files = entries.filter((entry) => !entry.endsWith("/")).length;
-console.log(`npm tarball check passed: ${files} files, all tracked by ${where} or compiled from a tracked src/ file, none matching the credential name patterns, every required entry present`);
+console.log(`npm tarball check passed: ${files} files, all tracked by ${where} or compiled from a tracked src/ file, none matching the credential name patterns, every required entry present${options.publishable ? ", package.json not private" : ""}`);
