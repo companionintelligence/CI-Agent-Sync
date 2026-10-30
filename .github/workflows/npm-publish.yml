@@ -1,0 +1,329 @@
+name: Publish to npm
+
+# Dispatch-only, like CI-Hermes's and CI-OpenClaw's npm-publish.yml: there is no push or
+# tag trigger, so nothing is published until someone dispatches this with an existing tag.
+#
+# ── RELEASING ────────────────────────────────────────────────────────────────────
+#
+#   1. Bump "version" in package.json AND APP_VERSION in src/atlas-web.ts (Atlas /healthz
+#      reports the second one; this workflow refuses a release where they differ).
+#   2. Merge, then tag the merge commit v<version> (for example v0.2.1).
+#   3. Dispatch this workflow with that tag. dry_run=true builds, packs and smoke-tests
+#      the tarball without publishing, and needs none of the npm setup below.
+#
+# ── ONE-TIME SETUP: the npm package and its trusted publisher ────────────────────
+#
+# There is no NPM_TOKEN. The `publish` job uses npm trusted publishing (OIDC), the way
+# CI-Hermes does since CI-Hermes #92: it asks GitHub for an OIDC token (`id-token: write`)
+# and npm exchanges that for a short-lived publish credential, but only for a package
+# whose Trusted Publisher setting names this repository and this workflow file.
+#
+#   a. npm only accepts a Trusted Publisher on a package that already exists, and
+#      @companionintelligence/agent-sync has never been published. Reserve the name once,
+#      by hand, with a placeholder, so the first real release can still come from CI (and
+#      carry provenance). From an empty directory, with a package.json holding the name,
+#      version "0.0.0-reserve.0", the licence and this repository, run
+#        npm publish --access public --tag reserve
+#      (it asks for your 2FA code). Publishing the first real version by hand also works.
+#   b. On npmjs.com: @companionintelligence/agent-sync → Settings → Trusted Publisher →
+#      GitHub Actions, and enter exactly this (every field is case-sensitive):
+#        * Organization or user:  companionintelligence
+#        * Repository:            CI-Agent-Sync
+#        * Workflow filename:     npm-publish.yml   (the filename only, with the extension)
+#        * Environment name:      leave empty (the publish job declares no `environment:`)
+#        * Allowed actions:       tick `npm publish` (`npm stage publish` is always allowed)
+#   c. Dispatch within 2 days of step b. A new setting expires unless a publish succeeds
+#      in that time (delete and recreate it if it lapses). It needs npm CLI >= 11.5.1,
+#      newer than the npm that ships with Node 22, hence the explicit upgrade step, and a
+#      GitHub-hosted runner. Provenance is generated automatically, because both this
+#      repository and the package are public.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to publish (for example v0.2.1)"
+        required: true
+        type: string
+      dry_run:
+        description: "Build, pack and smoke-test the tarball, but do not publish"
+        required: false
+        default: false
+        type: boolean
+
+# One publish in flight per release, and never cancel-in-progress: a cancelled publish
+# can leave a tag whose package is only half there.
+concurrency:
+  group: npm-publish-${{ inputs.tag }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # The same steps as verify.yml, run against the exact tag being published, so a red
+  # suite cannot ship a package. macOS because that is where verify.yml (and the zsh and
+  # ruby it checks) runs.
+  verify:
+    name: Verify
+    runs-on: macos-latest
+    steps:
+      # refs/tags/... rather than a bare name: actions/checkout resolves a bare ref as a
+      # branch before it tries a tag, so a branch shadowing the tag would be verified
+      # while a different tree was published.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ format('refs/tags/{0}', inputs.tag) }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install ripgrep for repository verification
+        run: brew install ripgrep
+      - name: Install TypeScript control-plane dependencies
+        run: npm ci
+      - name: Build TypeScript control plane and browser bundle
+        run: npm run build
+      - name: Verify scripts and secret hygiene
+        run: ./scripts/verify.sh
+
+  publish:
+    needs: verify
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Trusted publishing (npm OIDC): the package's trusted-publisher setting names this
+    # repo + workflow, and npm mints a short-lived publish credential from the job's
+    # OIDC token. There is no NPM_TOKEN.
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout the tag being published
+        uses: actions/checkout@v4
+        with:
+          # refs/tags/... rather than a bare name — see the note on the verify job.
+          ref: ${{ format('refs/tags/{0}', inputs.tag) }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Use an npm CLI that supports trusted publishing
+        # Trusted publishing needs npm >= 11.5.1; Node 22 ships an older one.
+        run: npm install -g npm@^11.5.1 && npm --version
+
+      - name: Resolve the version being released
+        id: version
+        # INPUT_TAG and INPUT_DRY_RUN come through env rather than a ${{ }}
+        # interpolation: the dispatch inputs are user-supplied, and interpolating them
+        # into the script body would let a crafted value break out of the quoting and
+        # run arbitrary commands in a job that can publish to npm.
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+
+          # Without this, `ref: <input>` would happily check out a BRANCH, and anyone
+          # with write access could publish its contents under a version they chose.
+          git rev-parse -q --verify "refs/tags/${INPUT_TAG}" >/dev/null \
+            || { echo "::error::${INPUT_TAG} is not a tag in this repository"; exit 1; }
+
+          package="$(jq -r .name package.json)"
+          version="$(jq -r .version package.json)"
+          [[ "${INPUT_TAG}" == "v${version}" ]] \
+            || { echo "::error::tag ${INPUT_TAG} does not match package.json version ${version}. Bump the version, merge, and tag v<version> before publishing."; exit 1; }
+
+          # APP_VERSION is a second hand-kept copy of the version, and what Atlas
+          # reports on /healthz. Publishing a package that reports another version is a
+          # defect nobody would notice until a user did.
+          app_version="$(sed -n 's/^export const APP_VERSION = "\(.*\)";$/\1/p' src/atlas-web.ts)"
+          if [[ -n "${app_version}" && "${app_version}" != "${version}" ]]; then
+            echo "::error::src/atlas-web.ts reports APP_VERSION ${app_version} but package.json is ${version}. Bump both."
+            exit 1
+          fi
+
+          # Resolved in bash rather than as `${{ !inputs.dry_run }}` on the publish step.
+          # GitHub expressions treat any non-empty string as truthy, and a boolean input
+          # arrives as the STRING "false" when the run is started through the API or
+          # `gh workflow run -f`. That would skip the publish while leaving the job green
+          # — a release that silently shipped nothing. Only an explicit "true" suppresses it.
+          if [[ "${INPUT_DRY_RUN}" == "true" ]]; then
+            dry_run=true
+            echo "::notice::dry run — building and checking the tarball without publishing"
+          else
+            dry_run=false
+          fi
+
+          # npm refuses a prerelease version without an explicit tag, and a prerelease
+          # must not become `latest` anyway.
+          if [[ "${version}" == *-* ]]; then dist_tag=next; else dist_tag=latest; fi
+
+          {
+            echo "package=${package}"
+            echo "version=${version}"
+            echo "dry_run=${dry_run}"
+            echo "dist_tag=${dist_tag}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Release tag ${INPUT_TAG} publishes ${package}@${version} under dist-tag ${dist_tag}"
+
+      - name: Install, build and pack
+        id: pack
+        run: |
+          set -euo pipefail
+          npm ci
+          # Typecheck and rebuild the browser bundle, then require it to match what the
+          # tag committed: web/app.js ships in the tarball, so a stale one would publish
+          # something the tag does not contain.
+          npm run build
+          git diff --exit-code -- web/app.js \
+            || { echo "::error::web/app.js is out of date with web/app.ts at this tag. Run npm run build and commit the result."; exit 1; }
+          # dist/ is what the bins run: Node refuses to strip types under node_modules,
+          # so the package ships compiled JavaScript rather than src/.
+          npm run build:cli
+
+          mkdir -p "${RUNNER_TEMP}/pack"
+          # --ignore-scripts because prepack just ran above; --silent keeps stdout to the
+          # filename npm prints.
+          tarball="$(npm pack --ignore-scripts --silent --pack-destination "${RUNNER_TEMP}/pack")"
+          [[ -n "${tarball}" && -f "${RUNNER_TEMP}/pack/${tarball}" ]] \
+            || { echo "::error::npm pack produced no tarball"; exit 1; }
+          echo "tarball=${RUNNER_TEMP}/pack/${tarball}" >> "$GITHUB_OUTPUT"
+          tar -tzf "${RUNNER_TEMP}/pack/${tarball}"
+
+      - name: Check what the tarball contains
+        env:
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: |
+          set -euo pipefail
+          listing="$(tar -tzf "${TARBALL}")"
+
+          # `files` in package.json is a hand-kept allowlist; these are the entries the
+          # package cannot run without.
+          for required in \
+            package/package.json package/LICENSE package/README.md \
+            package/dist/cli.js package/dist/atlas-bin.js \
+            package/bin/agentctl package/bin/agent-store-legacy \
+            package/web/index.html package/web/app.js package/sync/manifest.yaml; do
+            grep -qxF "${required}" <<<"${listing}" \
+              || { echo "::error::the tarball is missing ${required}; check \"files\" in package.json"; exit 1; }
+          done
+
+          # `files` outranks .gitignore, so anything secret-looking that is present in an
+          # included directory would be published. On a fresh CI checkout none of these
+          # exist; this is the backstop for an allowlist that grows the wrong way.
+          forbidden='^package/(src|video|reports|local|state|work|node_modules)/|(^|/)\.env(\.[^/]*)?$|(^|/)(auth|\.credentials)\.json$|(^|/)[^/]*(token|secret)[^/]*\.json$|^package/sync/targets\.yaml$|^package/profiles/machines/local\.yaml$'
+          found="$(grep -E "${forbidden}" <<<"${listing}" | grep -v -E '(^|/)\.env\.example$' || true)"
+          if [[ -n "${found}" ]]; then
+            echo "::error::the tarball contains files that must never be published:"
+            echo "${found}"
+            exit 1
+          fi
+
+      - name: Install the tarball into an empty project and run it
+        env:
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: |
+          set -euo pipefail
+          # Installing under node_modules is the point: that is where Node refuses to run
+          # TypeScript, and where the package's files must all be present.
+          smoke="$(mktemp -d)"
+          cd "${smoke}"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund "${TARBALL}"
+          bin="${smoke}/node_modules/.bin"
+
+          "${bin}/agent-sync" --help >/dev/null
+          "${bin}/agentctl" --help >/dev/null
+          "${bin}/agentctl" check >/dev/null
+          "${bin}/agentctl" validate >/dev/null
+
+          # The Atlas web UI, started through its own bin on a free port.
+          atlas_log="${smoke}/atlas.log"
+          "${bin}/agent-atlas" --port 0 >"${atlas_log}" 2>&1 &
+          atlas_pid=$!
+          trap 'kill "${atlas_pid}" 2>/dev/null || true' EXIT
+          url=""
+          for _ in $(seq 1 20); do
+            url="$(grep -Eo 'http://127\.0\.0\.1:[0-9]+/' "${atlas_log}" | head -n1 || true)"
+            [[ -n "${url}" ]] && break
+            sleep 0.5
+          done
+          [[ -n "${url}" ]] || { echo "::error::agent-atlas did not report a listening address"; cat "${atlas_log}"; exit 1; }
+          curl -fsS "${url}healthz" | grep -q '"ok":true' \
+            || { echo "::error::agent-atlas /healthz did not answer ok"; exit 1; }
+          curl -fsS -o /dev/null "${url}app.js"
+          echo "Smoke test passed against ${url}"
+
+      - name: Decide whether this version still needs publishing
+        id: decide
+        env:
+          PACKAGE: ${{ steps.version.outputs.package }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          # A rerun of an already-published tag must be a no-op rather than a failed
+          # publish: npm rejects a duplicate version, and that failure would read as a
+          # broken release instead of "already done". `npm view` exits non-zero both for
+          # an unpublished version (E404, expected) and for a registry fault, which must
+          # not be mistaken for "not published yet".
+          if npm view "${PACKAGE}@${VERSION}" version >/dev/null 2>"${RUNNER_TEMP}/view.err"; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::${PACKAGE}@${VERSION} is already published; nothing to do."
+            exit 0
+          fi
+          if ! grep -qiE 'E404|is not in this registry|404 Not Found' "${RUNNER_TEMP}/view.err"; then
+            echo "::error::could not query the registry for ${PACKAGE}@${VERSION}"
+            cat "${RUNNER_TEMP}/view.err"
+            exit 1
+          fi
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+
+          # Say why the Publish step is about to fail, rather than leave a bare E404.
+          if ! npm view "${PACKAGE}" name >/dev/null 2>"${RUNNER_TEMP}/view-package.err" \
+            && grep -qiE 'E404|is not in this registry|404 Not Found' "${RUNNER_TEMP}/view-package.err"; then
+            echo "::warning::${PACKAGE} does not exist on npm yet. npm only accepts a Trusted Publisher for an existing package, so the name has to be reserved once by hand first — see the header of this workflow. The Publish step will fail until then."
+          fi
+
+      - name: Publish
+        if: steps.decide.outputs.publish == 'true' && steps.version.outputs.dry_run == 'false'
+        env:
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+          VERSION: ${{ steps.version.outputs.version }}
+          DIST_TAG: ${{ steps.version.outputs.dist_tag }}
+        run: |
+          set -euo pipefail
+          # Publish the tarball that was checked and smoke-tested, not a fresh pack.
+          npm publish "${TARBALL}" --access public --tag "${DIST_TAG}"
+          echo "Published ${VERSION}"
+
+      - name: Confirm the version is on the registry
+        if: steps.decide.outputs.publish == 'true' && steps.version.outputs.dry_run == 'false'
+        env:
+          PACKAGE: ${{ steps.version.outputs.package }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          # A tag must never imply an artifact that failed to appear. The window is
+          # generous because a new version can take minutes to become readable through
+          # `npm view` even after the publish itself succeeded.
+          for attempt in $(seq 1 20); do
+            if npm view "${PACKAGE}@${VERSION}" version >/dev/null 2>&1; then
+              echo "Confirmed ${PACKAGE}@${VERSION} resolves on the registry."
+              exit 0
+            fi
+            echo "Not resolvable yet (attempt ${attempt}/20); waiting for registry propagation."
+            sleep 15
+          done
+
+          # Deliberately not a silent pass. But the message has to stop the obvious next
+          # move, because the publish DID succeed and npm versions are immutable:
+          # re-running this job republishes an existing version and dies on E403.
+          echo "::error::${PACKAGE}@${VERSION} did not resolve within 5 minutes. The publish step itself succeeded, so the version is almost certainly on the registry already — DO NOT re-run this job, it will fail with E403 cannot publish over an existing version. Check https://www.npmjs.com/package/${PACKAGE} and, if the version is there, this release is fine."
+          exit 1
+
+      - name: Dry run summary
+        if: steps.version.outputs.dry_run == 'true'
+        run: |
+          echo "Dry run: would publish=${{ steps.decide.outputs.publish }} ${{ steps.version.outputs.package }}@${{ steps.version.outputs.version }} under dist-tag ${{ steps.version.outputs.dist_tag }}"
