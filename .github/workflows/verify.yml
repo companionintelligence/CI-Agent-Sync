@@ -21,6 +21,22 @@ jobs:
         run: npm run build
       - name: Verify scripts and secret hygiene
         run: ./scripts/verify.sh
+      # The installed package is what a release ships, so run it here too, not only at dispatch
+      # time. `backup` re-invokes the CLI itself to capture doctor output; in a package that
+      # cannot find itself it still exits 0 and writes an error stub into doctor.json, which
+      # assert-doctor-json.sh rejects. A source checkout never shows this: it has src/.
+      - name: Install the tarball into an empty project and run backup
+        run: |
+          set -euo pipefail
+          npm run build:cli
+          tarball="$(npm pack --ignore-scripts --silent --pack-destination "${RUNNER_TEMP}")"
+          smoke="$(mktemp -d)"
+          cd "${smoke}"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund "${RUNNER_TEMP}/${tarball}"
+          mkdir home
+          HOME="${smoke}/home" node_modules/.bin/agentctl backup --output "${smoke}/backup" >/dev/null
+          "${GITHUB_WORKSPACE}/.github/scripts/assert-doctor-json.sh" "${smoke}/backup/doctor.json"
       # The npm package is only ever built at dispatch time by npm-publish.yml, so a
       # change to tsconfig.build.json, "files" or the guard would otherwise first fail
       # there. These two steps exercise them on every push.
