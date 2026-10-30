@@ -17,3 +17,5 @@ profiles/machines/local.yaml
 sync/targets.yaml
 .DS_Store
 node_modules/
+# Compiled control plane for the npm package; built by `npm run build:cli` (prepack).
+dist/
