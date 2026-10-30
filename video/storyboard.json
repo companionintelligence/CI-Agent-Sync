@@ -1,0 +1,541 @@
+{
+  "$schema": "https://raw.githubusercontent.com/companionintelligence/CI-Common/main/packages/video-kit/schema/storyboard.schema.json",
+  "app": {
+    "id": "ci-agent-sync",
+    "name": "CI Agent Sync",
+    "repo": "companionintelligence/CI-Agent-Sync",
+    "marketplaceId": "ci-agent-sync",
+    "website": "ci.computer"
+  },
+  "meta": {
+    "fps": 30,
+    "transitionSeconds": 0.5,
+    "pacing": "fit",
+    "pacingTail": 0.2
+  },
+  "chapters": {
+    "setup": "The setup wizard"
+  },
+  "media": {
+    "music": "assets/media/ci-campaign-bed-110.mp3",
+    "musicLufs": -22
+  },
+  "scenes": [
+    {
+      "id": "one-config-each",
+      "kind": "feature",
+      "reveal": "paced",
+      "title": "Every agent keeps its own config",
+      "caption": "Six agents, six places to change a provider or an MCP server.",
+      "narration": "Claude, Codex, Hermes, OpenClaw, OpenCode, VS Code. Each keeps its own settings, its own providers and its own list of tools.",
+      "items": [
+        {
+          "label": "Claude",
+          "value": "own config"
+        },
+        {
+          "label": "Codex",
+          "value": "own config"
+        },
+        {
+          "label": "Hermes",
+          "value": "own config"
+        },
+        {
+          "label": "OpenClaw",
+          "value": "own config"
+        },
+        {
+          "label": "OpenCode",
+          "value": "own config"
+        },
+        {
+          "label": "VS Code",
+          "value": "own config"
+        }
+      ],
+      "seconds": 8.7
+    },
+    {
+      "id": "copying-copies-keys",
+      "kind": "feature",
+      "reveal": "paced",
+      "transition": "hold",
+      "title": "Copying the files copies the keys",
+      "caption": "The obvious fix carries your credentials with it.",
+      "narration": "The obvious fix is to copy the files between machines. That can carry your API keys along with them.",
+      "items": [
+        {
+          "label": "Config files",
+          "value": "can hold credentials"
+        },
+        {
+          "label": "Sessions and caches",
+          "value": "belong to each app"
+        }
+      ],
+      "seconds": 7.9
+    },
+    {
+      "id": "title-card",
+      "kind": "intro",
+      "reveal": "paced",
+      "transition": "hold",
+      "title": "CI Agent Sync",
+      "caption": "A portable map for every agent, model, and mission.",
+      "mark": "brand:logo.mark",
+      "narration": "CI Agent Sync is a portable map for every agent. Provider routes, tool bundles and workflows live in one store you can read, version and review.",
+      "seconds": 10.6
+    },
+    {
+      "id": "first-run",
+      "kind": "screen",
+      "chapter": "setup",
+      "transition": "cut",
+      "caption": "A setup wizard on your own machine. Six steps, loopback only.",
+      "narration": "It opens as a small web wizard on your own machine. Six steps, and it listens on loopback only.",
+      "shots": [
+        {
+          "id": "wizard-start",
+          "url": "127.0.0.1:8787",
+          "alt": "The CI Agent Sync setup wizard, step one of six: 'Get every agent ready.' with the three-part setup path and a note that secrets, OAuth sessions, app databases and device identities stay out of the store.",
+          "motion": "pull-back",
+          "focus": {
+            "landscape": {
+              "x": 0.24,
+              "y": 0.02,
+              "w": 0.52,
+              "h": 0.6
+            },
+            "portrait": {
+              "x": 0,
+              "y": 0,
+              "w": 1,
+              "h": 1
+            }
+          },
+          "capture": {
+            "path": "/",
+            "waitUntil": "networkidle",
+            "waitFor": "#next-button",
+            "settle": 700,
+            "before": [
+              {
+                "eval": "async () => { for (let i = 0; i < 100 && !document.querySelector('#loading-banner.loaded'); i++) await new Promise((r) => setTimeout(r, 100)); if (!document.querySelector('#loading-banner.loaded')) throw new Error('stale stage: the store never loaded'); const n = document.querySelectorAll('#harness-options [data-agent]').length; if (n !== 11) throw new Error('stale stage: expected 11 harnesses, got ' + n); }"
+              }
+            ]
+          }
+        }
+      ],
+      "seconds": 7.9
+    },
+    {
+      "id": "vault",
+      "kind": "screen",
+      "chapter": "setup",
+      "transition": "cut",
+      "caption": "Credential values live in 1Password. The wizard never asks you to paste one.",
+      "narration": "Credential values stay in 1Password. The wizard hands you two commands to run, and never asks you to paste a key.",
+      "shots": [
+        {
+          "id": "wizard-vault",
+          "url": "127.0.0.1:8787",
+          "alt": "Step two, 'Connect your vault': two terminal commands for the 1Password setup and import, and a note that the wizard will not ask for a pasted credential.",
+          "motion": "push-in",
+          "focus": {
+            "landscape": {
+              "x": 0.24,
+              "y": 0.02,
+              "w": 0.52,
+              "h": 0.6
+            },
+            "portrait": {
+              "x": 0,
+              "y": 0,
+              "w": 1,
+              "h": 1
+            }
+          },
+          "capture": {
+            "path": "/",
+            "waitUntil": "networkidle",
+            "waitFor": "#next-button",
+            "settle": 700,
+            "before": [
+              {
+                "eval": "async () => { for (let i = 0; i < 100 && !document.querySelector('#loading-banner.loaded'); i++) await new Promise((r) => setTimeout(r, 100)); if (!document.querySelector('#loading-banner.loaded')) throw new Error('stale stage: the store never loaded'); const n = document.querySelectorAll('#harness-options [data-agent]').length; if (n !== 11) throw new Error('stale stage: expected 11 harnesses, got ' + n); }"
+              },
+              {
+                "click": "#next-button"
+              },
+              {
+                "waitFor": ".wizard-step[data-step=\"2\"]:not([hidden])"
+              }
+            ]
+          }
+        }
+      ],
+      "seconds": 8.7
+    },
+    {
+      "id": "agents",
+      "kind": "screen",
+      "chapter": "setup",
+      "transition": "cut",
+      "caption": "Eleven agents to choose from. Native sessions stay local.",
+      "narration": "Pick the agents you use. Eleven are covered, from Claude and Codex to Hermes, OpenClaw and VS Code. Their sessions stay where they are.",
+      "shots": [
+        {
+          "id": "wizard-agents",
+          "url": "127.0.0.1:8787",
+          "alt": "Step three, 'Choose your agents': a list of the eleven harnesses, each with its capabilities, and the line 'Native sessions stay local.'",
+          "motion": "push-in",
+          "focus": {
+            "landscape": {
+              "x": 0.24,
+              "y": 0.02,
+              "w": 0.52,
+              "h": 0.6
+            },
+            "portrait": {
+              "x": 0,
+              "y": 0,
+              "w": 1,
+              "h": 1
+            }
+          },
+          "capture": {
+            "path": "/",
+            "waitUntil": "networkidle",
+            "waitFor": "#next-button",
+            "settle": 700,
+            "before": [
+              {
+                "eval": "async () => { for (let i = 0; i < 100 && !document.querySelector('#loading-banner.loaded'); i++) await new Promise((r) => setTimeout(r, 100)); if (!document.querySelector('#loading-banner.loaded')) throw new Error('stale stage: the store never loaded'); const n = document.querySelectorAll('#harness-options [data-agent]').length; if (n !== 11) throw new Error('stale stage: expected 11 harnesses, got ' + n); }"
+              },
+              {
+                "click": "#next-button"
+              },
+              {
+                "waitFor": ".wizard-step[data-step=\"2\"]:not([hidden])"
+              },
+              {
+                "click": "#next-button"
+              },
+              {
+                "waitFor": ".wizard-step[data-step=\"3\"]:not([hidden])"
+              }
+            ]
+          }
+        }
+      ],
+      "seconds": 9.8
+    },
+    {
+      "id": "profile",
+      "kind": "screen",
+      "chapter": "setup",
+      "transition": "cut",
+      "caption": "A profile picks the reviewed bundles and the fallback order.",
+      "narration": "Then a working profile: CEO, engineering or marketing. It picks the reviewed bundles and the fallback chain, and leaves native app state alone.",
+      "shots": [
+        {
+          "id": "wizard-profile",
+          "url": "127.0.0.1:8787",
+          "alt": "Step four, 'Pick a working profile': CEO, Engineering and Marketing, each with its bundles and default fallback chain, and the portable plan below.",
+          "motion": "push-in",
+          "focus": {
+            "landscape": {
+              "x": 0.24,
+              "y": 0.02,
+              "w": 0.52,
+              "h": 0.6
+            },
+            "portrait": {
+              "x": 0,
+              "y": 0,
+              "w": 1,
+              "h": 1
+            }
+          },
+          "capture": {
+            "path": "/",
+            "waitUntil": "networkidle",
+            "waitFor": "#next-button",
+            "settle": 700,
+            "before": [
+              {
+                "eval": "async () => { for (let i = 0; i < 100 && !document.querySelector('#loading-banner.loaded'); i++) await new Promise((r) => setTimeout(r, 100)); if (!document.querySelector('#loading-banner.loaded')) throw new Error('stale stage: the store never loaded'); const n = document.querySelectorAll('#harness-options [data-agent]').length; if (n !== 11) throw new Error('stale stage: expected 11 harnesses, got ' + n); }"
+              },
+              {
+                "click": "#next-button"
+              },
+              {
+                "waitFor": ".wizard-step[data-step=\"2\"]:not([hidden])"
+              },
+              {
+                "click": "#next-button"
+              },
+              {
+                "waitFor": ".wizard-step[data-step=\"3\"]:not([hidden])"
+              },
+              {
+                "click": "#next-button"
+              },
+              {
+                "waitFor": ".wizard-step[data-step=\"4\"]:not([hidden])"
+              }
+            ]
+          }
+        }
+      ],
+      "seconds": 9.4
+    },
+    {
+      "id": "generate",
+      "kind": "screen",
+      "chapter": "setup",
+      "transition": "cut",
+      "caption": "Generate writes to an ignored local folder. Your agents' own config is untouched.",
+      "narration": "Generating the config writes into an ignored folder inside the store. It does not touch what your agents have installed.",
+      "shots": [
+        {
+          "id": "wizard-generated",
+          "url": "127.0.0.1:8787",
+          "alt": "Step four after pressing 'Generate portable config': the status line reads 'Portable artifacts generated under local/rendered.'",
+          "motion": "push-in",
+          "focus": {
+            "landscape": {
+              "x": 0.24,
+              "y": 0.02,
+              "w": 0.52,
+              "h": 0.6
+            },
+            "portrait": {
+              "x": 0,
+              "y": 0,
+              "w": 1,
+              "h": 1
+            }
+          },
+          "capture": {
+            "path": "/",
+            "waitUntil": "networkidle",
+            "waitFor": "#next-button",
+            "settle": 700,
+            "before": [
+              {
+                "eval": "async () => { for (let i = 0; i < 100 && !document.querySelector('#loading-banner.loaded'); i++) await new Promise((r) => setTimeout(r, 100)); if (!document.querySelector('#loading-banner.loaded')) throw new Error('stale stage: the store never loaded'); const n = document.querySelectorAll('#harness-options [data-agent]').length; if (n !== 11) throw new Error('stale stage: expected 11 harnesses, got ' + n); }"
+              },
+              {
+                "click": "#next-button"
+              },
+              {
+                "waitFor": ".wizard-step[data-step=\"2\"]:not([hidden])"
+              },
+              {
+                "click": "#next-button"
+              },
+              {
+                "waitFor": ".wizard-step[data-step=\"3\"]:not([hidden])"
+              },
+              {
+                "click": "#next-button"
+              },
+              {
+                "waitFor": ".wizard-step[data-step=\"4\"]:not([hidden])"
+              },
+              {
+                "click": "#render-button"
+              },
+              {
+                "waitFor": "#render-status:has-text(\"generated under local/rendered\")"
+              },
+              {
+                "eval": "() => document.querySelector('.wizard-step:not([hidden]) h1').scrollIntoView({block:'start'})"
+              },
+              {
+                "wait": 300
+              }
+            ]
+          }
+        }
+      ],
+      "seconds": 8.3
+    },
+    {
+      "id": "backup",
+      "kind": "screen",
+      "chapter": "setup",
+      "transition": "cut",
+      "caption": "A redacted backup first. Credential values and sessions are never copied.",
+      "narration": "Before anything moves, it can take a redacted backup of the configs on the machine. Credential values and native sessions are never copied.",
+      "shots": [
+        {
+          "id": "wizard-backup",
+          "url": "127.0.0.1:8787",
+          "alt": "Step five, 'Back up before you go': the list of agent configs included in a redacted snapshot, with Preview backup and Create redacted backup buttons.",
+          "motion": "push-in",
+          "focus": {
+            "landscape": {
+              "x": 0.24,
+              "y": 0.02,
+              "w": 0.52,
+              "h": 0.6
+            },
+            "portrait": {
+              "x": 0,
+              "y": 0,
+              "w": 1,
+              "h": 1
+            }
+          },
+          "capture": {
+            "path": "/",
+            "waitUntil": "networkidle",
+            "waitFor": "#next-button",
+            "settle": 700,
+            "before": [
+              {
+                "eval": "async () => { for (let i = 0; i < 100 && !document.querySelector('#loading-banner.loaded'); i++) await new Promise((r) => setTimeout(r, 100)); if (!document.querySelector('#loading-banner.loaded')) throw new Error('stale stage: the store never loaded'); const n = document.querySelectorAll('#harness-options [data-agent]').length; if (n !== 11) throw new Error('stale stage: expected 11 harnesses, got ' + n); }"
+              },
+              {
+                "click": "#next-button"
+              },
+              {
+                "waitFor": ".wizard-step[data-step=\"2\"]:not([hidden])"
+              },
+              {
+                "click": "#next-button"
+              },
+              {
+                "waitFor": ".wizard-step[data-step=\"3\"]:not([hidden])"
+              },
+              {
+                "click": "#next-button"
+              },
+              {
+                "waitFor": ".wizard-step[data-step=\"4\"]:not([hidden])"
+              },
+              {
+                "click": "#next-button"
+              },
+              {
+                "waitFor": ".wizard-step[data-step=\"5\"]:not([hidden])"
+              }
+            ]
+          }
+        }
+      ],
+      "seconds": 9.4
+    },
+    {
+      "id": "ready",
+      "kind": "screen",
+      "chapter": "setup",
+      "transition": "cut",
+      "caption": "Then the command line: check the machine, and review a plan before anything is applied.",
+      "narration": "Then the command line takes over. Doctor checks the machine, and sync shows a plan before it changes anything.",
+      "shots": [
+        {
+          "id": "wizard-ready",
+          "url": "127.0.0.1:8787",
+          "alt": "Step six, 'Your map is ready': the chosen profile and agent count, and the next commands, 'agentctl doctor --json' and 'agentctl sync'.",
+          "motion": "push-in",
+          "focus": {
+            "landscape": {
+              "x": 0.24,
+              "y": 0.02,
+              "w": 0.52,
+              "h": 0.6
+            },
+            "portrait": {
+              "x": 0,
+              "y": 0,
+              "w": 1,
+              "h": 1
+            }
+          },
+          "capture": {
+            "path": "/",
+            "waitUntil": "networkidle",
+            "waitFor": "#next-button",
+            "settle": 700,
+            "before": [
+              {
+                "eval": "async () => { for (let i = 0; i < 100 && !document.querySelector('#loading-banner.loaded'); i++) await new Promise((r) => setTimeout(r, 100)); if (!document.querySelector('#loading-banner.loaded')) throw new Error('stale stage: the store never loaded'); const n = document.querySelectorAll('#harness-options [data-agent]').length; if (n !== 11) throw new Error('stale stage: expected 11 harnesses, got ' + n); }"
+              },
+              {
+                "click": "#next-button"
+              },
+              {
+                "waitFor": ".wizard-step[data-step=\"2\"]:not([hidden])"
+              },
+              {
+                "click": "#next-button"
+              },
+              {
+                "waitFor": ".wizard-step[data-step=\"3\"]:not([hidden])"
+              },
+              {
+                "click": "#next-button"
+              },
+              {
+                "waitFor": ".wizard-step[data-step=\"4\"]:not([hidden])"
+              },
+              {
+                "click": "#next-button"
+              },
+              {
+                "waitFor": ".wizard-step[data-step=\"5\"]:not([hidden])"
+              },
+              {
+                "click": "#next-button"
+              },
+              {
+                "waitFor": ".wizard-step[data-step=\"6\"]:not([hidden])"
+              }
+            ]
+          }
+        }
+      ],
+      "seconds": 7.9
+    },
+    {
+      "id": "what-stays-yours",
+      "kind": "feature",
+      "reveal": "paced",
+      "title": "What travels, what stays",
+      "caption": "Policy travels. Identity stays local. Every write crosses an approval boundary.",
+      "narration": "Policy travels. Credentials stay in your vault, and sessions stay on each machine. Every write waits for your approval.",
+      "items": [
+        {
+          "label": "Policy",
+          "value": "in Git, reviewable"
+        },
+        {
+          "label": "Credentials",
+          "value": "1Password references"
+        },
+        {
+          "label": "Sessions",
+          "value": "stay on each app"
+        },
+        {
+          "label": "Writes",
+          "value": "explicit approval"
+        }
+      ],
+      "seconds": 7.9
+    },
+    {
+      "id": "close",
+      "kind": "outro",
+      "cta": "UnCloud your life.",
+      "url": "ci.computer",
+      "mark": "brand:logo.full",
+      "narration": "CI Agent Sync, from Companion Intelligence. UnCloud your life.",
+      "seconds": 4.1
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "at": "2026-10-29T23:46:51.721Z",
+  "kit": "0.35.0",
+  "shots": {
+    "wizard-agents.mobile.png": {
+      "ok": true,
+      "at": "2026-10-29T23:39:59.091Z",
+      "sha256": "426633c6d67ff27b49cd98cab9c716c11f53d9569f363d292dd3d6e29facffeb"
+    },
+    "wizard-agents.png": {
+      "ok": true,
+      "at": "2026-10-29T23:39:59.091Z",
+      "sha256": "f7869bf300b365c0a72d777faa34bab344d58b865288bf53563395e4b1f5b52d"
+    },
+    "wizard-backup.mobile.png": {
+      "ok": true,
+      "at": "2026-10-29T23:39:59.091Z",
+      "sha256": "c20fc81b1abd885ab317b3dd4ae6ca7d2c849de7967b1f7551455798edcbfbb8"
+    },
+    "wizard-backup.png": {
+      "ok": true,
+      "at": "2026-10-29T23:39:59.091Z",
+      "sha256": "00b2d908686c18c7f73f2b2cefc03e013242129e5b4481213e7143d4811fa52a"
+    },
+    "wizard-generated.mobile.png": {
+      "ok": true,
+      "at": "2026-10-29T23:46:51.721Z",
+      "sha256": "f58c10e6fcf84cd148e70b07b9fc39c81d13ae37b1ab861a004d92b1f1b90877"
+    },
+    "wizard-generated.png": {
+      "ok": true,
+      "at": "2026-10-29T23:46:51.721Z",
+      "sha256": "18618b09268d4fea8cb5fec7d7ecbabdcec3c08880caa32918e881950f1ba992"
+    },
+    "wizard-profile.mobile.png": {
+      "ok": true,
+      "at": "2026-10-29T23:39:59.091Z",
+      "sha256": "20637483a279e77d4c40e56f7278b4112cd08c1b8de92a39b7045091c059cbf0"
+    },
+    "wizard-profile.png": {
+      "ok": true,
+      "at": "2026-10-29T23:39:59.091Z",
+      "sha256": "dec44bc932d83ffdbf0d370433f9447c87866f9b9ee10493481b4b9072b103e7"
+    },
+    "wizard-ready.mobile.png": {
+      "ok": true,
+      "at": "2026-10-29T23:39:59.091Z",
+      "sha256": "c858bf355724bd9d70f2c2a6e66a2636866caae4df09e59c119b6c983b83d566"
+    },
+    "wizard-ready.png": {
+      "ok": true,
+      "at": "2026-10-29T23:39:59.091Z",
+      "sha256": "a74f64b0f5aad2ced7e181b06d4dc7eeb56d10717ea9ee14aa48a564f5e4784a"
+    },
+    "wizard-start.mobile.png": {
+      "ok": true,
+      "at": "2026-10-29T23:39:59.091Z",
+      "sha256": "d6f7d6d3e0b6323ffcda41d51a3e04f0b27124ad69586feeae5199383cc2f4c4"
+    },
+    "wizard-start.png": {
+      "ok": true,
+      "at": "2026-10-29T23:39:59.091Z",
+      "sha256": "e3f296e6657f9e2a603a3524be2daf96405dd6abc16c810d4bd5ae941ca7db48"
+    },
+    "wizard-vault.mobile.png": {
+      "ok": true,
+      "at": "2026-10-29T23:39:59.091Z",
+      "sha256": "662781c1a14710ee1d95949244dcde1dabddfc029aab54e5d9c0a0c1feb7af9e"
+    },
+    "wizard-vault.png": {
+      "ok": true,
+      "at": "2026-10-29T23:39:59.091Z",
+      "sha256": "820e17aa0f9a9885d529c94b0862227800f417542962a64113b4b2abf5195e77"
+    }
+  }
+}
