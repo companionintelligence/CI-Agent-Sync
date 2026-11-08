@@ -107,6 +107,96 @@ servers:
     bind: device-local-by-default
     notes: "High-risk device-control MCP. Runs on Android with Accessibility access. Prefer adb port forwarding to a loopback host; use a public HTTPS tunnel only when explicitly required. Restrict tools and stop the server when not in use."
 
+  nanokvm-beta-ms-a2-kvm:
+    owner: Sipeed NanoKVM
+    transport: streamable-http
+    url: https://beta-ms-a2-kvm.capybara-ulmer.ts.net/api/mcp
+    auth:
+      provider: environment
+      env: NANOKVM_BETA_MS_A2_KVM_API_KEY
+      header: Authorization
+      format: "Bearer ${NANOKVM_BETA_MS_A2_KVM_API_KEY}"
+    setup_guide: https://wiki.sipeed.com/hardware/en/kvm/NanoKVM/mcp.html
+    clients: [claude, codex]
+    state: opt_in
+    bind: trusted-tailnet
+    notes: "Remote keyboard, display, power, and virtual-media control. Confirm the named KVM target before every operation."
+
+  nanokvm-core-14-kvm:
+    owner: Sipeed NanoKVM
+    transport: streamable-http
+    url: https://core-14-kvm.capybara-ulmer.ts.net/api/mcp
+    auth:
+      provider: environment
+      env: NANOKVM_CORE_14_KVM_API_KEY
+      header: Authorization
+      format: "Bearer ${NANOKVM_CORE_14_KVM_API_KEY}"
+    setup_guide: https://wiki.sipeed.com/hardware/en/kvm/NanoKVM/mcp.html
+    clients: [claude, codex]
+    state: opt_in
+    bind: trusted-tailnet
+    notes: "Remote keyboard, display, power, and virtual-media control. Confirm the named KVM target before every operation."
+
+  nanokvm-core-17-kvm:
+    owner: Sipeed NanoKVM
+    transport: streamable-http
+    url: https://core-17-kvm.capybara-ulmer.ts.net/api/mcp
+    auth:
+      provider: environment
+      env: NANOKVM_CORE_17_KVM_API_KEY
+      header: Authorization
+      format: "Bearer ${NANOKVM_CORE_17_KVM_API_KEY}"
+    setup_guide: https://wiki.sipeed.com/hardware/en/kvm/NanoKVM/mcp.html
+    clients: [claude, codex]
+    state: opt_in
+    bind: trusted-tailnet
+    notes: "Remote keyboard, display, power, and virtual-media control. Confirm the named KVM target before every operation."
+
+  nanokvm-core-4-kvm:
+    owner: Sipeed NanoKVM
+    transport: streamable-http
+    url: https://core-4-kvm.capybara-ulmer.ts.net/api/mcp
+    auth:
+      provider: environment
+      env: NANOKVM_CORE_4_KVM_API_KEY
+      header: Authorization
+      format: "Bearer ${NANOKVM_CORE_4_KVM_API_KEY}"
+    setup_guide: https://wiki.sipeed.com/hardware/en/kvm/NanoKVM/mcp.html
+    clients: [claude, codex]
+    state: opt_in
+    bind: trusted-tailnet
+    notes: "Remote keyboard, display, power, and virtual-media control. Confirm the named KVM target before every operation."
+
+  nanokvm-core-5-kvm:
+    owner: Sipeed NanoKVM
+    transport: streamable-http
+    url: https://core-5-kvm.capybara-ulmer.ts.net/api/mcp
+    auth:
+      provider: environment
+      env: NANOKVM_CORE_5_KVM_API_KEY
+      header: Authorization
+      format: "Bearer ${NANOKVM_CORE_5_KVM_API_KEY}"
+    setup_guide: https://wiki.sipeed.com/hardware/en/kvm/NanoKVM/mcp.html
+    clients: [claude, codex]
+    state: opt_in
+    bind: trusted-tailnet
+    notes: "Remote keyboard, display, power, and virtual-media control. Confirm the named KVM target before every operation."
+
+  nanokvm-core-7-kvm:
+    owner: Sipeed NanoKVM
+    transport: streamable-http
+    url: https://core-7-kvm.capybara-ulmer.ts.net/api/mcp
+    auth:
+      provider: environment
+      env: NANOKVM_CORE_7_KVM_API_KEY
+      header: Authorization
+      format: "Bearer ${NANOKVM_CORE_7_KVM_API_KEY}"
+    setup_guide: https://wiki.sipeed.com/hardware/en/kvm/NanoKVM/mcp.html
+    clients: [claude, codex]
+    state: opt_in
+    bind: trusted-tailnet
+    notes: "Remote keyboard, display, power, and virtual-media control. Confirm the named KVM target before every operation."
+
   markitdown:
     transport: stdio
     command: uvx
