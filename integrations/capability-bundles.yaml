@@ -28,6 +28,12 @@ bundles:
     servers: [android-remote-control]
     clients: [claude, codex, opencode, vscode]
     high_risk: true
+  nanokvm:
+    description: Explicitly enabled remote NanoKVM control for named appliances
+    servers: [nanokvm-beta-ms-a2-kvm, nanokvm-core-14-kvm, nanokvm-core-17-kvm, nanokvm-core-4-kvm, nanokvm-core-5-kvm, nanokvm-core-7-kvm]
+    clients: [claude, codex]
+    high_risk: true
+    requires: [named_kvm_target, trusted_tailnet, explicit_confirmation]
   operator-readonly:
     description: Read-only Companion Hub control room for CEO, support, and launch readiness
     extends: [core]

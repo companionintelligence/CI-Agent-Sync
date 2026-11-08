@@ -38,6 +38,7 @@ identity remain local to each app.
 | Check Hub + Memory CLIs | `./bin/agentctl companion status --json` | Runs the native `cihub` and `ci` checks through one stable bridge |
 | Use a terminal menu | `./bin/agentctl companion tui` | Launches a small read-oriented TUI for Hub, Memory, readiness, and backup |
 | Check the fleet | `./bin/agentctl fleet smoke --json --strict` | Verifies Tailscale and Hub liveness for named targets |
+| Set up NanoKVM MCP | `./scripts/setup-nanokvm-mcp.sh` | Adds the six KVM servers to Claude Code and Codex CLI while keeping API keys local |
 | Preflight the whole platform | `./bin/agentctl platform preflight --json` | Read-only repo, provider, service, 1Password, Tailscale, and promotion evidence |
 | Save release evidence | `./bin/agentctl platform evidence --strict` | Writes a redacted, hash-addressed evidence bundle under ignored `local/evidence/` |
 | Audit Marketplace apps | `./bin/agentctl marketplace audit --strict` | Checks release tags, Hub/Memory wiring, and image pins |
@@ -179,6 +180,13 @@ shared 1Password `Agent Configs` vault through `op://` references; Keychain and
 Secret Service are migration fallbacks only.
 Tool-specific OAuth files remain in their native application directories.
 Audits and config snapshots redact credential-bearing fields.
+
+## NanoKVM MCP
+
+Set up the six opt-in NanoKVM servers for terminal use with Claude Code and
+Codex CLI by following [docs/nanokvm-mcp.md](docs/nanokvm-mcp.md). The setup
+stores API keys in a private local file and records only Tailscale DNS
+endpoints and environment-variable references in the portable MCP registry.
 
 ## Harness coverage
 
