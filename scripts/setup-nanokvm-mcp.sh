@@ -212,7 +212,7 @@ if [[ "$CLIENTS" == both || "$CLIENTS" == claude ]]; then
     env_var="${KEY_VARS[$i]}"
     header="Authorization: Bearer \${${env_var}}"
     claude mcp remove --scope user "$name" >/dev/null 2>&1 || true
-    claude mcp add --transport http --scope user --header "$header" "$name" "$url"
+    claude mcp add --transport http --scope user "$name" "$url" --header "$header"
   done
   write_wrapper claude "$CLAUDE_BIN"
 fi
