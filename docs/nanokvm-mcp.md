@@ -60,6 +60,60 @@ variable; the wrappers supply those values at launch. See the
 [Claude Code MCP docs](https://code.claude.com/docs/en/mcp) and
 [Codex MCP docs](https://developers.openai.com/codex/extend/mcp).
 
+## NanoKVM HTTPS certificates
+
+NanoKVM may start with a self-signed certificate for `localhost`. Remote MCP
+clients connect using the device's Tailscale DNS name, so TLS verification
+fails. Keep TLS verification enabled; install a Tailscale certificate whose
+DNS name matches the MCP endpoint, at the certificate paths configured in
+`/etc/kvm/server.yaml` (this fleet uses `/etc/kvm/server.crt` and
+`/etc/kvm/server.key`). See the
+[`tailscale cert` CLI reference](https://tailscale.com/docs/reference/tailscale-cli).
+
+Run the following on the KVM as root, replacing `KVM_HOST` with that device's
+Tailscale DNS name:
+
+```sh
+set -eu
+KVM_HOST=core-14-kvm.capybara-ulmer.ts.net
+BACKUP_DIR=$(mktemp -d /root/nanokvm-tls-backup.XXXXXX)
+WORK_DIR=$(mktemp -d /etc/kvm/.nanokvm-tls.XXXXXX)
+cp -p /etc/kvm/server.crt "$BACKUP_DIR/server.crt"
+cp -p /etc/kvm/server.key "$BACKUP_DIR/server.key"
+tailscale cert --cert-file="$WORK_DIR/server.crt" \
+  --key-file="$WORK_DIR/server.key" "$KVM_HOST"
+openssl x509 -in "$WORK_DIR/server.crt" -noout -subject -ext subjectAltName
+install -o root -g root -m 0644 "$WORK_DIR/server.crt" /etc/kvm/server.crt
+install -o root -g root -m 0600 "$WORK_DIR/server.key" /etc/kvm/server.key
+rm -rf "$WORK_DIR"
+printf 'TLS backup: %s\n' "$BACKUP_DIR"
+nohup /etc/init.d/S95nanokvm restart </dev/null >/tmp/nanokvm-restart.log 2>&1 &
+```
+
+Keep the printed backup directory for rollback. To restore it, set
+`BACKUP_DIR` to that printed path, then run:
+
+```sh
+BACKUP_DIR=/root/nanokvm-tls-backup.REPLACE_ME
+cp -p "$BACKUP_DIR/server.crt" /etc/kvm/server.crt
+cp -p "$BACKUP_DIR/server.key" /etc/kvm/server.key
+nohup /etc/init.d/S95nanokvm restart </dev/null >/tmp/nanokvm-restart.log 2>&1 &
+```
+
+Check the installed certificate's expiry with
+`openssl x509 -in /etc/kvm/server.crt -noout -enddate` and renew it with
+`tailscale cert` before it expires.
+
+On Core 14, the original certificate had `CN=localhost` and only localhost/IP
+subject alternative names. Replacing it with a certificate for
+`core-14-kvm.capybara-ulmer.ts.net` and restarting NanoKVM fixed the HTTPS
+verification error; `~/.local/bin/nanokvm-claude mcp list` then reported the
+server connected. An unauthenticated `curl` to `/api/mcp` returns `401 invalid
+MCP API key`; use the configured Claude or Codex client to verify the bearer
+key. On this device, `tailscale serve status` showed no Serve configuration;
+the direct certificate fix avoided the `invalid Host header` response seen
+when proxying NanoKVM through Tailscale Serve.
+
 ## Device-control policy
 
 The `nanokvm` capability bundle is opt-in and marked high-risk because it can
