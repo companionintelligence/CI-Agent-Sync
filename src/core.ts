@@ -95,11 +95,16 @@ export function platformName(): "macos" | "linux" | "windows" {
 }
 
 export function commandPath(command: string): string | null {
-  if (command.includes("/")) return existsSync(command) ? command : null;
+  if (command.includes("/") || command.includes("\\")) return existsSync(command) ? command : null;
   const pathValue = process.env.PATH || "";
   for (const directory of pathValue.split(delimiter)) {
-    const candidate = join(directory, command);
-    if (existsSync(candidate)) return candidate;
+    const candidates = [join(directory, command)];
+    if (platform() === "win32" && !extname(command)) {
+      const extensions = (process.env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(delimiter).filter(Boolean);
+      candidates.push(...extensions.map((extension) => join(directory, `${command}${extension}`)));
+    }
+    const match = candidates.find((candidate) => existsSync(candidate));
+    if (match) return match;
   }
   return null;
 }
