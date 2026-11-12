@@ -113,6 +113,9 @@
     "start": "node --experimental-strip-types --no-warnings src/cli.ts atlas",
     "build": "tsc --project tsconfig.json && esbuild web/app.ts --bundle --format=iife --target=es2020 --outfile=web/app.js",
     "build:cli": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc --project tsconfig.build.json",
+    "game-engine:setup": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/setup-game-engine-stack.ps1",
+    "game-engine:test": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/test-game-engine-stack.ps1",
+    "game-engine:cleanup": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/cleanup-game-engine-tests.ps1",
     "prepack": "npm run build:cli",
     "prepublishOnly": "node .github/scripts/refuse-local-publish.mjs",
     "test": "node --experimental-strip-types --no-warnings src/test.ts"

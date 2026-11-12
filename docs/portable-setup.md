@@ -22,6 +22,19 @@ npm install
 ./bin/agent-store repos inventory
 ```
 
+On the Windows game/MetaHuman workstation, use the pinned editor and MCP
+runbook after the general control-plane setup:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-game-engine-stack.ps1 -WhatIf
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-game-engine-stack.ps1
+npm run game-engine:test
+```
+
+See [`game-engine-setup.md`](game-engine-setup.md) for the Unity/Unreal/Blender
+version pins, alternatives, cleanup boundaries, and retro-datacenter staging
+command.
+
 Set only the providers you intend to use. The prompt is hidden and the value is
 written to the configured 1Password vault; it is never written to this
 repository:

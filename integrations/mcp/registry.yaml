@@ -228,6 +228,51 @@ servers:
     clients: [vscode]
 
   unity:
-    state: disabled_on_macos_until_local_install_is_verified
-    reason: Do not transplant Windows paths or placeholder commands.
-    clients: [vscode, codex]
+    owner: CoplayDev/unity-mcp
+    source_repository: https://github.com/CoplayDev/unity-mcp
+    transport: stdio
+    command: uvx
+    args: [--from, "mcpforunityserver==10.3.0", mcp-for-unity]
+    env:
+      DISABLE_TELEMETRY: "true"
+    pins:
+      pypi: "mcpforunityserver==10.3.0 (uploaded 2026-10-04)"
+      unity_package: "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#v10.3.0"
+      unity_package_name: com.coplaydev.unity-mcp
+      unity_package_commit: ba6881930eadb2a9006d28bff3325ce03b4bfd8a
+      unity_min_version: "2021.3"
+    bind: loopback
+    clients: [claude, codex]
+    state: verified_local_opt_in
+    notes: "Verified locally on 2026-11-12 with Unity 6.3 LTS: the 10.3.0 editor package loaded and announced StdioBridgeHost on 127.0.0.1:6400. The selected production baseline is Unity 6.3 LTS (6000.3.19f1); Unity 6.6 is installed but these projects still have upstream package compile errors on that editor. Telemetry stays off through DISABLE_TELEMETRY=true. The package documents no approval gate for scene, asset or script edits, so keep the client high-risk and approval-gated."
+
+  unreal-engine-mcp:
+    owner: Epic Games (built into Unreal Engine 5.8)
+    transport: streamable-http
+    url: "http://127.0.0.1:${UE_MCP_PORT}/mcp"
+    auth: none
+    bind: loopback
+    project: "CI-MetaHuman (MetaHumanLocalLLM.uproject enables ModelContextProtocol and MCPClientToolset)"
+    clients: [claude, codex]
+    pins:
+      engine: "5.8.4"
+      project_port: 8000
+    state: verified_local_opt_in
+    notes: "Verified locally on 2026-11-12 with Unreal 5.8.4: MCP initialize, tools/list, VibeUE, and VibeMetaHumans toolset discovery succeeded on 127.0.0.1:8000/mcp. The plugin at Engine/Plugins/Experimental/ModelContextProtocol ships no Config folder, so the port remains project-configured. Editor control is broad, so every write needs client approval. Keep this high-risk server opt-in and loopback-only."
+
+  blender:
+    owner: ahujasid/mcp-for-blender
+    source_repository: https://github.com/ahujasid/mcp-for-blender
+    transport: stdio
+    command: uvx
+    args: [mcp-for-blender==2.2.7]
+    env:
+      DISABLE_TELEMETRY: "true"
+      BLENDER_MCP_SAFE_MODE: "1"
+    pins:
+      pypi: "mcp-for-blender==2.2.7 (uploaded 2026-11-04)"
+      addon_commit: 2e4b0bc294694b1570d76ed01be657c22e6d02a0
+    bind: loopback
+    clients: [claude, codex]
+    state: disabled_until_reviewed
+    notes: "The Blender add-on listens on localhost:9876 with no auth or TLS. Install the server from PyPI 2.2.7, not a git checkout: the wheel ships blender_mcp/config.py, which the repo gitignores, so a source build fails on import. Keep safe mode on and telemetry off. The server can run arbitrary Python inside Blender, so every script needs client approval. Keep API keys out of add-on preferences; the policy keeps credentials in the keychain or native OAuth."

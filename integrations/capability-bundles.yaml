@@ -63,6 +63,13 @@ bundles:
     credentials: [cloudflare]
     high_risk: true
     requires: [named_target, dry_run_or_preflight, explicit_confirmation, post_deploy_probe]
+  game-engine:
+    description: Unity and Unreal editor control and Blender scene work for CI-MetaHuman and the XR projects; every server is default-off until reviewed
+    servers: [unity, unreal-engine-mcp, blender]
+    plugins: [vibeue, vibemetahumans]
+    clients: [claude, codex]
+    high_risk: true
+    requires: [explicit_project_target, editor_open_for_bridge, explicit_confirmation_for_writes, telemetry_disabled]
 
 client_defaults:
   claude: [core]
