@@ -1,0 +1,67 @@
+version: 1
+
+# These are editor-hosted integrations, not independent MCP transports. The
+# transport that exposes their tools is recorded in integrations/mcp/registry.yaml.
+policy:
+  in_process_plugins_not_mcp_servers: true
+  competing_bridges_not_coinstalled: true
+  writes_require_client_approval: true
+
+plugins:
+  vibeue:
+    owner: kevinpbuckley/VibeUE
+    source_repository: https://github.com/kevinpbuckley/VibeUE
+    host: unreal
+    engine: "5.8"
+    install_path: "${CI_ROOT}/CI-MetaHuman/Plugins/VibeUE"
+    integration: in_process_toolset
+    served_by: unreal-engine-mcp
+    state: enabled_in_project
+    notes: "Use the native Unreal 5.8 ModelContextProtocol endpoint. Keep editor writes approval-gated."
+
+  vibemetahumans:
+    owner: kevinpbuckley/VibeMetaHumans
+    source_repository: https://github.com/kevinpbuckley/VibeMetaHumans
+    host: unreal
+    engine: "5.8"
+    install_path: "${CI_ROOT}/CI-MetaHuman/Plugins/VibeMetaHumans"
+    integration: in_process_toolset
+    served_by: unreal-engine-mcp
+    state: enabled_in_project
+    notes: "MetaHuman authoring, animation, Live Link and related tools are registered by the plugin; do not add a second external server."
+
+  unity-ai-assistant:
+    owner: Unity
+    source_documentation: https://docs.unity3d.com/Packages/com.unity.ai.assistant@2.21/manual/index.html
+    host: unity
+    integration: in_editor_assistant
+    state: optional_not_installed
+    not_an_mcp_server: true
+    notes: "Keep optional. It is a Unity-native assistant package, separate from the reviewed CoplayDev Unity MCP bridge."
+
+  unity-mcp-ivanmurzak:
+    owner: ivanmurzak/Unity-MCP
+    source_repository: https://github.com/ivanmurzak/Unity-MCP
+    host: unity
+    integration: external_editor_bridge
+    state: alternative_not_coinstalled
+    conflicts_with: [unity]
+    notes: "Reviewed as an alternative implementation. Do not install alongside CoplayDev/unity-mcp in the same project until the bridge and tool permissions are compared."
+
+  unreal-mcp-chir24:
+    owner: ChiR24/Unreal_mcp
+    source_repository: https://github.com/ChiR24/Unreal_mcp
+    host: unreal
+    integration: external_editor_bridge
+    state: alternative_not_coinstalled
+    conflicts_with: [unreal-engine-mcp]
+    notes: "Keep as a fallback only; the native Unreal 5.8 ModelContextProtocol endpoint is the selected transport for CI-MetaHuman."
+
+  blender-official:
+    owner: Blender Foundation
+    source_documentation: https://www.blender.org/lab/mcp-server/
+    host: blender
+    integration: official_mcp_server
+    state: optional_experimental
+    conflicts_with: [blender]
+    notes: "Do not run two Blender MCP bridges against the same Blender process. The selected local bridge is ahujasid/mcp-for-blender."
