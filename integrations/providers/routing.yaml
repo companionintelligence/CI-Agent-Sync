@@ -41,6 +41,18 @@ routes:
     health: /api/health
     mcp: /api/mcp
 
+  # Local coding pool: the Companion Hub's OpenAI-compatible surface, which
+  # spreads requests across the tailnet pool. The inference key comes from
+  # 1Password (agent-configs-companion-hub-inference) and is never printed.
+  hub_pool:
+    primary: companion-hub-inference
+    endpoint_env: COMPANION_HUB_BASE_URL
+    endpoint_path: /api/inference/v1
+    credential: COMPANION_HUB_INFERENCE_API_KEY
+    clients: [opencode, codex, aider-desk, pi]
+    health: /api/inference/v1/models
+    notes: "Name models by Ollama tag (qwen3.5:4b), not catalog id (qwen3-5-4b): catalog ids return 502. Qwen 3.5 needs reasoning_effort none to return content. Chat completions currently answer without a key; enforce it before wider use. See docs/local-coding-pool.md."
+
   remote_providers:
     candidates: [anthropic, openai, openrouter]
     selection: explicit_client_or_gateway_policy
@@ -55,11 +67,11 @@ client_policy:
   hermes: [local, gateway, remote_providers]
   openclaw: [local, gateway, appliance_memory]
   claude: [gateway, remote_providers, appliance_memory]
-  codex: [local, gateway, remote_providers, appliance_memory]
-  opencode: [local, gateway, remote_providers]
+  codex: [hub_pool, local, gateway, remote_providers, appliance_memory]
+  opencode: [hub_pool, local, gateway, remote_providers]
+  aider-desk: [hub_pool, local, remote_providers]
+  pi: [hub_pool, local, remote_providers]
   vscode: [gateway, remote_providers, appliance_memory]
-  aider-desk: [local, remote_providers]
-  pi: [local, remote_providers]
   chatgpt: [hosted_chatgpt]
 
 health_rules:
@@ -68,6 +80,10 @@ health_rules:
     success_status: 200
     warning_status: 401
     warning: access key is missing or not supplied; routing is not operational
+  - id: hub-pool-inventory
+    endpoint: /api/inference/v1/models
+    success_status: 200
+    warning: the pool catalog is unreachable; check the Hub on the chosen node before routing coding work to it
   - id: memory-reachable
     endpoint: /api/health
     success_status: 200
