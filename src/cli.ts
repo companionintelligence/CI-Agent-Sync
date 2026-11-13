@@ -8,6 +8,7 @@ import { conformanceCommand, harnessSmokeCommand } from "./diagnostics.ts";
 import { startAtlas } from "./atlas-web.ts";
 import { createBackup, renderArtifacts } from "./operations.ts";
 import { doctor } from "./doctor.ts";
+import { kvmCommand } from "./kvm.ts";
 import { profileCommand } from "./profile.ts";
 import { platformCommand } from "./platform.ts";
 import { validateStore } from "./validate.ts";
@@ -21,6 +22,7 @@ Usage:
   agentctl validate [--json]
   agentctl profile list|show NAME [--json]
   agentctl companion status|hub|memory|tui [options]
+  agentctl kvm status|targets|mcp <target> [options]
   agentctl conformance [--json] [--timeout SECONDS]
   agentctl harness-smoke [--json] [--live-local] [--agent NAME] [--timeout SECONDS]
   agentctl platform preflight|evidence [--json] [--strict] [--output PATH]
@@ -90,6 +92,7 @@ async function agentctlCommand(args: string[]): Promise<number> {
     case "profiles": return profileCommand(args);
     case "skills": return skillsCommand(args);
     case "companion": return companionCommand(args);
+    case "kvm": return kvmCommand(args);
     case "tui": return companionCommand(["tui", ...args]);
     case "backup": return parseBackup(args);
     case "render": return parseRender(args);

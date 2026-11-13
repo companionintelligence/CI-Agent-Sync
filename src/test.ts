@@ -1,10 +1,47 @@
 import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { ROOT, fileExists, readText, redactSecrets, runCommand, runCommandAsync, safeDetail } from "./core.ts";
+import { classifyNanoKvmMcp, classifyProduct, envName, loadKvmTargets, mcpSnippet, nanoKvmKeyEnv, rowStatus } from "./kvm.ts";
 import { summarizeTailscaleStatus } from "./platform.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
+}
+
+function kvmChecks(): void {
+  // MCP classification follows the HTTP status of /api/mcp on NanoKVM firmware.
+  assert(classifyNanoKvmMcp(401) === "enabled_auth_required", "401 from /api/mcp must mean MCP is on and keyed");
+  assert(classifyNanoKvmMcp(200) === "enabled_unauthenticated", "200 without a key must be flagged, not treated as safe");
+  assert(classifyNanoKvmMcp(403) === "disabled_or_blocked", "403 must not look like an enabled MCP");
+  assert(classifyNanoKvmMcp(404) === "not_in_firmware", "404 must point at firmware, not at a keyed MCP");
+  assert(classifyNanoKvmMcp(null) === "not_reachable" && classifyNanoKvmMcp(500) === "unexpected", "unknown answers must not be guessed");
+  // Product detection: the NanoKVM title wins, PiKVM is recognised by its login redirect or API auth.
+  assert(classifyProduct({ rootStatus: 200, rootTitle: "NanoKVM" }) === "nanokvm", "NanoKVM title not recognised");
+  assert(classifyProduct({ rootStatus: 302, redirectsToLogin: true }) === "pikvm", "PiKVM login redirect not recognised");
+  assert(classifyProduct({ rootStatus: 200, apiInfoStatus: 401 }) === "pikvm", "PiKVM API 401 not recognised");
+  assert(classifyProduct({ rootStatus: null }) === "unreachable", "a silent device must not be reported as a product");
+  // Status: excluded or unreachable devices are never reported as ready.
+  assert(rowStatus({ enabled: true, product: "nanokvm", mcp: "enabled_auth_required", model: "nanokvm" }).status === "ok", "keyed NanoKVM MCP should be ok");
+  assert(rowStatus({ enabled: true, product: "nanokvm", mcp: "enabled_unauthenticated", model: "nanokvm" }).status === "warn", "open MCP must warn");
+  assert(rowStatus({ enabled: true, product: "nanokvm", mcp: "disabled_or_blocked", model: "nanokvm" }).status === "warn", "disabled MCP must warn");
+  assert(rowStatus({ enabled: false, product: "unreachable", mcp: "not_reachable", model: "nanokvm" }).status === "skipped", "disabled targets must be skipped");
+  assert(envName("core-14-kvm") === "CORE_14_KVM" && nanoKvmKeyEnv("core-14-kvm") === "NANOKVM_CORE_14_KVM_API_KEY", "env naming drifted");
+
+  // Every probed NanoKVM that may be driven has a 1Password env line, and nothing excluded does.
+  const targets = loadKvmTargets().targets;
+  const envFile = readText("integrations/kvm/op.env.example");
+  for (const [name, spec] of Object.entries(targets)) {
+    assert(["nanokvm", "pikvm"].includes(spec.model), `${name} has an unknown model`);
+    if (spec.model === "nanokvm" && !spec.excluded_from_mcp) assert(envFile.includes(`${nanoKvmKeyEnv(name)}=op://Agent Configs/agent-configs-kvm-${name}/credential`), `${name} has no 1Password key line`);
+    if (spec.excluded_from_mcp) assert(!envFile.includes(nanoKvmKeyEnv(name)), `${name} is excluded from MCP but has a key line`);
+  }
+  const snippet = mcpSnippet("core-14-kvm", targets["core-14-kvm"], "https");
+  assert(snippet.includes("${NANOKVM_CORE_14_KVM_API_KEY}") && snippet.includes("https://core-14-kvm/api/mcp"), "MCP snippet must use an env placeholder and the device endpoint");
+  assert(!/Bearer\s+[A-Za-z0-9]{12,}/.test(snippet), "MCP snippet must never contain a literal key");
+
+  // Operator decisions from the fleet roster stay enforced in the sync targets.
+  const fleetTargets = readText("integrations/fleet/targets.yaml");
+  assert(!/^\s{2}ci-core:/m.test(fleetTargets), "ci-core (bdc-core) was removed by operator decision and must stay removed");
 }
 
 async function main(): Promise<void> {
@@ -18,6 +55,7 @@ async function main(): Promise<void> {
   assert(timeoutProbe.timedOut && timeoutProbe.exitCode === null && timeoutProbe.errorCode === "ETIMEDOUT", "async command timeout did not fail closed");
   const outputProbe = await runCommandAsync(process.execPath, ["-e", "process.stdout.write('x'.repeat(70000))"], { cwd: ROOT, timeoutMs: 2_000, maxBuffer: 1_024 });
   assert(outputProbe.outputTruncated && outputProbe.exitCode === null && outputProbe.errorCode === "MAX_BUFFER", "async command output cap did not fail closed");
+  kvmChecks();
   assert(!safeDetail('{"apiKey":"not-for-output"}').includes("not-for-output"), "structured secret detail was not redacted");
   assert((redactSecrets({ apiKey: "not-for-output", status: "ok" }) as any).apiKey === "<redacted>", "structured payload secret was not redacted");
   const tailnet = summarizeTailscaleStatus({

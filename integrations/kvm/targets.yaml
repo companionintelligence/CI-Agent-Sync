@@ -1,0 +1,72 @@
+version: 1
+
+# IP-KVM dongles on the tailnet. Tailnet names are the identifiers; the
+# address of each device is resolved by Tailscale DNS and is not stored here.
+# `controls` is an inference from the naming convention (<node>-kvm) and stays
+# unverified until someone confirms the cable-level mapping on the device.
+observed_at: "2026-11-12"
+
+policy:
+  probe_is_read_only: true        # agentctl kvm status issues GET only, with no credentials
+  credentials_in_1password: true  # one item per target: agent-configs-kvm-<target>, field `credential`
+  mcp_requires_review: true       # a registered MCP client gets device control; review before enabling
+  respect_operator_exclusions: true
+
+targets:
+  core-4-kvm:
+    model: nanokvm
+    controls: core-4
+    controls_verified: false
+    enabled: true
+    notes: "Reports hostname core-4-kvm on the tailnet. Web on HTTP only; /api/mcp answers 403 (MCP off or blocked)."
+
+  core-5-kvm:
+    model: nanokvm
+    controls: core-5
+    controls_verified: false
+    enabled: true
+    excluded_from_mcp: true
+    notes: "core-5 host key changed; administration is blocked until the host identity is reviewed. The 2026-09-09 fleet notes say this box's hostname can answer as core-5, so match by name, not hostname alone."
+
+  core-7-kvm:
+    model: nanokvm
+    controls: core-7
+    controls_verified: false
+    enabled: true
+    excluded_from_mcp: true
+    notes: "core-7 is an explicit operator exclusion. /api/mcp answers 401 over HTTP, so MCP is on. Do not give it a client until the exclusion is lifted."
+
+  core-14-kvm:
+    model: nanokvm
+    controls: core-14
+    controls_verified: false
+    enabled: true
+    notes: "HTTPS only (HTTP redirects). /api/mcp answers 401 over HTTPS, so MCP is on. The earlier memory note that tied 100.105.166.78 to fzzy is stale; this name is the live one."
+
+  core-17-kvm:
+    model: nanokvm
+    controls: core-17
+    controls_verified: false
+    enabled: true
+    notes: "Web on HTTP; /api/mcp answers 403. core-17's disk was at 97% on 2026-11-11."
+
+  beta-ms-a2-kvm:
+    model: nanokvm
+    controls: beta-ms-a2
+    controls_verified: false
+    enabled: true
+    notes: "Web on HTTP; /api/mcp answers 403."
+
+  beta-kvm-1:
+    model: pikvm
+    controls: unknown
+    controls_verified: false
+    enabled: true
+    notes: "PiKVM. HTTP redirects to HTTPS /login; /api/info answers 401 without credentials."
+
+  beta-kvm-2:
+    model: pikvm
+    controls: unknown
+    controls_verified: false
+    enabled: true
+    notes: "PiKVM. Same behaviour as beta-kvm-1. Tagged as `liam.broza` on the tailnet, not `tagged-devices`."
