@@ -43,6 +43,16 @@ targets:
     role: hub_and_inference
     credential_namespace: beta-max
 
+  core-2:
+    kind: core
+    tailscale_name: core-2
+    base_url: http://core-2:5002
+    enabled: true
+    verified: true
+    role: hub_and_inference
+    credential_namespace: core-2
+    notes: "Re-added to the active roster on 2026-11-11 after the 2026-10-12 LAN fault. Read-only probe on 2026-11-12: Hub live 200, pool identify poolProtocol=2, Ollama reachable."
+
   core-3:
     kind: core
     tailscale_name: core-3
@@ -145,11 +155,20 @@ targets:
     role: excluded
     reason: Explicit operator exclusion from the current repair pass.
 
-  ci-core:
+  core-10:
     kind: core
-    tailscale_name: ci-core
-    base_url: http://ci-core:5002
+    tailscale_name: ci
+    base_url: http://ci:5002
     enabled: false
     verified: false
-    role: expired
-    reason: Tailscale node key expired during the audit.
+    role: candidate
+    reason: "Tailscale name ci (100.87.68.116), not core-2. Registered with Portal but not claimed; offline on the 2026-11-11 tailnet scan. Needs cihub claim once reachable."
+
+  bazzite:
+    kind: core
+    tailscale_name: bazzite
+    base_url: http://bazzite:5002
+    enabled: false
+    verified: false
+    role: candidate
+    reason: "Tagged tag:ci-server, added to the roster 2026-11-11. Hardware and Hub state unmeasured; SSH on port 22 timed out during the probe."
