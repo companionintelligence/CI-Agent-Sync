@@ -68,6 +68,21 @@ routing deterministic.
 last is unreachable). Coder models are also on several nodes: `qwen3-coder:30b`
 on five nodes, `qwen2.5-coder:7b` on beta-red and beta-nas.
 
+## pi-web on the fleet (2026-11-13)
+
+pi-web (`pi-web_ci-marketplace-pi-web-1` on the laptop, `http://127.0.0.1:30141`)
+now defaults to the fleet pool: provider `fleet`, model `qwen3-coder:30b`. The
+earlier default, `cihub` (`qwen3.8:27b` on the laptop Hub), returns empty answers
+because the model reasons and pi-web does not send `reasoning_effort: none`. That
+provider is still configured as a second option.
+
+The container reaches the fleet through a loopback forwarder on the Mac:
+`~/.local/bin/fleet-pool-forward.py` listens on `127.0.0.1:15002` and forwards to
+`beta-max:5002` over the tailnet. It runs as the LaunchAgent
+`com.companionintelligence.fleet-pool-forward`. The container uses the Docker
+Desktop host gateway `192.168.65.254:15002`, because `host.docker.internal`
+resolves to a different address that refuses the connection.
+
 ## Capacity (measured 2026-11-12)
 
 Each node ran a 160-token coding prompt on its coder model.
