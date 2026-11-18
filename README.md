@@ -39,6 +39,7 @@ identity remain local to each app.
 | Use a terminal menu | `./bin/agentctl companion tui` | Launches a small read-oriented TUI for Hub, Memory, readiness, and backup |
 | Check the fleet | `./bin/agentctl fleet smoke --json --strict` | Verifies Tailscale and Hub liveness for named targets |
 | Set up NanoKVM MCP | `./scripts/setup-nanokvm-mcp.sh` | Adds the six KVM servers to Claude Code and Codex CLI while keeping API keys local |
+| Manage Android MCP connectors | `./scripts/setup-android-mcp.sh status` | Shows each device's 1Password token and Claude Code connector. See [docs/android-mcp.md](docs/android-mcp.md) |
 | Check the IP-KVM dongles | `./bin/agentctl kvm status` | GET-only probe of NanoKVM and PiKVM MCP readiness. See [docs/kvm-mcp.md](docs/kvm-mcp.md) |
 | Local coding pool status | [docs/local-coding-pool.md](docs/local-coding-pool.md) | Hub pool route for coding agents, and what still blocks it |
 | Preflight the whole platform | `./bin/agentctl platform preflight --json` | Read-only repo, provider, service, 1Password, Tailscale, and promotion evidence |
