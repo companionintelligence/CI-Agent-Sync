@@ -109,6 +109,22 @@ providers:
     keychain_service: agent-configs/android-mcp
     primary_clients: [claude, codex, opencode, vscode, hermes, openclaw, antigravity]
 
+  android-mcp-beam-pro:
+    env: ANDROID_MCP_TOKEN_BEAM_PRO
+    primary_clients: [claude]
+
+  android-mcp-beam-pro-1:
+    env: ANDROID_MCP_TOKEN_BEAM_PRO_1
+    primary_clients: [claude]
+
+  android-mcp-tab-s8-ultra:
+    env: ANDROID_MCP_TOKEN_TAB_S8_ULTRA
+    primary_clients: [claude]
+
+  android-mcp-tab-s9-ultra:
+    env: ANDROID_MCP_TOKEN_TAB_S9_ULTRA
+    primary_clients: [claude]
+
   cloudflare:
     aliases: [wrangler, cloudflare-deploy]
     env: CLOUDFLARE_API_TOKEN
