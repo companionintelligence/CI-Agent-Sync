@@ -20,7 +20,7 @@ export CI_VIDEO_OUT="${CI_VIDEO_OUT:-$HOME/Movies/CI-Product-Videos}"
 ```
 
 The checkout layout may differ. On the current machine,
-`CI_ENGINEERING_ROOT` is `/Users/liam/devel/ci/0-HUB/CI-Engineering`; use the
+`CI_ENGINEERING_ROOT` is `/Users/<user>/devel/ci/0-HUB/CI-Engineering`; use the
 machine overlay rather than encoding that path in shared config.
 
 - **CI-Brand-Studio** is the planning and approval surface: brand context,

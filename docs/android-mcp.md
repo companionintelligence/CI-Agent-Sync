@@ -16,10 +16,12 @@ from 1Password, through `scripts/setup-android-mcp.sh`.
 
 | Slug | Connector | Tailnet host |
 | --- | --- | --- |
-| `beam-pro` | `android-beam-pro` | `beam-pro.capybara-ulmer.ts.net` |
-| `beam-pro-1` | `android-beam-pro-1` | `beam-pro-1.capybara-ulmer.ts.net` |
-| `tab-s8-ultra` | `android-tab-s8-ultra` | `liams-tab-s8-ultra.capybara-ulmer.ts.net` |
-| `tab-s9-ultra` | `android-tab-s9-ultra` | `galaxy-tab-s9-ultra.capybara-ulmer.ts.net` |
+| `beam-pro` | `android-beam-pro` | `beam-pro.<tailnet>` |
+| `beam-pro-1` | `android-beam-pro-1` | `beam-pro-1.<tailnet>` |
+| `tab-s8-ultra` | `android-tab-s8-ultra` | `<tab-s8-ultra-host>.<tailnet>` |
+| `tab-s9-ultra` | `android-tab-s9-ultra` | `<tab-s9-ultra-host>.<tailnet>` |
+
+`<tailnet>` stands for your tailnet DNS suffix. Set `CI_TAILNET_DNS_SUFFIX` to it, for example `example-tailnet.ts.net`, and each tablet resolves as its label plus that suffix. A tablet whose tailnet name differs from its label takes `ANDROID_HOST_<SLUG>`, set to the label or the full name, for example `ANDROID_HOST_TAB_S8_ULTRA=<its-tailnet-name>`.
 
 The per-device references are listed in `providers/onepassword.yaml`
 (`android-mcp-<slug>`). Items use the API Credential type with the

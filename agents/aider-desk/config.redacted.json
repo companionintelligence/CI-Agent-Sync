@@ -1,5 +1,5 @@
 {
-  "userId": "b77cd95a-2f6d-4a0b-b6e0-cc2e74a2188c",
+  "userId": "<redacted>",
   "settings": {
     "language": "en",
     "startupMode": "empty",
@@ -263,7 +263,7 @@
   ],
   "openProjects": [
     {
-      "baseDir": "/Users/liam/devel/ci/CI-App-Store",
+      "baseDir": "/Users/<user>/devel/ci/CI-App-Store",
       "settings": {
         "mainModel": "omlx-local/Qwen3.8-27B-oQ4e-fp16-mtp",
         "modelEditFormats": {},

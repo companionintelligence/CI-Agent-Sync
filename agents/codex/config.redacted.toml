@@ -1,6 +1,6 @@
 model = "gpt-5.6-luna"
 model_reasoning_effort = "xhigh"
-notify = ["/Users/liam/.codex/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient", "turn-ended"]
+notify = ["/Users/<user>/.codex/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient", "turn-ended"]
 sandbox_mode = "danger-full-access"
 service_tier = "default"
 personality = "pragmatic"
@@ -10,11 +10,11 @@ approval_policy = "never"
 
 [mcp_servers.gog]
 command = "gog"
-args = ["--account", "liam.broza@gmail.com", "--gmail-no-send", "mcp", "--allow-write"]
+args = ["--account", "<account-email>", "--gmail-no-send", "mcp", "--allow-write"]
 
 [mcp_servers.gog-lifescope]
 command = "gog"
-args = ["--account", "liam@lifescope.io", "--gmail-no-send", "mcp", "--allow-write"]
+args = ["--account", "<account-email>", "--gmail-no-send", "mcp", "--allow-write"]
 
 [mcp_servers.playwright]
 command = "npx"
@@ -31,13 +31,13 @@ url = "https://ai.metricool.com/mcp"
 
 [mcp_servers.social]
 command = "zsh"
-args = ["-lc", "cd /Users/liam/devel/ci/CI-Marketing && exec node dist/mcp-server.js"]
+args = ["-lc", "cd /Users/<user>/devel/ci/CI-Marketing && exec node dist/mcp-server.js"]
 
 [mcp_servers.social.env]
-CI_SOCIAL_TOOLS_BIN = "/Users/liam/devel/ci/CI-Marketing/dist/mcp-server.js"
+CI_SOCIAL_TOOLS_BIN = "/Users/<user>/devel/ci/CI-Marketing/dist/mcp-server.js"
 
 [mcp_servers.McpPlugin]
-command = "/Users/liam/devel/ci/xr/CI-Unity-XR/Library/mcp-server/osx-arm64/unity-mcp-server"
+command = "/Users/<user>/devel/ci/xr/CI-Unity-XR/Library/mcp-server/osx-arm64/unity-mcp-server"
 args = ["--port=51360", "--plugin-timeout=10000", "--client-transport=stdio"]
 enabled = false
 
@@ -59,8 +59,8 @@ startup_timeout_sec = 120
 NODE_REPL_NATIVE_PIPE_CONNECT_TIMEOUT_MS = "1000"
 NODE_REPL_NODE_MODULE_DIRS = "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules"
 NODE_REPL_NODE_PATH = "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node"
-NODE_REPL_TRUSTED_CODE_PATHS = "/Users/liam/.codex:/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules"
-CODEX_HOME = "/Users/liam/.codex"
+NODE_REPL_TRUSTED_CODE_PATHS = "/Users/<user>/.codex:/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules"
+CODEX_HOME = "/Users/<user>/.codex"
 BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab,mcpapps"
 BROWSER_USE_TINYSKY_ENABLED = "1"
 NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = ""
@@ -68,8 +68,8 @@ NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = ""
 NODE_REPL_INSTRUCTIONS_USE_CASE_COMPUTER_USE = ""
 BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
 BROWSER_USE_CODEX_APP_VERSION = "26.1021.31345"
-NODE_REPL_TRUSTED_SERVICES = '{"browser":"/Users/liam/.codex/plugins/cache/openai-bundled/browser/26.1021.31345/scripts/browser-service.mjs","sky":"@oai/sky/service"}'
-SKY_CUA_SERVICE_PATH = "/Users/liam/.codex/computer-use/Codex Computer Use.app"
+NODE_REPL_TRUSTED_SERVICES = '{"browser":"/Users/<user>/.codex/plugins/cache/openai-bundled/browser/26.1021.31345/scripts/browser-service.mjs","sky":"@oai/sky/service"}'
+SKY_CUA_SERVICE_PATH = "/Users/<user>/.codex/computer-use/Codex Computer Use.app"
 CODEX_CLI_PATH = "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"
 
 [mcp_servers.computer-use]
@@ -83,103 +83,103 @@ url = "https://mcp.sentry.dev/mcp"
 
 [mcp_servers.ci-common]
 command = "node"
-args = ["/Users/liam/devel/ci/CI-Common/apps/dashboard/mcp.mjs", "--start"]
+args = ["/Users/<user>/devel/ci/CI-Common/apps/dashboard/mcp.mjs", "--start"]
 
 [mcp_servers.ci-common.env]
-CI_WORKSPACE = "/Users/liam/devel/ci"
+CI_WORKSPACE = "/Users/<user>/devel/ci"
 
 [mcp_servers.ci-engineering]
 command = "node"
-args = ["/Users/liam/devel/ci/0-HUB/CI-Engineering/tools/mcp-server.mjs", "--start"]
+args = ["/Users/<user>/devel/ci/0-HUB/CI-Engineering/tools/mcp-server.mjs", "--start"]
 
 [mcp_servers.ci-engineering.env]
-CI_WORKSPACE = "/Users/liam/devel/ci"
+CI_WORKSPACE = "/Users/<user>/devel/ci"
 
-[projects."/Users/liam/devel"]
+[projects."/Users/<user>/devel"]
 trust_level = "trusted"
 
-[projects."/Users/liam"]
+[projects."/Users/<user>"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/ci/ci-os"]
+[projects."/Users/<user>/devel/ci/ci-os"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/ci/CI-Server"]
+[projects."/Users/<user>/devel/ci/CI-Server"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/ci/CI-OS-Hub"]
+[projects."/Users/<user>/devel/ci/CI-OS-Hub"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/ci/CI-App-Store"]
+[projects."/Users/<user>/devel/ci/CI-App-Store"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/ci/CI-OS"]
+[projects."/Users/<user>/devel/ci/CI-OS"]
 trust_level = "trusted"
 
-[projects."/Users/liam/Documents/Liam_Plan"]
+[projects."/Users/<user>/Documents/Liam_Plan"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/clients/LITA/lita-admin"]
+[projects."/Users/<user>/devel/clients/LITA/lita-admin"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/personal/ai-todo-static"]
+[projects."/Users/<user>/devel/personal/ai-todo-static"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/LITA"]
+[projects."/Users/<user>/devel/LITA"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/personal/ci-social-tools"]
+[projects."/Users/<user>/devel/personal/ci-social-tools"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/3d/8th-scan"]
+[projects."/Users/<user>/devel/3d/8th-scan"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/3d/animation-library-master"]
+[projects."/Users/<user>/devel/3d/animation-library-master"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/3d/browser-sharp"]
+[projects."/Users/<user>/devel/3d/browser-sharp"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/lifescope"]
+[projects."/Users/<user>/devel/lifescope"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/ci"]
+[projects."/Users/<user>/devel/ci"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/clients/tortai"]
+[projects."/Users/<user>/devel/clients/tortai"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/ci/CI-Hub"]
+[projects."/Users/<user>/devel/ci/CI-Hub"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/ci/CI-Marketplace"]
+[projects."/Users/<user>/devel/ci/CI-Marketplace"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/ci/CI-Browser-Extension"]
+[projects."/Users/<user>/devel/ci/CI-Browser-Extension"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/mcp-config-backup/claude"]
+[projects."/Users/<user>/devel/mcp-config-backup/claude"]
 trust_level = "trusted"
 
-[projects."/Users/liam/Documents"]
+[projects."/Users/<user>/Documents"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/3d/CI-Web-XR-Scan"]
+[projects."/Users/<user>/devel/3d/CI-Web-XR-Scan"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/ci/Companion-Planning"]
+[projects."/Users/<user>/devel/ci/Companion-Planning"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/ci/CI-Import-Tools"]
+[projects."/Users/<user>/devel/ci/CI-Import-Tools"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/ci/CI-Spatial-Atlas"]
+[projects."/Users/<user>/devel/ci/CI-Spatial-Atlas"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/ci/CI-Portal"]
+[projects."/Users/<user>/devel/ci/CI-Portal"]
 trust_level = "trusted"
 
-[projects."/Users/liam/devel/ci/Companion-Memory"]
+[projects."/Users/<user>/devel/ci/Companion-Memory"]
 trust_level = "trusted"
 
 [features]
@@ -261,11 +261,11 @@ enabled = true
 
 [marketplaces.openai-bundled]
 source_type = "local"
-source = "/Users/liam/.codex/.tmp/bundled-marketplaces/openai-bundled"
+source = "/Users/<user>/.codex/.tmp/bundled-marketplaces/openai-bundled"
 
 [marketplaces.openai-primary-runtime]
 source_type = "local"
-source = "/Users/liam/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
+source = "/Users/<user>/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
 
 [desktop]
 preventSleepWhileRunning = true
@@ -288,9 +288,9 @@ appearanceTheme = "system"
 global = "iterm2"
 
 [desktop.open-in-target-preferences.perPath]
-"/Users/liam/devel/ci/sandbox/screenpipe" = "vscode"
-"/Users/liam/devel/3d/CI-Web-XR-Scan" = "vscode"
-"/Users/liam/devel/ci/CI-Server" = "iterm2"
+"/Users/<user>/devel/ci/sandbox/screenpipe" = "vscode"
+"/Users/<user>/devel/3d/CI-Web-XR-Scan" = "vscode"
+"/Users/<user>/devel/ci/CI-Server" = "iterm2"
 
 [desktop.appearanceDarkChromeTheme]
 accent = "#bb0000"

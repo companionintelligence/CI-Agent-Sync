@@ -16,8 +16,8 @@
       "Bash(npm outdated:*)",
       "Bash(npm audit:*)",
       "Bash(npm update:*)",
-      "Bash(git -C /Users/liam/devel/ci/CI-Earth-2 log --oneline -3)",
-      "Bash(git -C /Users/liam/devel/ci/CI-Earth-2 status -sb)",
+      "Bash(git -C /Users/<user>/devel/ci/CI-Earth-2 log --oneline -3)",
+      "Bash(git -C /Users/<user>/devel/ci/CI-Earth-2 status -sb)",
       "mcp__Claude_Browser__navigate",
       "mcp__Claude_Browser__read_page",
       "mcp__Claude_Browser__find",
@@ -37,7 +37,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/liam/.config/iterm2/cc-status"
+            "command": "/Users/<user>/.config/iterm2/cc-status"
           }
         ]
       }
@@ -47,7 +47,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/liam/.config/iterm2/cc-status"
+            "command": "/Users/<user>/.config/iterm2/cc-status"
           }
         ]
       }
@@ -57,7 +57,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/liam/.config/iterm2/cc-status"
+            "command": "/Users/<user>/.config/iterm2/cc-status"
           }
         ]
       }
@@ -67,7 +67,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/liam/.config/iterm2/cc-status"
+            "command": "/Users/<user>/.config/iterm2/cc-status"
           }
         ]
       }
@@ -77,7 +77,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/liam/.config/iterm2/cc-status"
+            "command": "/Users/<user>/.config/iterm2/cc-status"
           }
         ]
       }
@@ -87,7 +87,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/liam/.config/iterm2/cc-status"
+            "command": "/Users/<user>/.config/iterm2/cc-status"
           }
         ]
       }
@@ -97,7 +97,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/liam/.config/iterm2/cc-status"
+            "command": "/Users/<user>/.config/iterm2/cc-status"
           }
         ]
       }
@@ -107,7 +107,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/liam/.config/iterm2/cc-status"
+            "command": "/Users/<user>/.config/iterm2/cc-status"
           }
         ]
       }
@@ -117,7 +117,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/liam/.config/iterm2/cc-status"
+            "command": "/Users/<user>/.config/iterm2/cc-status"
           }
         ]
       }
@@ -127,7 +127,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/liam/.config/iterm2/cc-status"
+            "command": "/Users/<user>/.config/iterm2/cc-status"
           }
         ]
       }

@@ -12,7 +12,7 @@ Companion Intelligence is layered as:
 `Capture → Portal/Gateway → Server (memory brain) ← Hub (app runtime) ← Marketplace`
 
 Use the repository map and each repository's `AGENTS.md` as the source of
-truth. The main working area is `/Users/liam/devel/ci`; each repository below
+truth. The main working area is `/Users/<user>/devel/ci`; each repository below
 it is an independent Git checkout.
 
 For marketing work, preserve this flow:

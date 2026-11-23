@@ -78,7 +78,7 @@ agent:
 terminal:
   backend: local
   modal_mode: auto
-  cwd: "/Users/liam/.openclaw/workspace"
+  cwd: "/Users/<user>/.openclaw/workspace"
   timeout: 180
   env_passthrough: []
   shell_init_files: []

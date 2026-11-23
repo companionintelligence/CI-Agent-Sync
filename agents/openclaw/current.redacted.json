@@ -14,7 +14,7 @@
       "subagents": {
         "maxConcurrent": 8
       },
-      "workspace": "/Users/liam/.openclaw/workspace"
+      "workspace": "/Users/<user>/.openclaw/workspace"
     },
     "entries": {
       "main": {}
@@ -85,14 +85,14 @@
         "api": "openai-completions",
         "timeoutSeconds": 600,
         "localService": {
-          "command": "/Users/liam/.openclaw/tools/llama.cpp/b10809/darwin-arm64/llama-server",
+          "command": "/Users/<user>/.openclaw/tools/llama.cpp/b10809/darwin-arm64/llama-server",
           "args": [
             "--host",
             "127.0.0.1",
             "--port",
             "65039",
             "--models-preset",
-            "/Users/liam/.openclaw/tools/llama.cpp/models-e103a762-2be9-4f41-a078-6ca98c517c60.ini",
+            "/Users/<user>/.openclaw/tools/llama.cpp/models-e103a762-2be9-4f41-a078-6ca98c517c60.ini",
             "--models-max",
             "2",
             "--metrics",

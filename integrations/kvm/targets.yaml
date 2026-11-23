@@ -41,7 +41,7 @@ targets:
     controls: core-14
     controls_verified: false
     enabled: true
-    notes: "HTTPS only (HTTP redirects). /api/mcp answers 401 over HTTPS, so MCP is on. The earlier memory note that tied 100.105.166.78 to fzzy is stale; this name is the live one."
+    notes: "HTTPS only (HTTP redirects). /api/mcp answers 401 over HTTPS, so MCP is on. The earlier memory note that tied <tailnet-ip> to fzzy is stale; this name is the live one."
 
   core-17-kvm:
     model: nanokvm
@@ -69,4 +69,4 @@ targets:
     controls: unknown
     controls_verified: false
     enabled: true
-    notes: "PiKVM. Same behaviour as beta-kvm-1. Tagged as `liam.broza` on the tailnet, not `tagged-devices`."
+    notes: "PiKVM. Same behaviour as beta-kvm-1. Tagged with a personal tailnet login, not `tagged-devices`."

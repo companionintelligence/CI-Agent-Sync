@@ -98,6 +98,6 @@ tool-approval prompts on.
   autofill.
 - `controls` in `targets.yaml` is a naming inference (`<node>-kvm` controls
   `<node>`). Confirm it on each device before trusting it for a fleet action.
-- Tailnet identity drifts. `100.105.166.78` was once recorded as `fzzy`. It now
+- Tailnet identity drifts. `<tailnet-ip>` was once recorded as `fzzy`. It now
   answers as `core-14-kvm`. Match by tailnet name, and check the device's own
   hostname before acting.

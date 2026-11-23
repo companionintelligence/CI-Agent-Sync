@@ -6,6 +6,8 @@ the private API keys remain on the local machine.
 
 ## Set up Claude Code and Codex CLI
 
+`<tailnet>` stands for your tailnet DNS suffix. Export `CI_TAILNET_DNS_SUFFIX` with it, for example `example-tailnet.ts.net`, before you run the setup script. The NanoKVM URLs use the full name because each device's HTTPS certificate is issued for it.
+
 From the CI-Agent-Sync checkout, run:
 
 ```sh
@@ -43,17 +45,17 @@ The registered endpoints are:
 
 | Server | MCP endpoint |
 | --- | --- |
-| `nanokvm-beta-ms-a2-kvm` | `https://beta-ms-a2-kvm.capybara-ulmer.ts.net/api/mcp` |
-| `nanokvm-core-14-kvm` | `https://core-14-kvm.capybara-ulmer.ts.net/api/mcp` |
-| `nanokvm-core-17-kvm` | `https://core-17-kvm.capybara-ulmer.ts.net/api/mcp` |
-| `nanokvm-core-4-kvm` | `https://core-4-kvm.capybara-ulmer.ts.net/api/mcp` |
-| `nanokvm-core-5-kvm` | `https://core-5-kvm.capybara-ulmer.ts.net/api/mcp` |
-| `nanokvm-core-7-kvm` | `https://core-7-kvm.capybara-ulmer.ts.net/api/mcp` |
+| `nanokvm-beta-ms-a2-kvm` | `https://beta-ms-a2-kvm.<tailnet>/api/mcp` |
+| `nanokvm-core-14-kvm` | `https://core-14-kvm.<tailnet>/api/mcp` |
+| `nanokvm-core-17-kvm` | `https://core-17-kvm.<tailnet>/api/mcp` |
+| `nanokvm-core-4-kvm` | `https://core-4-kvm.<tailnet>/api/mcp` |
+| `nanokvm-core-5-kvm` | `https://core-5-kvm.<tailnet>/api/mcp` |
+| `nanokvm-core-7-kvm` | `https://core-7-kvm.<tailnet>/api/mcp` |
 
 NanoKVM MCP uses the `Authorization: Bearer <API-Key>` header. Generate and
 manage each device's key in its NanoKVM API configuration, following the
 [Sipeed NanoKVM MCP guide](https://wiki.sipeed.com/hardware/en/kvm/NanoKVM/mcp.html).
-The machine must be connected to the `capybara-ulmer.ts.net` tailnet for these
+The machine must be connected to the `<tailnet>` tailnet for these
 endpoints to resolve. Claude Code expands custom environment variables in
 remote MCP headers, and Codex CLI can read a bearer token from an environment
 variable; the wrappers supply those values at launch. See the
@@ -75,7 +77,7 @@ Tailscale DNS name:
 
 ```sh
 set -eu
-KVM_HOST=core-14-kvm.capybara-ulmer.ts.net
+KVM_HOST=core-14-kvm.${CI_TAILNET_DNS_SUFFIX}
 BACKUP_DIR=$(mktemp -d /root/nanokvm-tls-backup.XXXXXX)
 WORK_DIR=$(mktemp -d /etc/kvm/.nanokvm-tls.XXXXXX)
 cp -p /etc/kvm/server.crt "$BACKUP_DIR/server.crt"
@@ -106,7 +108,7 @@ Check the installed certificate's expiry with
 
 On Core 14, the original certificate had `CN=localhost` and only localhost/IP
 subject alternative names. Replacing it with a certificate for
-`core-14-kvm.capybara-ulmer.ts.net` and restarting NanoKVM fixed the HTTPS
+`core-14-kvm.<tailnet>` and restarting NanoKVM fixed the HTTPS
 verification error; `~/.local/bin/nanokvm-claude mcp list` then reported the
 server connected. An unauthenticated `curl` to `/api/mcp` returns `401 invalid
 MCP API key`; use the configured Claude or Codex client to verify the bearer

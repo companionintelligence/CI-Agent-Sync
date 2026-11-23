@@ -36,7 +36,7 @@ OAuth sessions, or app databases into this repository.
 
 Every client should receive the same short context in this order:
 
-1. `/Users/liam/devel/ci/AGENTS.md` and the target repository's own rules.
+1. `/Users/<user>/devel/ci/AGENTS.md` and the target repository's own rules.
 2. The provider policy in `integrations/providers/routing.yaml`.
 3. The relevant MCP entry in `integrations/mcp/registry.yaml`.
 4. The marketing workflow when the task touches Brand Studio, CI-Common,

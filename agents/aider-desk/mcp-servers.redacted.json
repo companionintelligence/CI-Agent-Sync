@@ -1,23 +1,23 @@
 {
   "mcpServers": {
     "ci-common": {
-      "command": "/Users/liam/.local/bin/node",
+      "command": "/Users/<user>/.local/bin/node",
       "args": [
-        "/Users/liam/devel/ci/CI-Common/apps/dashboard/mcp.mjs",
+        "/Users/<user>/devel/ci/CI-Common/apps/dashboard/mcp.mjs",
         "--start"
       ],
       "env": {
-        "CI_WORKSPACE": "/Users/liam/devel/ci"
+        "CI_WORKSPACE": "/Users/<user>/devel/ci"
       }
     },
     "ci-engineering": {
-      "command": "/Users/liam/.local/bin/node",
+      "command": "/Users/<user>/.local/bin/node",
       "args": [
-        "/Users/liam/devel/ci/0-HUB/CI-Engineering/tools/mcp-server.mjs",
+        "/Users/<user>/devel/ci/0-HUB/CI-Engineering/tools/mcp-server.mjs",
         "--start"
       ],
       "env": {
-        "CI_WORKSPACE": "/Users/liam/devel/ci"
+        "CI_WORKSPACE": "/Users/<user>/devel/ci"
       }
     },
     "metricool": {

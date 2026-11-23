@@ -4,7 +4,8 @@ version: 1
 # Tailscale DNS is the source of truth and can change between machines.
 observed_at: "2026-10-24"
 tailnet:
-  dns_suffix: capybara-ulmer.ts.net
+  # Placeholder: replace <tailnet> with your tailnet DNS suffix in a local copy. Nothing in this repository reads it.
+  dns_suffix: "<tailnet>"
   required: true
   health_path: /api/health/live
   hub_port: 5002
@@ -162,7 +163,7 @@ targets:
     enabled: false
     verified: false
     role: candidate
-    reason: "Tailscale name ci (100.87.68.116), not core-2. Registered with Portal but not claimed; offline on the 2026-11-11 tailnet scan. Needs cihub claim once reachable."
+    reason: "Tailscale name ci (<tailnet-ip>), not core-2. Registered with Portal but not claimed; offline on the 2026-11-11 tailnet scan. Needs cihub claim once reachable."
 
   bazzite:
     kind: core
@@ -171,4 +172,4 @@ targets:
     enabled: false
     verified: false
     role: candidate
-    reason: "Tagged tag:ci-server, added to the roster 2026-11-11. Hardware and Hub state unmeasured; SSH on port 22 timed out during the probe."
+    reason: "Tagged for the CI-server role, added to the roster 2026-11-11. Hardware and Hub state unmeasured; SSH on port 22 timed out during the probe."

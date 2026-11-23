@@ -1,5 +1,7 @@
 # Local coding pool and Companion Memory
 
+`<tailnet>` is your tailnet's DNS suffix and `<laptop>` is the laptop's tailnet name. Both are placeholders in this page.
+
 Goal: code locally with the models served by the fleet, through Companion Hub,
 with Companion Memory available to the same agents. This page records what
 works, what does not, and what needs a decision.
@@ -41,7 +43,7 @@ curl -s http://beta-max:5002/api/inference/v1/chat/completions \
 
 ### Pin (applied 2026-11-12)
 
-`cihub pool pin beta-1.capybara-ulmer.ts.net --model qwen3.5:4b --yes`, run on
+`cihub pool pin beta-1.<tailnet> --model qwen3.5:4b --yes`, run on
 `beta-max`. A pin is a preference. It reorders candidates and never forces a
 route, so when beta-1 cannot serve, the request goes to the next node. Undo with
 `cihub pool unpin --model qwen3.5:4b --yes`. The routing log marks pinned
@@ -108,12 +110,12 @@ Now:
 - **Nodes.** `tailnet-only-publish.service` (`/usr/local/sbin/tailnet-only-publish.sh`)
   hooks `DOCKER-USER`. NEW connections that arrive on a physical NIC are dropped
   unless their source is `100.64.0.0/10` (or `fd7a:115c:a1e0::/48` for IPv6). It
-  also drops the Cloudflare connector at `10.128.0.3`, which cuts the tunnel origin.
+  also drops the Cloudflare connector at `<connector-ip>`, which cuts the tunnel origin.
   Public hostnames answer 530. LAN requests to port 5002 and the Traefik dashboard
   time out, and the tailnet still reaches port 5002 on every node.
 - **Laptop.** `docker-compose.tailnet-only.yml` (repo root) binds the Hub API,
   Traefik, the Hub database and the queue to `127.0.0.1`. The Hub API is published
-  to the tailnet with `tailscale serve` at `https://liambook.capybara-ulmer.ts.net`,
+  to the tailnet with `tailscale serve` at `https://<laptop>.<tailnet>`,
   and SearXNG at `:8443`. The previous SearXNG container is kept stopped as
   `companion-studio-searxng-old`.
 

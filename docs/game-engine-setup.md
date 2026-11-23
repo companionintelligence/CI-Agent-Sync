@@ -67,7 +67,7 @@ native Unity entry already used on this workstation is:
 
 ```json
 {
-  "command": "C:\\Users\\hegem\\.local\\bin\\uvx.exe",
+  "command": "C:\\Users\\<user>\\.local\\bin\\uvx.exe",
   "args": ["--from", "mcpforunityserver==10.3.0", "mcp-for-unity", "--transport", "stdio"],
   "env": { "DISABLE_TELEMETRY": "true" }
 }
