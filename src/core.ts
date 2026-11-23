@@ -115,12 +115,21 @@ export function commandVersion(command: string, timeoutMs = 10_000): string | nu
   return result.exitCode === 0 ? firstLine?.trim() || null : null;
 }
 
+// Ruby reads this store's JSON and YAML using the locale's encoding, so a shell without a
+// UTF-8 locale makes it fail on the first non-ASCII byte. Every child process gets UTF-8.
+export function childEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
+  const current = process.env.RUBYOPT ?? "";
+  // A caller that already chose an encoding (-E) keeps its choice.
+  const rubyopt = /(^|\s)-E/.test(current) ? current : ["-Eutf-8", current].filter(Boolean).join(" ");
+  return { ...process.env, RUBYOPT: rubyopt, ...overrides };
+}
+
 export function runCommand(command: string, args: string[] = [], options: CommandOptions = {}): CommandResult {
   const startedAt = Date.now();
   try {
     const result = spawnSync(command, args, {
       cwd: options.cwd || ROOT,
-      env: { ...process.env, ...options.env },
+      env: childEnv(options.env),
       encoding: "utf8",
       timeout: options.timeoutMs || 30_000,
       maxBuffer: options.maxBuffer || 16 * 1024 * 1024,
@@ -177,7 +186,7 @@ export function runCommandAsync(command: string, args: string[] = [], options: C
 
     const child = spawn(command, args, {
       cwd: options.cwd || ROOT,
-      env: { ...process.env, ...options.env },
+      env: childEnv(options.env),
       stdio: ["ignore", "pipe", "pipe"],
       detached: process.platform !== "win32",
       windowsHide: true,
@@ -254,7 +263,7 @@ export function runCommandAsync(command: string, args: string[] = [], options: C
 }
 
 export function runInteractive(command: string, args: string[] = [], cwd = ROOT): number {
-  const result = spawnSync(command, args, { cwd, env: process.env, stdio: "inherit" });
+  const result = spawnSync(command, args, { cwd, env: childEnv(), stdio: "inherit" });
   return result.status ?? 1;
 }
 
