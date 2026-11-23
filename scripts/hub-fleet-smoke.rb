@@ -7,6 +7,7 @@
 require "json"
 require "net/http"
 require "optparse"
+require "time"
 require "timeout"
 require "uri"
 require "yaml"
@@ -97,7 +98,8 @@ summary["error"] ||= 0
 result = {
   "schema_version" => 1,
   "mode" => "read_only_anonymous_health",
-  "observed_at" => catalog.fetch("observed_at"),
+  "observed_at" => Time.now.utc.iso8601,
+  "roster_observed_at" => catalog.fetch("observed_at"),
   "summary" => summary,
   "checks" => checks,
   "targets" => selected.keys,
