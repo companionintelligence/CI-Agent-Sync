@@ -42,7 +42,6 @@ servers:
 
   ci-brand-studio:
     owner: companionintelligence/CI-Brand-Studio
-    source_repository: https://github.com/companionintelligence/CI-Brand-Studio
     transport: stdio
     command: node
     args: ["${CI_BRAND_STUDIO_ROOT}/asset-engine/apps/dashboard/mcp.mjs", --start]
@@ -54,7 +53,6 @@ servers:
 
   ci-engineering:
     owner: companionintelligence/CI-Engineering
-    source_repository: https://github.com/companionintelligence/CI-Engineering
     transport: stdio
     command: node
     args: ["${CI_ENGINEERING_ROOT}/tools/mcp-server.mjs", --start]

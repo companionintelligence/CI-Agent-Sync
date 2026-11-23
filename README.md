@@ -41,7 +41,7 @@ identity remain local to each app.
 | Set up NanoKVM MCP | `./scripts/setup-nanokvm-mcp.sh` | Adds the six KVM servers to Claude Code and Codex CLI while keeping API keys local. Set `CI_TAILNET_DNS_SUFFIX` first. |
 | Manage Android MCP connectors | `./scripts/setup-android-mcp.sh status` | Shows each device's 1Password token and Claude Code connector. See [docs/android-mcp.md](docs/android-mcp.md) |
 | Check the IP-KVM dongles | `./bin/agentctl kvm status` | GET-only probe of NanoKVM and PiKVM MCP readiness. See [docs/kvm-mcp.md](docs/kvm-mcp.md) |
-| Local coding pool status | [docs/local-coding-pool.md](docs/local-coding-pool.md) | Hub pool route for coding agents, and what still blocks it |
+| Local coding pool | [docs/local-coding-pool.md](docs/local-coding-pool.md) | Hub pool route for coding agents |
 | Preflight the whole platform | `./bin/agentctl platform preflight --json` | Read-only repo, provider, service, 1Password, Tailscale, and promotion evidence |
 | Save release evidence | `./bin/agentctl platform evidence --strict` | Writes a redacted, hash-addressed evidence bundle under ignored `local/evidence/` |
 | Audit Marketplace apps | `./bin/agentctl marketplace audit --strict` | Checks release tags, Hub/Memory wiring, and image pins |
@@ -418,8 +418,7 @@ Run a client with a provider credential injected only into that process:
 ```
 
 See [docs/audit-checklist.md](docs/audit-checklist.md) for the full review
-scope and [reports/2026-10-24-hermes-openclaw.md](reports/2026-10-24-hermes-openclaw.md)
-for the first completed phase. The portable setup and Companion Intelligence
+scope. The portable setup and Companion Intelligence
 repository map are in [docs/portable-setup.md](docs/portable-setup.md) and
 [repos/companionintelligence.yaml](repos/companionintelligence.yaml).
 
@@ -459,22 +458,9 @@ into Codex CLI, Hermes, OpenClaw, Claude, OpenCode, Aider Desk, Pi, Antigravity,
 and VS Code; ChatGPT can review or prepare work and then hand an approved
 command to a local harness.
 
-The latest fallback and cross-harness evidence is recorded in
-[reports/2026-10-24-fallbacks-history-test.md](reports/2026-10-24-fallbacks-history-test.md).
-The portable control-plane, OpenClaw repair, and live local-model evidence are
-recorded in
-[reports/2026-10-24-control-plane-hardening.md](reports/2026-10-24-control-plane-hardening.md).
-The current laptop, local Memory/Hub, Tailscale fleet, Cloudflare, and harness
-readiness review is recorded in
-[reports/2026-10-24-laptop-ceo-operator-review.md](reports/2026-10-24-laptop-ceo-operator-review.md).
-The internal MCP source review is in
-[reports/2026-10-24-internal-mcp-registry.md](reports/2026-10-24-internal-mcp-registry.md).
-
 For CI-Hub fleet work, use the plan-first policy in
 [integrations/fleet/pool-policy.yaml](integrations/fleet/pool-policy.yaml) and
-follow [docs/fleet-operations.md](docs/fleet-operations.md). The latest
-repair evidence is in
-[reports/2026-10-24-fleet-pool-repair.md](reports/2026-10-24-fleet-pool-repair.md).
+follow [docs/fleet-operations.md](docs/fleet-operations.md).
 
 For whole-platform and marketplace QA, select the `platform-qa` bundle and
 follow [workflows/platform-qa.md](workflows/platform-qa.md). It exposes the
@@ -486,9 +472,7 @@ confirmation before marketplace app-suite control. The per-node
 
 The mobile references are catalogued in
 [integrations/references.yaml](integrations/references.yaml). The Android
-remote-control MCP is deliberately opt-in and high-risk; the private Companion
-Scan document is stored as a link only, without importing its credentials or
-device-specific endpoints.
+remote-control MCP is deliberately opt-in and high-risk.
 
 <!-- companion-hub-readme-deep-review -->
 

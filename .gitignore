@@ -19,3 +19,5 @@ sync/targets.yaml
 node_modules/
 # Compiled control plane for the npm package; built by `npm run build:cli` (prepack).
 dist/
+# Personal editor snapshot, regenerated locally by the backup step; never published.
+agents/vscode/extensions.txt

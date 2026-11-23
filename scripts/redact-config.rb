@@ -41,10 +41,20 @@ def scrub(value, key = nil)
   end
 end
 
+# The auto-mode environment notes describe this machine's organization, repositories and
+# internal services, so snapshots keep the field but replace its notes with a placeholder.
+def redact_auto_mode(data)
+  auto_mode = data.is_a?(Hash) ? data["autoMode"] : nil
+  if auto_mode.is_a?(Hash) && auto_mode.key?("environment")
+    auto_mode["environment"] = ["<redacted: describe your own environment here>"]
+  end
+  data
+end
+
 raw = File.read(input)
 if File.extname(input).downcase == ".json"
   data = JSON.parse(raw)
-  File.write(output, anonymize(JSON.pretty_generate(scrub(data))) + "\n")
+  File.write(output, anonymize(JSON.pretty_generate(scrub(redact_auto_mode(data)))) + "\n")
 else
   data = YAML.safe_load(raw, aliases: true)
   File.write(output, anonymize(YAML.dump(scrub(data))))

@@ -17,7 +17,23 @@ end
 
 
 pattern = /((?:api[_-]?key|token|secret|password|credential|authorization|cookie|session[_-]?key|private[_-]?key|oauth|auth)[[:space:]]*[:=][[:space:]]*)([^,;[:space:]}]+|"[^"]*"|'[^']*')/i
-lines = File.readlines(input, chomp: true).map do |line|
+# Project tables and per-folder preferences name local folders, including personal and
+# client projects. They are local settings, so snapshots leave them out.
+source = File.readlines(input, chomp: true)
+kept = []
+skipping = false
+source.each do |line|
+  if line.start_with?("[projects.", "[desktop.open-in-target-preferences.perPath")
+    skipping = true
+    next
+  end
+  if skipping
+    next unless line.start_with?("[")
+    skipping = false
+  end
+  kept << line
+end
+lines = kept.map do |line|
   anonymize(line.gsub(pattern) { "#{$1}<redacted>" })
 end
 File.write(output, lines.join("\n") + "\n")

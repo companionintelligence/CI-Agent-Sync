@@ -95,93 +95,6 @@ args = ["/Users/<user>/devel/ci/0-HUB/CI-Engineering/tools/mcp-server.mjs", "--s
 [mcp_servers.ci-engineering.env]
 CI_WORKSPACE = "/Users/<user>/devel/ci"
 
-[projects."/Users/<user>/devel"]
-trust_level = "trusted"
-
-[projects."/Users/<user>"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/ci/ci-os"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/ci/CI-Server"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/ci/CI-OS-Hub"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/ci/CI-App-Store"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/ci/CI-OS"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/Documents/Liam_Plan"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/clients/LITA/lita-admin"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/personal/ai-todo-static"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/LITA"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/personal/ci-social-tools"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/3d/8th-scan"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/3d/animation-library-master"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/3d/browser-sharp"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/lifescope"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/ci"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/clients/tortai"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/ci/CI-Hub"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/ci/CI-Marketplace"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/ci/CI-Browser-Extension"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/mcp-config-backup/claude"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/Documents"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/3d/CI-Web-XR-Scan"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/ci/Companion-Planning"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/ci/CI-Import-Tools"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/ci/CI-Spatial-Atlas"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/ci/CI-Portal"]
-trust_level = "trusted"
-
-[projects."/Users/<user>/devel/ci/Companion-Memory"]
-trust_level = "trusted"
-
 [features]
 multi_agent = true
 js_repl = false
@@ -286,11 +199,6 @@ appearanceTheme = "system"
 
 [desktop.open-in-target-preferences]
 global = "iterm2"
-
-[desktop.open-in-target-preferences.perPath]
-"/Users/<user>/devel/ci/sandbox/screenpipe" = "vscode"
-"/Users/<user>/devel/3d/CI-Web-XR-Scan" = "vscode"
-"/Users/<user>/devel/ci/CI-Server" = "iterm2"
 
 [desktop.appearanceDarkChromeTheme]
 accent = "#bb0000"

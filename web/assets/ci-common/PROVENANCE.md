@@ -5,7 +5,7 @@ This directory is a checked-in, hash-verified subset of the published
 
 | Item | Value |
 | --- | --- |
-| Source repository | `https://github.com/companionintelligence/CI-Common` |
+| Source repository | CI-Common (organization repository) |
 | Release | `@companionintelligence/tokens@1.6.0` |
 | Bundle | `ci-brand-1.6.0.tar.gz` |
 | Bundle SHA-256 | `c863698f909deb848ba7ef2cde42858f7f325da9e90900130efe1d0cbdb05021` |

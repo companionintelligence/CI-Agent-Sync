@@ -118,7 +118,3 @@ repositories:
     package_manager: mixed
 
 excluded:
-  - name: CompanionHub
-    reason: legacy private repository; use Companion-Hub
-  - name: ZARCHIVED-Ci-Hub-Private-History
-    reason: archived private history; never clone into a portable agent profile
