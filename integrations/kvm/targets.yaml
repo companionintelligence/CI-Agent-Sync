@@ -69,4 +69,4 @@ targets:
     controls: unknown
     controls_verified: false
     enabled: true
-    notes: "PiKVM. Same behaviour as beta-kvm-1. Tagged as `<tailnet-user>` on the tailnet, not `tagged-devices`."
+    notes: "PiKVM. Same behaviour as beta-kvm-1. Tagged with a personal tailnet login, not `tagged-devices`."

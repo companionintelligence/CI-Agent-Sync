@@ -1,5 +1,7 @@
 # Local coding pool and Companion Memory
 
+`<tailnet>` is your tailnet's DNS suffix and `<laptop>` is the laptop's tailnet name. Both are placeholders in this page.
+
 Goal: code locally with the models served by the fleet, through Companion Hub,
 with Companion Memory available to the same agents. This page records what
 works, what does not, and what needs a decision.

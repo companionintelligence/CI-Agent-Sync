@@ -21,6 +21,8 @@ from 1Password, through `scripts/setup-android-mcp.sh`.
 | `tab-s8-ultra` | `android-tab-s8-ultra` | `<tab-s8-ultra-host>.<tailnet>` |
 | `tab-s9-ultra` | `android-tab-s9-ultra` | `<tab-s9-ultra-host>.<tailnet>` |
 
+`<tailnet>` stands for your tailnet DNS suffix. Set `CI_TAILNET_DNS_SUFFIX` to it, for example `example-tailnet.ts.net`, and each tablet resolves as its label plus that suffix. A tablet whose tailnet name differs from its label takes `ANDROID_HOST_<SLUG>`, set to the label or the full name, for example `ANDROID_HOST_TAB_S8_ULTRA=<its-tailnet-name>`.
+
 The per-device references are listed in `providers/onepassword.yaml`
 (`android-mcp-<slug>`). Items use the API Credential type with the
 `agent-configs` tag. The script needs `op` (signed in), `claude`, `jq`, `curl`,

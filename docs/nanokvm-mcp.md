@@ -6,6 +6,8 @@ the private API keys remain on the local machine.
 
 ## Set up Claude Code and Codex CLI
 
+`<tailnet>` stands for your tailnet DNS suffix. Export `CI_TAILNET_DNS_SUFFIX` with it, for example `example-tailnet.ts.net`, before you run the setup script. The NanoKVM URLs use the full name because each device's HTTPS certificate is issued for it.
+
 From the CI-Agent-Sync checkout, run:
 
 ```sh
@@ -75,7 +77,7 @@ Tailscale DNS name:
 
 ```sh
 set -eu
-KVM_HOST=core-14-kvm.<tailnet>
+KVM_HOST=core-14-kvm.${CI_TAILNET_DNS_SUFFIX}
 BACKUP_DIR=$(mktemp -d /root/nanokvm-tls-backup.XXXXXX)
 WORK_DIR=$(mktemp -d /etc/kvm/.nanokvm-tls.XXXXXX)
 cp -p /etc/kvm/server.crt "$BACKUP_DIR/server.crt"

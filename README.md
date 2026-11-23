@@ -38,7 +38,7 @@ identity remain local to each app.
 | Check Hub + Memory CLIs | `./bin/agentctl companion status --json` | Runs the native `cihub` and `ci` checks through one stable bridge |
 | Use a terminal menu | `./bin/agentctl companion tui` | Launches a small read-oriented TUI for Hub, Memory, readiness, and backup |
 | Check the fleet | `./bin/agentctl fleet smoke --json --strict` | Verifies Tailscale and Hub liveness for named targets |
-| Set up NanoKVM MCP | `./scripts/setup-nanokvm-mcp.sh` | Adds the six KVM servers to Claude Code and Codex CLI while keeping API keys local |
+| Set up NanoKVM MCP | `./scripts/setup-nanokvm-mcp.sh` | Adds the six KVM servers to Claude Code and Codex CLI while keeping API keys local. Set `CI_TAILNET_DNS_SUFFIX` first. |
 | Manage Android MCP connectors | `./scripts/setup-android-mcp.sh status` | Shows each device's 1Password token and Claude Code connector. See [docs/android-mcp.md](docs/android-mcp.md) |
 | Check the IP-KVM dongles | `./bin/agentctl kvm status` | GET-only probe of NanoKVM and PiKVM MCP readiness. See [docs/kvm-mcp.md](docs/kvm-mcp.md) |
 | Local coding pool status | [docs/local-coding-pool.md](docs/local-coding-pool.md) | Hub pool route for coding agents, and what still blocks it |

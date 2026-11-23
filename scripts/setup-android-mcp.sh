@@ -17,12 +17,12 @@ CLAUDE_CONFIG="${HOME}/.claude.json"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-# connector name | device slug | tailnet host (the app serves MCP on port 8080)
+# connector name | device slug | tailnet host label (port 8080; CI_TAILNET_DNS_SUFFIX completes it)
 DEVICES=(
-  "android-beam-pro|beam-pro|beam-pro.<tailnet>"
-  "android-beam-pro-1|beam-pro-1|beam-pro-1.<tailnet>"
-  "android-tab-s8-ultra|tab-s8-ultra|<tab-s8-ultra-host>.<tailnet>"
-  "android-tab-s9-ultra|tab-s9-ultra|<tab-s9-ultra-host>.<tailnet>"
+  "android-beam-pro|beam-pro|beam-pro"
+  "android-beam-pro-1|beam-pro-1|beam-pro-1"
+  "android-tab-s8-ultra|tab-s8-ultra|tab-s8-ultra"
+  "android-tab-s9-ultra|tab-s9-ultra|tab-s9-ultra"
 )
 
 usage() {
@@ -48,6 +48,7 @@ Commands:
              unless --apply is given. --start also starts the MCP server.
 
 Slugs: beam-pro, beam-pro-1, tab-s8-ultra, tab-s9-ultra.
+Environment: CI_TAILNET_DNS_SUFFIX completes each tablet tailnet name; ANDROID_HOST_<SLUG> replaces one label or gives a full name.
 Token values are never printed.
 EOF
 }
@@ -68,6 +69,14 @@ require_op() {
 
 parse_entry() {  # sets DEV_NAME, DEV_SLUG, DEV_HOST from a DEVICES entry
   IFS='|' read -r DEV_NAME DEV_SLUG DEV_HOST <<<"$1"
+  # ANDROID_HOST_<SLUG> replaces one tablet's label, for a tailnet name that differs from it.
+  local override_var
+  override_var="ANDROID_HOST_$(printf '%s' "$DEV_SLUG" | tr 'a-z-' 'A-Z_')"
+  if [[ -n "${!override_var:-}" ]]; then DEV_HOST="${!override_var}"; fi
+  # CI_TAILNET_DNS_SUFFIX completes the name. Without it the bare label still resolves through
+  # MagicDNS, which is enough for the app's plain-HTTP port.
+  # A full name in ANDROID_HOST_<SLUG> already has dots, so the suffix is not added again.
+  if [[ -n "${CI_TAILNET_DNS_SUFFIX:-}" && "$DEV_HOST" != *.* ]]; then DEV_HOST="${DEV_HOST}.${CI_TAILNET_DNS_SUFFIX}"; fi
 }
 
 find_device() {  # sets DEV_NAME, DEV_SLUG, DEV_HOST and ITEM for slug $1

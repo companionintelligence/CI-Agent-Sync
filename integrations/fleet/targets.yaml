@@ -4,7 +4,8 @@ version: 1
 # Tailscale DNS is the source of truth and can change between machines.
 observed_at: "2026-10-24"
 tailnet:
-  dns_suffix: <tailnet>
+  # Placeholder: replace <tailnet> with your tailnet DNS suffix in a local copy. Nothing in this repository reads it.
+  dns_suffix: "<tailnet>"
   required: true
   health_path: /api/health/live
   hub_port: 5002
@@ -171,4 +172,4 @@ targets:
     enabled: false
     verified: false
     role: candidate
-    reason: "Tagged CI-server role, added to the roster 2026-11-11. Hardware and Hub state unmeasured; SSH on port 22 timed out during the probe."
+    reason: "Tagged for the CI-server role, added to the roster 2026-11-11. Hardware and Hub state unmeasured; SSH on port 22 timed out during the probe."

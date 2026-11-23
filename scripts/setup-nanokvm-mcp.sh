@@ -49,6 +49,8 @@ Options:
   -h, --help       Show this help.
 
 API keys are read with terminal echo disabled and saved outside the repository.
+
+Set CI_TAILNET_DNS_SUFFIX to your tailnet DNS suffix (for example example-tailnet.ts.net) before configuring clients.
 EOF
 }
 
@@ -83,6 +85,12 @@ while (($#)); do
       ;;
   esac
 done
+# Client configs use the full tailnet name: each NanoKVM HTTPS certificate is issued for it.
+case "$CLIENTS" in
+  both|claude|codex)
+    : "${CI_TAILNET_DNS_SUFFIX:?set CI_TAILNET_DNS_SUFFIX to your tailnet DNS suffix, for example example-tailnet.ts.net}"
+    ;;
+esac
 
 case "$CLIENTS" in
   both|claude|codex) ;;
@@ -197,7 +205,7 @@ if [[ "$CLIENTS" == both || "$CLIENTS" == codex ]]; then
   for i in "${!SERVERS[@]}"; do
     is_selected_device "${HOSTS[$i]}" || continue
     name="${SERVERS[$i]}"
-    url="https://${HOSTS[$i]}.<tailnet>/api/mcp"
+    url="https://${HOSTS[$i]}.${CI_TAILNET_DNS_SUFFIX:?set CI_TAILNET_DNS_SUFFIX to your tailnet DNS suffix, for example example-tailnet.ts.net}/api/mcp"
     codex mcp remove "$name" >/dev/null 2>&1 || true
     codex mcp add "$name" --url "$url" --bearer-token-env-var "${KEY_VARS[$i]}"
   done
@@ -208,7 +216,7 @@ if [[ "$CLIENTS" == both || "$CLIENTS" == claude ]]; then
   for i in "${!SERVERS[@]}"; do
     is_selected_device "${HOSTS[$i]}" || continue
     name="${SERVERS[$i]}"
-    url="https://${HOSTS[$i]}.<tailnet>/api/mcp"
+    url="https://${HOSTS[$i]}.${CI_TAILNET_DNS_SUFFIX:?set CI_TAILNET_DNS_SUFFIX to your tailnet DNS suffix, for example example-tailnet.ts.net}/api/mcp"
     env_var="${KEY_VARS[$i]}"
     header="Authorization: Bearer \${${env_var}}"
     claude mcp remove --scope user "$name" >/dev/null 2>&1 || true
