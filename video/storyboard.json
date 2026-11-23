@@ -1,5 +1,4 @@
 {
-  "$schema": "https://raw.githubusercontent.com/companionintelligence/CI-Common/main/packages/video-kit/schema/storyboard.schema.json",
   "app": {
     "id": "ci-agent-sync",
     "name": "CI Agent Sync",

@@ -67,4 +67,4 @@ targets:
       - cihub pool status
       - agentctl fleet smoke --json --strict
     approval: explicit_immediately_before_execute
-    notes: "Fleet update is SSH/Tailscale scoped and can change multiple machines. Keep core-5, core-7, and fzzy operator exclusions intact until separately reviewed."
+    notes: "Fleet update is SSH/Tailscale scoped and can change multiple machines. Keep the operator exclusions recorded in integrations/fleet/targets.yaml intact until separately reviewed."

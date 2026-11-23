@@ -31,7 +31,7 @@ operator_exclusions:
 
 blocked_until_review:
   - node: core-5
-    reason: SSH host key changed; strict verification blocked administration
+    reason: Blocked; operator review required before administration
 
 backend_policy:
   preferred_engine: ollama

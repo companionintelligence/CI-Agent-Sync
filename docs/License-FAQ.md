@@ -22,7 +22,7 @@ Yes. Open a pull request on this repository.
 
 ### Can I sell CI-Agent-Sync?
 
-No. Selling CI-Agent-Sync, including paid access to a hosted instance, is not permitted. For commercial partnership questions, email partner@companionintelligence.com.
+No. Selling CI-Agent-Sync, including paid access to a hosted instance, is not permitted. For commercial partnership questions, contact Companion Intelligence through https://ci.computer.
 
 ### Does this license apply to the rest of Companion Intelligence?
 
@@ -30,4 +30,4 @@ No. Companion Portal stays a separate commercial product. Most other Companion I
 
 ### Unsure whether your use case is allowed?
 
-Email support@companionintelligence.com.
+Contact Companion Intelligence through https://ci.computer.
