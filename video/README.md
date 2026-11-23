@@ -1,7 +1,5 @@
 # CI Agent Sync — product video
 
-> **Private & Confidential — Property of Lifescope Inc. Do not distribute.**
-
 A 16:9 and a 9:16 cut of the CI Agent Sync setup wizard, built from [`storyboard.json`](storyboard.json)
 with `@companionintelligence/video-kit` (0.35.0 when authored). Videos are build output: never committed,
 rendered to `out/` (gitignored). The shots in `assets/shots/` and the narration in `assets/audio/` are committed.

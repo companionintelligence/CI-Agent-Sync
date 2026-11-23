@@ -66,9 +66,9 @@ on the tailnet, and prefer the HTTP endpoint when the device offers one.
 
 `excluded_from_mcp: true` marks a device that must not be given a client, even
 though the probe still runs. The generator refuses to print a config for it.
-Today that covers `core-5-kvm` (host key changed) and `core-7-kvm` (operator
-exclusion). Note that `core-7-kvm` already answers 401 on `/api/mcp`, so MCP is
-on there. Someone enabled it, so find out who before anything else connects.
+Check the current list in `integrations/kvm/targets.yaml`. If a device that is
+marked excluded answers on `/api/mcp`, treat that as a finding to review before
+anything connects to it.
 
 Do not add a key for an excluded device, even if the 1Password item exists.
 
@@ -98,6 +98,5 @@ tool-approval prompts on.
   autofill.
 - `controls` in `targets.yaml` is a naming inference (`<node>-kvm` controls
   `<node>`). Confirm it on each device before trusting it for a fleet action.
-- Tailnet identity drifts. `<tailnet-ip>` was once recorded as `fzzy`. It now
-  answers as `core-14-kvm`. Match by tailnet name, and check the device's own
-  hostname before acting.
+- Tailnet identity drifts. A tailnet address can change hands over time. Match
+  a device by its tailnet name, and check the device's own hostname before acting.

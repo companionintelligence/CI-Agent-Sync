@@ -81,9 +81,9 @@ not needed.
   before. Re-run `install --apply` after any token change.
 - `claude mcp add` receives the authorization header as an argument while it
   runs, so the token can appear briefly in the process list.
-- On the Beam Pro, the server currently listens on all interfaces, so it is also
-  reachable on the home LAN. Bind the app to a specific address if you want
-  tailnet-only access.
+- The server can listen on all interfaces, which also makes it reachable on the
+  local network. Bind the app to a specific address if you want tailnet-only
+  access.
 - `provision` changes the device's bearer token, so clients holding the old
   token stop working. A running server keeps the token it started with, so
   `provision --apply` restarts the server when it is up. `--start` also starts

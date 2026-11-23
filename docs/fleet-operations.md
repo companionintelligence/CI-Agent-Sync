@@ -21,9 +21,9 @@ auth databases, or live application state.
 
 ## Current operator boundary
 
-The 2026-10-24 repair pass explicitly left `core-7` and `fzzy` untouched. Core
-5 also remains blocked until its changed SSH host key is verified. These are
-stateful safety boundaries, not failed attempts to be silently retried.
+Nodes listed under `operator_exclusions` or `blocked_until_review` in
+`integrations/fleet/pool-policy.yaml` are stateful safety boundaries, not failed
+attempts to be silently retried. Leave them alone until an operator clears them.
 
 ## Portable health gate
 

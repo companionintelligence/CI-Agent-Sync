@@ -25,9 +25,9 @@ policy:
 # or override them without an operator reviewing the target fleet first.
 operator_exclusions:
   - node: core-7
-    reason: explicitly ignored for this repair pass
+    reason: operator exclusion; review before changing
   - node: fzzy
-    reason: explicitly ignored for this repair pass
+    reason: operator exclusion; review before changing
 
 blocked_until_review:
   - node: core-5
@@ -41,21 +41,6 @@ backend_policy:
   default_slots: 4
   keep_alive: 24h
   max_loaded_models: 2
-
-# Observed settings from the 2026-10-24 repair pass. They document the
-# expected relationship between the engine and Hub metadata without being a
-# command to rewrite a new machine's fleet.
-observed_context_caps:
-  beta-1: 16384
-  beta-3-glass: 16384
-  beta-max: 32768
-  beta-ms-a2: 16384
-  beta-nas: 16384
-  beta-red: 16384
-  core-3: 8192
-  core-4: 65536
-  core-6: 65536
-  core-17: 16384
 
 verification:
   commands:

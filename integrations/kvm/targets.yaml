@@ -26,7 +26,7 @@ targets:
     controls_verified: false
     enabled: true
     excluded_from_mcp: true
-    notes: "core-5 host key changed; administration is blocked until the host identity is reviewed. The 2026-09-09 fleet notes say this box's hostname can answer as core-5, so match by name, not hostname alone."
+    notes: "Host key changed; administration is blocked until the host identity is reviewed. The hostname can differ from the tailnet name, so match by name, not hostname alone."
 
   core-7-kvm:
     model: nanokvm
@@ -34,21 +34,21 @@ targets:
     controls_verified: false
     enabled: true
     excluded_from_mcp: true
-    notes: "core-7 is an explicit operator exclusion. /api/mcp answers 401 over HTTP, so MCP is on. Do not give it a client until the exclusion is lifted."
+    notes: "Explicit operator exclusion. /api/mcp answers 401 over HTTP, so MCP is on. Do not give it a client until the exclusion is lifted."
 
   core-14-kvm:
     model: nanokvm
     controls: core-14
     controls_verified: false
     enabled: true
-    notes: "HTTPS only (HTTP redirects). /api/mcp answers 401 over HTTPS, so MCP is on. The earlier memory note that tied <tailnet-ip> to fzzy is stale; this name is the live one."
+    notes: "HTTPS only (HTTP redirects). /api/mcp answers 401 over HTTPS, so MCP is on."
 
   core-17-kvm:
     model: nanokvm
     controls: core-17
     controls_verified: false
     enabled: true
-    notes: "Web on HTTP; /api/mcp answers 403. core-17's disk was at 97% on 2026-11-11."
+    notes: "Web on HTTP; /api/mcp answers 403."
 
   beta-ms-a2-kvm:
     model: nanokvm
@@ -69,4 +69,4 @@ targets:
     controls: unknown
     controls_verified: false
     enabled: true
-    notes: "PiKVM. Same behaviour as beta-kvm-1. Tagged with a personal tailnet login, not `tagged-devices`."
+    notes: "PiKVM. Same behaviour as beta-kvm-1. Tagged with a user login rather than a shared tag."

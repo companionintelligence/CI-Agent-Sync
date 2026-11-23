@@ -52,7 +52,6 @@ targets:
     verified: true
     role: hub_and_inference
     credential_namespace: core-2
-    notes: "Re-added to the active roster on 2026-11-11 after the 2026-10-12 LAN fault. Read-only probe on 2026-11-12: Hub live 200, pool identify poolProtocol=2, Ollama reachable."
 
   core-3:
     kind: core
@@ -79,7 +78,7 @@ targets:
     enabled: false
     verified: false
     role: candidate
-    reason: "Tailscale identity is demo-1; the core-1 alias did not resolve during the audit."
+    reason: "Tailscale identity differs from the roster name; the alias did not resolve in the last audit."
 
   beta-3-glass:
     kind: beta
@@ -145,7 +144,7 @@ targets:
     enabled: false
     verified: false
     role: excluded
-    reason: Explicit operator exclusion from the current repair pass.
+    reason: Explicit operator exclusion.
 
   fzzy:
     kind: core
@@ -154,7 +153,7 @@ targets:
     enabled: false
     verified: false
     role: excluded
-    reason: Explicit operator exclusion from the current repair pass.
+    reason: Explicit operator exclusion.
 
   core-10:
     kind: core
@@ -163,7 +162,7 @@ targets:
     enabled: false
     verified: false
     role: candidate
-    reason: "Tailscale name ci (<tailnet-ip>), not core-2. Registered with Portal but not claimed; offline on the 2026-11-11 tailnet scan. Needs cihub claim once reachable."
+    reason: "Tailscale name differs from the roster name. Registered with the Portal but not claimed; offline at the last scan. Claim it with cihub once reachable."
 
   bazzite:
     kind: core
@@ -172,4 +171,4 @@ targets:
     enabled: false
     verified: false
     role: candidate
-    reason: "Tagged for the CI-server role, added to the roster 2026-11-11. Hardware and Hub state unmeasured; SSH on port 22 timed out during the probe."
+    reason: "Tagged for the CI-server role. Hardware and Hub state unmeasured; SSH on port 22 timed out during the probe."

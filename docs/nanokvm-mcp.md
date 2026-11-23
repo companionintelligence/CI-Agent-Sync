@@ -106,15 +106,12 @@ Check the installed certificate's expiry with
 `openssl x509 -in /etc/kvm/server.crt -noout -enddate` and renew it with
 `tailscale cert` before it expires.
 
-On Core 14, the original certificate had `CN=localhost` and only localhost/IP
-subject alternative names. Replacing it with a certificate for
-`core-14-kvm.<tailnet>` and restarting NanoKVM fixed the HTTPS
-verification error; `~/.local/bin/nanokvm-claude mcp list` then reported the
-server connected. An unauthenticated `curl` to `/api/mcp` returns `401 invalid
+If the HTTPS check fails because the certificate names `localhost` rather than
+the device's tailnet name, replace the certificate with one for the tailnet name
+and restart NanoKVM. An unauthenticated `curl` to `/api/mcp` returns `401 invalid
 MCP API key`; use the configured Claude or Codex client to verify the bearer
-key. On this device, `tailscale serve status` showed no Serve configuration;
-the direct certificate fix avoided the `invalid Host header` response seen
-when proxying NanoKVM through Tailscale Serve.
+key. Proxying NanoKVM through Tailscale Serve can return `invalid Host header`;
+the direct certificate avoids that response.
 
 ## Device-control policy
 
