@@ -3,6 +3,10 @@
 set -euo pipefail
 
 STORE_ROOT="${0:A:h:h}"
+# The Ruby helpers below read UTF-8 files, so default Ruby to UTF-8 as scripts/verify.sh does.
+if [[ "${RUBYOPT:-}" != *-E* ]]; then
+  export RUBYOPT="-Eutf-8${RUBYOPT:+ $RUBYOPT}"
+fi
 KEYCHAIN_NAMESPACE="agent-configs"
 OP_VAULT="${AGENT_CONFIGS_OP_VAULT:-Agent Configs}"
 SECRET_BACKEND="${AGENT_CONFIGS_SECRET_BACKEND:-1password}"
