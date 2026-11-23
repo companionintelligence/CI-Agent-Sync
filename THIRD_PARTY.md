@@ -5,22 +5,23 @@ Every direct dependency declared in this repository's manifests — both
 each group. Transitive dependencies are not listed; resolve them with your
 package manager's own `licenses` command.
 
-**4 direct dependencies** across 3 licence groups.
+**5 direct dependencies** across 3 licence groups.
 
 | Licence    | Count |
 | ---------- | ----: |
+| Apache-2.0 |     2 |
 | MIT        |     2 |
-| Apache-2.0 |     1 |
 | ISC        |     1 |
+
+## Apache-2.0
+
+1. [`playwright`](https://github.com/microsoft/playwright) `1.65.1` — dev
+2. [`typescript`](https://github.com/microsoft/TypeScript) `7.0.2` — dev
 
 ## MIT
 
 1. [`@types/node`](https://github.com/DefinitelyTyped/DefinitelyTyped) `26.6.6` — dev
 2. [`esbuild`](https://github.com/evanw/esbuild) `0.28.2` — dev
-
-## Apache-2.0
-
-1. [`typescript`](https://github.com/microsoft/TypeScript) `7.0.2` — dev
 
 ## ISC
 
