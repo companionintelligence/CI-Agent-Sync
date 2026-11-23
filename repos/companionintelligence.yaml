@@ -19,7 +19,7 @@ repositories:
     aliases: [CI-Server, CI-Memory]
     remote: https://github.com/companionintelligence/Companion-Memory.git
     default_branch: main
-    visibility: private
+    visibility: public
     role: personal memory appliance and MCP server
     local_path: "${CI_ROOT}/CI-Memory"
     package_manager: yarn
@@ -74,7 +74,7 @@ repositories:
   - name: CI-Hermes
     remote: https://github.com/companionintelligence/CI-Hermes.git
     default_branch: master
-    visibility: private
+    visibility: public
     role: Hermes marketplace packaging and runtime context
     local_path: "${CI_ROOT}/CI-Hermes"
     package_manager: pnpm
@@ -84,7 +84,7 @@ repositories:
   - name: CI-OpenClaw
     remote: https://github.com/companionintelligence/CI-OpenClaw.git
     default_branch: master
-    visibility: private
+    visibility: public
     role: OpenClaw marketplace packaging, runtime context, Companion Memory plugin
     local_path: "${CI_ROOT}/CI-OpenClaw"
     package_manager: pnpm
@@ -104,7 +104,7 @@ repositories:
   - name: CI-Spellbook
     remote: https://github.com/companionintelligence/CI-Spellbook.git
     default_branch: main
-    visibility: private
+    visibility: public
     role: curated agent and MCP documentation
     local_path: "${CI_ROOT}/CI-Spellbook"
     package_manager: pnpm
@@ -112,7 +112,7 @@ repositories:
   - name: CI-Local-CICD
     remote: https://github.com/companionintelligence/CI-Local-CICD.git
     default_branch: main
-    visibility: private
+    visibility: public
     role: local app packaging and CI helpers
     local_path: "${CI_ROOT}/CI-Local-CICD"
     package_manager: mixed

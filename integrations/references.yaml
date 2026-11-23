@@ -1,12 +1,8 @@
 version: 1
 
-references:
-  companion-scan-mobile-mcp:
-    title: Companion SCAN and Mobile MCP
-    kind: reference
-    use: Product and mobile-MCP planning reference for Companion Scan, spatial capture, and Android device connections.
-    policy: "Reference only, with no link published. Never copy credentials, bearer tokens, private endpoints, or device-specific configuration into this store."
+# Never copy credentials, bearer tokens, private endpoints, or device-specific configuration into this store.
 
+references:
   android-remote-control-mcp:
     title: Android Remote Control MCP
     kind: public-github-repository

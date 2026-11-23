@@ -41,7 +41,7 @@ function kvmChecks(): void {
 
   // Operator decisions from the fleet roster stay enforced in the sync targets.
   const fleetTargets = readText("integrations/fleet/targets.yaml");
-  assert(!/^\s{2}ci-core:/m.test(fleetTargets), "ci-core (bdc-core) was removed by operator decision and must stay removed");
+  assert(!/^\s{2}ci-core:/m.test(fleetTargets), "removed fleet target must stay removed");
 }
 
 function encodingChecks(): void {

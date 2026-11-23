@@ -51,7 +51,7 @@ routes:
     credential: COMPANION_HUB_INFERENCE_API_KEY
     clients: [opencode, codex, aider-desk, pi]
     health: /api/inference/v1/models
-    notes: "Name models by Ollama tag (qwen3.5:4b), not catalog id (qwen3-5-4b): catalog ids return 502. Qwen 3.5 needs reasoning_effort none to return content. Chat completions currently answer without a key; enforce it before wider use. See docs/local-coding-pool.md."
+    notes: "Name models by Ollama tag (qwen3.5:4b), not catalog id (qwen3-5-4b): catalog ids return 502. Qwen 3.5 needs reasoning_effort none to return content. See docs/local-coding-pool.md."
 
   remote_providers:
     candidates: [anthropic, openai, openrouter]

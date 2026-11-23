@@ -78,7 +78,7 @@ targets:
     enabled: false
     verified: false
     role: candidate
-    reason: "Tailscale identity differs from the roster name; the alias did not resolve in the last audit."
+    reason: "Candidate; not verified."
 
   beta-3-glass:
     kind: beta
@@ -135,7 +135,7 @@ targets:
     enabled: false
     verified: false
     role: blocked
-    reason: SSH host key changed; strict verification blocked administration.
+    reason: Blocked; operator review required before administration.
 
   core-7:
     kind: core
@@ -162,7 +162,7 @@ targets:
     enabled: false
     verified: false
     role: candidate
-    reason: "Tailscale name differs from the roster name. Registered with the Portal but not claimed; offline at the last scan. Claim it with cihub once reachable."
+    reason: "Candidate; not verified."
 
   bazzite:
     kind: core
@@ -171,4 +171,4 @@ targets:
     enabled: false
     verified: false
     role: candidate
-    reason: "Tagged for the CI-server role. Hardware and Hub state unmeasured; SSH on port 22 timed out during the probe."
+    reason: "Candidate; not verified."
