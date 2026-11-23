@@ -44,6 +44,12 @@ function kvmChecks(): void {
   assert(!/^\s{2}ci-core:/m.test(fleetTargets), "ci-core (bdc-core) was removed by operator decision and must stay removed");
 }
 
+function encodingChecks(): void {
+  // Ruby must read the store's UTF-8 files as UTF-8 even when the caller has no UTF-8 locale.
+  const probe = runCommand("ruby", ["-e", "print Encoding.default_external.name"], { env: { LANG: "", LC_ALL: "", LC_CTYPE: "" } });
+  assert(probe.exitCode === 0 && probe.stdout.trim() === "UTF-8", `ruby reads files as ${probe.stdout.trim() || probe.stderr.trim()}, not UTF-8`);
+}
+
 async function main(): Promise<void> {
   for (const file of ["web/index.html", "web/styles.css", "web/app.js", "web/assets/ci-common/tokens.css", "web/assets/ci-common/logo-mark.svg"]) assert(fileExists(file), `missing asset: ${file}`);
   assert(readText("web/index.html").includes("CI Agent Sync"), "wizard name is stale");
@@ -56,6 +62,7 @@ async function main(): Promise<void> {
   const outputProbe = await runCommandAsync(process.execPath, ["-e", "process.stdout.write('x'.repeat(70000))"], { cwd: ROOT, timeoutMs: 2_000, maxBuffer: 1_024 });
   assert(outputProbe.outputTruncated && outputProbe.exitCode === null && outputProbe.errorCode === "MAX_BUFFER", "async command output cap did not fail closed");
   kvmChecks();
+  encodingChecks();
   assert(!safeDetail('{"apiKey":"not-for-output"}').includes("not-for-output"), "structured secret detail was not redacted");
   assert((redactSecrets({ apiKey: "not-for-output", status: "ok" }) as any).apiKey === "<redacted>", "structured payload secret was not redacted");
   const tailnet = summarizeTailscaleStatus({
