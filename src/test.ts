@@ -9,7 +9,7 @@ import { ACTION_TAKEN, ItfError, NONDET_PICKS, decodeItfValue, itfAction, itfPic
 import { classifyNanoKvmMcp, classifyProduct, envName, loadKvmTargets, mcpSnippet, nanoKvmKeyEnv, rowStatus } from "./kvm.ts";
 import { summarizeTailscaleStatus } from "./platform.ts";
 import { SCHEMA_FILE, SPEC_GATES, SPEC_KINDS, SPEC_STATUSES, SPEC_TOOLS, parseRegistry, renderRegistryJsonSchema } from "./spec-registry.ts";
-import { POLICY_FILE, TOOLCHAINS_FILE, probeToolchain, readProbeVersion, type Toolchain } from "./toolchains.ts";
+import { POLICY_FILE, TOOLCHAINS_FILE, displayPath, hideHome, probeToolchain, readProbeVersion, type Toolchain } from "./toolchains.ts";
 import { verificationChecks } from "./validate.ts";
 import {
   BLOCK_BEGIN,
@@ -207,6 +207,8 @@ async function probeChecks(): Promise<void> {
   assert(missing.status === "not-installed" && !missing.usable, "a missing command was not reported as not installed");
   const hung = await probeToolchain(fakeToolchain({ id: "slow", version: "1.0.0", probe: { kind: "command", commands: [process.execPath], args: ["-e", "setTimeout(() => {}, 5000)"], stream: "stdout", pattern: "(\\d+)" } }), { repo: ROOT, timeoutMs: 200 });
   assert(hung.status === "warn" && !hung.usable && hung.detail.includes("timed out"), "a hung probe did not time out");
+  assert(displayPath("/home/someone/.local/bin/node", "/home/someone") === "~/.local/bin/node" && displayPath("/home/someoneelse/x", "/home/someone") === "/home/someoneelse/x", "a report path kept the home directory");
+  assert(hideHome("at /home/someone/repo/x.ts:1 and /home/someone/y", "/home/someone") === "at ~/repo/x.ts:1 and ~/y", "check output kept the home directory");
   const held = await probeToolchain(fakeToolchain({ id: "held", ring: "hold", version: "0.0.1" }), { repo: ROOT });
   assert(held.status === "info" && !held.usable, "a held tool was probed");
   await withTempDir("probe", async (repo) => {

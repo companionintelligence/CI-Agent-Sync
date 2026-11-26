@@ -27,7 +27,7 @@ import {
   type SpecEntry,
   type SpecRegistry,
 } from "./spec-registry.ts";
-import { DEFAULT_PROBE_TIMEOUT_MS, POLICY_FILE, TOOLCHAINS_FILE, probeToolchain, readToolchains, toolchainEnvironment, type ProbeResult, type Toolchain } from "./toolchains.ts";
+import { DEFAULT_PROBE_TIMEOUT_MS, POLICY_FILE, TOOLCHAINS_FILE, displayPath, hideHome, probeToolchain, readToolchains, toolchainEnvironment, type ProbeResult, type Toolchain } from "./toolchains.ts";
 
 export const TEMPLATE_FILE = "integrations/verification/specs.toml.example";
 export const BLOCK_BEGIN = "<!-- agent-sync:specs:begin -->";
@@ -134,7 +134,7 @@ export function resolveInsideRepo(repo: string, relativePath: string): { real: s
   try {
     root = realpathSync(repo);
   } catch {
-    return { error: `${repo} does not exist` };
+    return { error: `${displayPath(repo)} does not exist` };
   }
   const target = resolve(root, relativePath);
   if (!within(root, target)) return { error: `${relativePath} is outside the repository` };
@@ -166,7 +166,7 @@ export function loadRegistry(repo: string): LoadedRegistry {
 }
 
 function registryChecks(loaded: LoadedRegistry): { checks: Check[]; registry?: SpecRegistry } {
-  if ("missing" in loaded) return { checks: [{ id: "registry", status: "error", detail: `no registry at ${loaded.file}; run agentctl spec init` }] };
+  if ("missing" in loaded) return { checks: [{ id: "registry", status: "error", detail: `no registry at ${displayPath(loaded.file)}; run agentctl spec init` }] };
   if (!loaded.decoded.ok) {
     return { checks: loaded.decoded.issues.map((issue) => ({ id: `registry.${issue.path || "file"}`, status: "error", detail: issue.message })) };
   }
@@ -429,7 +429,7 @@ export async function checkEntries(options: CheckOptions): Promise<{ checks: Che
         : result.exitCode === null
           ? `could not run ${program} (${result.errorCode ?? "no exit code"})`
           : `failed with exit ${result.exitCode}`;
-    const tail = safeDetail([result.stdout, result.stderr].filter(Boolean).join("\n"), 2_000);
+    const tail = hideHome(safeDetail([result.stdout, result.stderr].filter(Boolean).join("\n"), 2_000));
     checks.push({ id: `spec.${entry.id}`, status: fails(entry), detail: tail ? `${why}\n${tail}` : why, ...run });
   }
   return { checks, selection };
@@ -646,7 +646,7 @@ export async function specCommand(argv: ReadonlyArray<string>): Promise<number> 
   const json = args.flags.has("--json");
   const repo = repoOption(args);
   if (allowed.includes("--repo") && !existsSync(repo)) {
-    console.error(`--repo ${repo} does not exist`);
+    console.error(`--repo ${displayPath(repo)} does not exist`);
     return 2;
   }
 

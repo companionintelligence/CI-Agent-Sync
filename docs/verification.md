@@ -237,7 +237,8 @@ This repository keeps its own registry in `.agent-configs/specs.toml`.
   symlink is refused.
 - Checks run without a shell, in their own process group, with the entry's
   timeout and an output cap. The detail keeps only a redacted tail of the
-  output.
+  output, and reports show the home directory as `~`, so a report pasted into
+  a pull request does not carry a local user name.
 - Probes have a short timeout, and the git reads behind `--changed-from` and the
   `covers` check run with `GIT_OPTIONAL_LOCKS=0`, so they never contend with
   other agents' checkouts.

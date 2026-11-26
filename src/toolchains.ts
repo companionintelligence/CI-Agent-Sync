@@ -6,7 +6,8 @@
 // -version` writes to stderr), and never go through a shell.
 
 import { existsSync, readFileSync } from "node:fs";
-import { isAbsolute, join } from "node:path";
+import { homedir } from "node:os";
+import { isAbsolute, join, sep } from "node:path";
 import { commandPath, runCommandAsync } from "./core.ts";
 
 export const TOOLCHAINS_FILE = "integrations/verification/toolchains.yaml";
@@ -262,6 +263,22 @@ export function resolveProbeCommand(candidates: ReadonlyArray<string>, repo: str
   return undefined;
 }
 
+/**
+ * A path for a report: the home directory becomes `~`, so output pasted into a PR or an
+ * issue does not carry the local user name.
+ */
+export function displayPath(path: string, home: string = homedir()): string {
+  if (!home || home === sep) return path;
+  if (path === home) return "~";
+  return path.startsWith(`${home}${sep}`) ? `~${path.slice(home.length)}` : path;
+}
+
+/** Every occurrence of the home directory in a block of text, as `~`. */
+export function hideHome(text: string, home: string = homedir()): string {
+  if (!home || home === sep) return text;
+  return text.split(`${home}${sep}`).join(`~${sep}`);
+}
+
 export type ProbeStatus = "ok" | "warn" | "not-installed" | "info";
 export type ProbeResult = {
   readonly id: string;
@@ -278,7 +295,8 @@ export function toolchainEnvironment(toolchains: ReadonlyArray<Toolchain>): Reco
   return Object.fromEntries(toolchains.flatMap((toolchain) => toolchain.environment.filter((variable) => variable.value !== undefined).map((variable) => [variable.name, variable.value as string])));
 }
 
-function judge(toolchain: Toolchain, version: string, where: string): { status: ProbeStatus; detail: string } {
+function judge(toolchain: Toolchain, version: string, path: string): { status: ProbeStatus; detail: string } {
+  const where = displayPath(path);
   if (toolchain.version !== undefined) {
     return version === toolchain.version
       ? { status: "ok", detail: `${version} (pinned) at ${where}` }
@@ -296,7 +314,7 @@ export async function probeToolchain(toolchain: Toolchain, options: { repo: stri
   if (toolchain.ring === "hold" || probe === undefined) return { id: toolchain.id, status: "info", detail: `ring ${toolchain.ring}: not probed`, usable: false };
   if (probe.kind === "package") {
     const manifest = join(options.repo, "node_modules", ...probe.package.split("/"), "package.json");
-    if (!existsSync(manifest)) return { id: toolchain.id, status: "not-installed", detail: `${probe.package} is not installed in ${options.repo}`, usable: false };
+    if (!existsSync(manifest)) return { id: toolchain.id, status: "not-installed", detail: `${probe.package} is not installed in ${displayPath(options.repo)}`, usable: false };
     try {
       const version = String(JSON.parse(readFileSync(manifest, "utf8")).version || "");
       if (!version) return { id: toolchain.id, status: "warn", detail: `${probe.package} has no version in its package.json`, usable: false };
@@ -310,11 +328,11 @@ export async function probeToolchain(toolchain: Toolchain, options: { repo: stri
   if (!command) return { id: toolchain.id, status: "not-installed", detail: `none of ${probe.commands.join(", ")} was found`, usable: false };
   const timeoutMs = options.timeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS;
   const result = await runCommandAsync(command, probe.args, { cwd: options.repo, timeoutMs, maxBuffer: 64 * 1024, env: { ...options.env, ...toolchainEnvironment([toolchain]) } });
-  if (result.timedOut) return { id: toolchain.id, status: "warn", detail: `${command} ${probe.args.join(" ")} timed out after ${timeoutMs / 1000} s`, usable: false, command };
+  if (result.timedOut) return { id: toolchain.id, status: "warn", detail: `${displayPath(command)} ${probe.args.join(" ")} timed out after ${timeoutMs / 1000} s`, usable: false, command: displayPath(command) };
   const version = readProbeVersion(result, probe.stream, probe.pattern);
   if (version === undefined) {
     const code = result.exitCode === null ? (result.errorCode ?? "no exit code") : `exit ${result.exitCode}`;
-    return { id: toolchain.id, status: "warn", detail: `${command} printed no version on ${probe.stream} (${code})`, usable: false, command };
+    return { id: toolchain.id, status: "warn", detail: `${displayPath(command)} printed no version on ${probe.stream} (${code})`, usable: false, command: displayPath(command) };
   }
-  return { id: toolchain.id, ...judge(toolchain, version, command), usable: true, version, command };
+  return { id: toolchain.id, ...judge(toolchain, version, command), usable: true, version, command: displayPath(command) };
 }
