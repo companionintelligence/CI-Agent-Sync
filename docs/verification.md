@@ -36,11 +36,15 @@ kind = "data-contract"
 tool = "effect-schema"
 status = "checked"
 gate = "required"
-artefacts = ["src/spec-registry.ts", "integrations/verification/specs.schema.json"]
+artefacts = ["src/spec-registry.ts", "src/spec-registry.test.ts", "integrations/verification/specs.schema.json"]
 covers = ["src/spec-registry.ts", "integrations/verification/**"]
 requires = ["node", "effect"]
-check = ["npm", "run", "--silent", "spec:schema"]
+check = ["npm", "run", "--silent", "spec:registry"]
+properties = ["everyErrorAtItsPath", "crossFieldRulesInOnePass", "schemaFileMatchesSchema", "jsonSchemaAgreesWithDecoder"]
 ```
+
+An entry claims only what its check runs. Here `spec:registry` runs the
+decoder's tests and the JSON Schema checks, then `agentctl spec schema --check`.
 
 | Field | Rule |
 | --- | --- |
@@ -79,8 +83,10 @@ spec[3].artifacts: unknown key "artifacts" (did you mean "artefacts"?)
 `integrations/verification/specs.schema.json` is generated from the same schema
 (JSON Schema draft 2020-12). The `#:schema` line lets TOML editors such as Taplo
 validate as you type, and tools in other languages can use it. The Effect
-decoder stays the authority: the JSON Schema cannot express unique ids, so it
-accepts a few registries the decoder rejects.
+decoder stays the authority: the JSON Schema cannot express unique ids, and it
+also accepts a drive-letter `docs` path and `notes` made only of spaces, so it
+accepts a few registries the decoder rejects. `src/spec-registry.test.ts` runs
+the committed file in a strict validator (Ajv) against good and bad registries.
 
 ## Commands
 

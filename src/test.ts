@@ -8,7 +8,8 @@ import { ROOT, fileExists, readText, redactSecrets, runCommand, runCommandAsync,
 import { ACTION_TAKEN, ItfError, NONDET_PICKS, decodeItfValue, itfAction, itfPicks, parseItfTrace, type ItfValue } from "./itf.ts";
 import { classifyNanoKvmMcp, classifyProduct, envName, loadKvmTargets, mcpSnippet, nanoKvmKeyEnv, rowStatus } from "./kvm.ts";
 import { summarizeTailscaleStatus } from "./platform.ts";
-import { SCHEMA_FILE, SPEC_GATES, SPEC_KINDS, SPEC_STATUSES, SPEC_TOOLS, parseRegistry, renderRegistryJsonSchema } from "./spec-registry.ts";
+import { SPEC_GATES, SPEC_KINDS, SPEC_STATUSES, SPEC_TOOLS, parseRegistry } from "./spec-registry.ts";
+import { entry, specRegistryChecks } from "./spec-registry.test.ts";
 import { POLICY_FILE, TOOLCHAINS_FILE, displayPath, hideHome, probeToolchain, readProbeVersion, type Toolchain } from "./toolchains.ts";
 import { verificationChecks } from "./validate.ts";
 import {
@@ -23,7 +24,6 @@ import {
   parseSpecArgs,
   renderSpecBlock,
   resolveInsideRepo,
-  schemaChecks,
 } from "./verification.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -118,72 +118,6 @@ async function withTempDir(prefix: string, run: (dir: string) => Promise<void> |
 function writeRepoFile(repo: string, path: string, text: string): void {
   mkdirSync(join(repo, path, ".."), { recursive: true });
   writeFileSync(join(repo, path), text);
-}
-
-const entry = (fields: Record<string, string | number | string[]>): string =>
-  ["[[spec]]", ...Object.entries(fields).map(([key, value]) => `${key} = ${JSON.stringify(value)}`), ""].join("\n");
-
-function registryDecodeChecks(): void {
-  const minimal = 'version = 1\nrepo = "Some-Repo"\n';
-  assert(parseRegistry(minimal).ok, "an empty registry must decode");
-  const valid = minimal + entry({ id: "ledger", title: "Ledger", kind: "state-machine", tool: "quint", status: "checked", gate: "required", artefacts: ["spec/quint/ledger.qnt"], covers: ["scripts/**"], docs: ["docs/a.md", "Other-Repo:docs/b.md#c"], requires: ["node", "quint"], check: ["npm", "run", "spec:ledger"], timeout_seconds: 120, target: "AS-LEDGER-1" });
-  const decoded = parseRegistry(valid);
-  assert(decoded.ok && decoded.registry.spec?.[0].id === "ledger" && decoded.registry.spec[0].timeout_seconds === 120, `a valid registry did not decode: ${JSON.stringify(decoded.issues)}`);
-  assert(parseRegistry(readText("integrations/verification/specs.toml.example")).ok, "the shipped template does not decode");
-  assert(parseRegistry(readText(".agent-configs/specs.toml")).ok, "this repository's registry does not decode");
-
-  // Every problem in one pass, each at its exact path: field errors in one entry do not hide
-  // a duplicate id or a cross-field rule in another.
-  const invalid = 'version = 2\nrepo = "bad repo"\nextra = true\n\n'
-    + entry({ id: "Bad_Id", title: "x", kind: "nope", tool: "other", status: "checkd", artifacts: ["a"] })
-    + entry({ id: "dup", title: "first", kind: "protocol", tool: "quint", status: "draft", gate: "required" })
-    + entry({ id: "dup", title: "second", kind: "protocol", tool: "property", status: "checked", artefacts: ["/abs/path", "a/../b"], docs: ["https://example.invalid/x"], check: [], timeout_seconds: 0 });
-  const result = parseRegistry(invalid);
-  const issues = result.issues.map((issue) => `${issue.path}: ${issue.message}`);
-  const paths = result.issues.map((issue) => issue.path);
-  const expectedPaths = [
-    "version", "repo", "spec[0].id", "spec[0].kind", "spec[0].status", "spec[0].notes", "spec[0].artifacts",
-    "spec[1].gate", "spec[1].artefacts", "spec[1].check",
-    "spec[2].id", "spec[2].artefacts[0]", "spec[2].artefacts[1]", "spec[2].docs[0]", "spec[2].check", "spec[2].timeout_seconds",
-    "extra",
-  ];
-  assert(!result.ok && isDeepStrictEqual(paths, expectedPaths), `registry error paths drifted:\n${issues.join("\n")}`);
-  for (const expected of [
-    "version: Expected 1, got 2",
-    'spec[0].id: Expected a kebab-case id such as action-ledger, got "Bad_Id"',
-    'spec[0].notes: notes are required when tool is "other"',
-    'spec[0].artifacts: unknown key "artifacts" (did you mean "artefacts"?)',
-    'spec[1].gate: gate "required" needs status "checked" or "conformance", not "draft"',
-    'spec[1].artefacts: at least one artefact is required unless status is "planned"',
-    'spec[1].check: check is required unless status is "planned"',
-    'spec[2].id: duplicate id "dup": spec[1] already uses it',
-    'spec[2].artefacts[0]: "/abs/path" must be relative to the repository root',
-    `spec[2].artefacts[1]: "a/../b" must not contain a '..' segment`,
-    "spec[2].check: check needs at least the program to run",
-    'extra: unknown key "extra"',
-  ]) assert(issues.includes(expected), `missing registry error: ${expected}\ngot:\n${issues.join("\n")}`);
-  const syntax = parseRegistry("version = [");
-  assert(!syntax.ok && syntax.issues.length === 1 && syntax.issues[0].path === "" && syntax.issues[0].message.startsWith("TOML syntax error at line 1"), "a TOML syntax error was not one root issue");
-}
-
-function registrySchemaChecks(): void {
-  const generated = renderRegistryJsonSchema();
-  assert(generated === readText(SCHEMA_FILE), `${SCHEMA_FILE} drifted from src/spec-registry.ts; run agentctl spec schema --write`);
-  const schema = JSON.parse(generated);
-  const entrySchema = schema.properties.spec.items;
-  // Effect drops a pattern that lacks the u flag, so a missing pattern means a regression.
-  assert(entrySchema.properties.id.pattern === "^[a-z0-9]+(?:-[a-z0-9]+)*$" && schema.properties.repo.pattern, "the JSON Schema lost a pattern");
-  assert(schema.additionalProperties === false && entrySchema.additionalProperties === false, "the JSON Schema accepts unknown keys");
-  assert(isDeepStrictEqual(entrySchema.required, ["id", "title", "kind", "tool", "status"]) && entrySchema.allOf?.length === 3, "the JSON Schema lost a required field or a cross-field rule");
-  const drifted = join(tmpdir(), `agent-sync-schema-${process.pid}.json`);
-  try {
-    writeFileSync(drifted, generated.replace('"Spec registry"', '"Stale title"'));
-    assert(schemaChecks("check", drifted).checks[0].status === "error", "schema --check accepted a stale file");
-    writeFileSync(drifted, generated);
-    assert(schemaChecks("check", drifted).checks[0].status === "ok", "schema --check rejected a current file");
-  } finally {
-    rmSync(drifted, { force: true });
-  }
 }
 
 const javaPattern = 'version "(\\d+(?:\\.\\d+)*)';
@@ -352,7 +286,7 @@ async function blockAndInitChecks(): Promise<void> {
     mkdirSync(join(dir, "elsewhere"), { recursive: true });
     mkdirSync(repo, { recursive: true });
     symlinkSync(join(dir, "elsewhere"), join(repo, ".agent-configs"));
-    assert(initRegistry(repo, { apply: true, name: "x" }).checks[0].status === "error" && !existsSync(join(dir, "elsewhere", "specs.toml")), "init --apply wrote through a symlinked .agent-configs");
+    assert(initRegistry(repo, { apply: true, name: "x" }).checks[0].status === "error" && !existsSync(join(dir, "elsewhere", "specs.toml")), "init --apply wrote outside the repository");
   });
 }
 
@@ -384,8 +318,7 @@ async function main(): Promise<void> {
   assert(outputProbe.outputTruncated && outputProbe.exitCode === null && outputProbe.errorCode === "MAX_BUFFER", "async command output cap did not fail closed");
   kvmChecks();
   itfChecks();
-  registryDecodeChecks();
-  registrySchemaChecks();
+  specRegistryChecks();
   storeVerificationChecks();
   argumentAndPathChecks();
   await probeChecks();
