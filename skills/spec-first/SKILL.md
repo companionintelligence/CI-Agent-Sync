@@ -52,17 +52,18 @@ notes = "Three jobs, three tries. Bounded simulation in pre-push; Apalache by di
 | Field | Rule |
 |---|---|
 | `version`, `repo` | Required. `version = 1`; `repo` is the GitHub repository name. |
+| `[[spec]]` | Zero or more entries. A registry with no entries is valid. |
 | `id`, `title` | Required. Kebab-case id, unique in the repo. One-line title. |
 | `kind` | `protocol`, `state-machine`, `invariant`, `algorithm`, `data-contract`, `ui-flow`, `component`, `agent-step` or `doc-claims`. |
 | `tool` | `quint`, `lemmascript`, `dafny`, `effect-schema`, `storybook`, `bombadil`, `property` or `other`. `other` needs `notes`. |
 | `status` | `planned`, `draft`, `checked` or `conformance` (the ladder below). |
-| `gate` | `advisory` (default) or `required`. `required` only with `checked` or `conformance`. |
+| `gate` | `advisory` (default; a failure is a warning) or `required` (a failure stops the push). `required` only with `checked` or `conformance`. |
 | `artefacts` | Repo-relative paths. They must exist unless the entry is `planned`. |
-| `covers` | Paths or globs of the code the spec constrains. Agents and the pre-push gate use it to pick the specs a change touches. |
+| `covers` | Paths or globs of the code the spec constrains. Agents and `agentctl spec check --changed-from` use it, with `artefacts`, to pick the specs a change touches. ci-local's pre-push slot runs every entry. |
 | `docs` | Documents the spec backs: a repo path, or `<Repo>:<path>[#anchor]`. |
 | `requires` | Toolchain ids from `integrations/verification/toolchains.yaml`. |
 | `check` | An argv array run without a shell from the repo root (or `workdir`). Required unless `planned`. Point it at a package script so a frozen install supplies the pinned tool. |
-| `timeout_seconds` | Optional. Default 300. |
+| `workdir`, `timeout_seconds` | Optional. `workdir` is a repo-relative folder to run `check` in. The timeout defaults to 300 seconds. |
 | `properties`, `conformance`, `target`, `owner`, `notes` | Optional. Put model assumptions (bounds, integer model, stubs) in `notes`. |
 
 Artefacts live next to the code they constrain or under `spec/<tool>/`. LemmaScript contracts stay in
@@ -101,7 +102,8 @@ real code.
 2. If the change alters a rule, change the spec first and make its check pass. A counterexample
    becomes a regression test before the fix.
 3. Run `agentctl spec check` (or the entry's `check`) before pushing. A skipped check is not a pass,
-   and a check that cannot find its toolchain fails.
+   and neither is one that cannot find its toolchain: that fails a required entry and warns on an
+   advisory one.
 4. A doc claim about behaviour cites a spec id, a claim id or a test. Do not type product facts by
    hand.
 5. Do not weaken a spec without the owner's review: no `assume`, axiom, `havoc`, `{:verify false}`,
@@ -116,19 +118,21 @@ real code.
 
 | Command | What it does |
 |---|---|
-| `agentctl spec toolchains [--only IDS]` | Probes the pinned toolchains from `toolchains.yaml`. |
+| `agentctl spec toolchains [--only IDS] [--timeout SECONDS]` | Probes the pinned toolchains from `toolchains.yaml`, 5 seconds per probe unless `--timeout` says otherwise. |
 | `agentctl spec validate` | Decodes `.agent-configs/specs.toml` and checks its paths. |
 | `agentctl spec list` | Shows the entries. |
-| `agentctl spec check [--only IDS] [--tool NAMES] [--changed-from REF]` | Runs each selected entry's `check` without a shell, in a bounded child process. `--changed-from` keeps the entries whose `covers` match files changed in `REF...HEAD`. |
-| `agentctl spec init [--apply]` | Prints the registry template; writes it with `--apply` when there is none. |
+| `agentctl spec check [--only IDS] [--tool NAMES] [--changed-from REF]` | Runs each selected entry's `check` without a shell, in a bounded child process. `--changed-from` keeps the entries whose `covers` or `artefacts` match files changed in `REF...HEAD`. |
+| `agentctl spec init [--name REPO] [--apply]` | Prints the registry template; writes it with `--apply` when there is none. `--name` sets `repo`. |
 | `agentctl spec block [--check \| --apply]` | Renders the managed agent-loop section of AGENTS.md and CLAUDE.md; `--check` reports drift, `--apply` writes. |
 | `agentctl spec schema [--check \| --write]` | Prints, checks or writes `specs.schema.json`. |
 
-Every subcommand takes `--repo DIR` (default: the current directory) and `--json`, which prints the
-standard `{schema_version, summary, checks}` envelope. Nothing is written without `--apply` or
-`--write`. A `planned` entry is reported as skipped, and an entry whose toolchain is missing as not
-run; neither counts as a pass. The full reference is `docs/verification.md`. Where `agentctl` is
-not installed, run each entry's `check` argv from the repository root and read its output yourself.
+Every subcommand except `schema` takes `--repo DIR` (default: the current directory), and every one
+takes `--json`, which prints the standard `{schema_version, summary, checks}` envelope. Nothing is
+written without `--apply` or `--write`. A `planned` entry is reported as skipped. An entry whose
+toolchain is missing does not run, and is reported as an error when it is required and a warning
+otherwise; a failing advisory check is a warning too. None of these counts as a pass. The full
+reference is `docs/verification.md`. Where `agentctl` is not installed, run each entry's `check`
+argv from the repository root and read its output yourself.
 
 ## Evidence rules
 
@@ -140,8 +144,9 @@ not installed, run each entry's `check` argv from the repository root and read i
   passes vacuously.
 - Pass bounds explicitly: sample counts, steps, depth, time limits, generator size. Record them.
 - Pin exact versions and verify downloads by checksum. A lockfile is part of the pin.
-- Keep heavy checks (model checking, long exploration) out of pre-push; run them by dispatch or on a
-  schedule. Pre-push spec checks stay under about two minutes.
+- Keep heavy checks (model checking, long exploration, full story runs) out of `check`: ci-local runs
+  every entry's `check` on pre-push, and pre-push spec checks stay under about two minutes. Run the
+  heavy ones by dispatch or on a schedule, and keep `check` a real, bounded check of the entry.
 
 ## Confidentiality
 
@@ -154,12 +159,15 @@ Fixtures are synthetic: never read a personal corpus into a spec or test.
 ```markdown
 ### Verification
 
-| Entry | Tool | Command | Commit | Bounds | Result |
-|---|---|---|---|---|---|
-| retry-queue | quint 0.34.0 | `npm run spec:retry-queue` | abc1234 | 10000 samples, 20 steps | pass; planted bug fails |
+| Entry | Tool | Command | Commit | Seed | Bounds | Result |
+|---|---|---|---|---|---|---|
+| retry-queue | quint 0.34.0 | `npm run spec:retry-queue` | abc1234 | 0x625a443954cfb0a9 | 10000 samples, 20 steps | pass; planted bug fails |
 
 Not run: <entry id> (<reason>).
 ```
+
+Take the seed from the tool's output (`quint run` prints `Use --seed=0x... to reproduce`). Where a
+tool has no seed, as Bombadil 0.8.0 has none, write the time limit and keep the trace file.
 
 ## Tool skills
 

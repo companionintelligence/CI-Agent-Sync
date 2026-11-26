@@ -27,6 +27,7 @@ Standard Schema.
 
 ```sh
 npm install --save-exact effect@4.1.6
+npm install --save-dev --save-exact ajv@8.20.0   # tests the published JSON Schema
 ```
 
 - Effect 4 is ESM-only and needs Node 22.19 or newer (raise `engines.node` with it) and TypeScript
@@ -104,7 +105,8 @@ expect a second pass. An empty `NonEmptyArray` reports `Missing key` at index 0.
 points at `#/$defs/...`, which the wrapper does not hold. Loaded as-is by a validator that ignores
 unknown keywords, it accepts anything. `Schema.toStandardJSONSchemaV1(S)["~standard"].jsonSchema
 .input({ target: "draft-2020-12" })` is standalone but does not forbid excess properties. Assemble the
-file yourself, then test it against known-bad documents before you publish it:
+file yourself, then test it against known-bad documents before you publish it (the first test under
+Property tests):
 
 ```ts
 // src/settings-json-schema.ts
@@ -145,8 +147,19 @@ import * as Schema from "effect/Schema";
 import { published } from "../src/settings-json-schema.ts";
 import { Settings } from "../src/settings-schema.ts";
 
+const validate = new Ajv2020({ strict: true }).compile(published);
+
+// A schema that accepts anything passes the property test below, so test the other direction too.
+test("the published schema rejects known-bad documents", () => {
+  const good = { version: 1, userId: "user-42", channel: "email" };
+  assert.equal(validate(good), true);
+  for (const bad of [{ ...good, extra: 1 }, { ...good, userId: "User 42" }, { ...good, version: 2 },
+    { ...good, quietHours: { start: 0, end: 24 } }, { version: 1, channel: "email" }]) {
+    assert.equal(validate(bad), false, JSON.stringify(bad));
+  }
+});
+
 test("the published schema accepts every value the decoder accepts", async () => {
-  const validate = new Ajv2020({ strict: true }).compile(published);
   const toJson = Schema.encodeSync(Schema.toCodecJson(Settings));
   const result = await Effect.runPromise(Arbitrary.checkEffect(
     Arbitrary.schema(Settings), (s) => validate(toJson(s)) === true, { runs: 300, size: 32 }));
