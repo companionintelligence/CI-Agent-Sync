@@ -78,8 +78,8 @@ export const saveResolvesWithin3s = always(
 // No credential ever appears in the address bar.
 export const noTokenInUrl = always(() => !/[?#&]access_token=/.test(url.current));
 
-// Reachability witnesses: the run fails if exploration never sees a save in flight or a
-// completed save, so the properties above cannot pass vacuously.
+// Reachability witnesses: a pass fails if exploration never sees a save in flight or a
+// completed save, so the properties above cannot pass vacuously. Each clock's pass takes one.
 export const reachesSaving = eventually(() => status.current === "saving").within(20, "seconds");
 export const reachesSaved = eventually(() => status.current === "saved").within(20, "seconds");
 ```
@@ -93,7 +93,17 @@ the top level of the module.
 
 Real time rarely reaches states behind a timer. Chrome's virtual time reaches them, but then timers
 fire before the next capture, so short-lived states vanish. Each mode checks a different half, so run
-both, each with the witnesses it can reach:
+both, and give each pass only the witness its clock reaches every time. In the trial, real time
+reached "saved" within 20 seconds in 6 of 10 runs, a flaky check, and virtual time never saw
+"saving". Split that way, each pass met its witness in 5 of 5 runs:
+
+```ts
+// bombadil/save-rt.spec.ts: real time sees "saving" at once but reaches "saved" only by chance.
+export {
+  exploration, noConsoleErrors, noHttpErrorCodes, noTokenInUrl, noUncaughtExceptions,
+  noUnhandledPromiseRejections, reachesSaving, saveDisabledWhileSaving, saveResolvesWithin3s,
+} from "./save.spec.ts";
+```
 
 ```ts
 // bombadil/save-vt.spec.ts: the virtual-time pass never sees "saving", so it drops reachesSaving.
@@ -106,17 +116,24 @@ export {
 ```sh
 mkdir -p .bombadil
 npx tsc -p bombadil/tsconfig.json        # Bombadil strips types and never checks them
-npx bombadil browser test --headless --exit-on-violation --time-limit 60s \
-  --output-path .bombadil/rt.bin --output-path-overwrite http://127.0.0.1:5173/ bombadil/save.spec.ts
-npx bombadil browser test --headless --exit-on-violation --chrome-virtual-time-policy Advance --time-limit 60s \
+T=25s                                    # the registered check; 60s or more by dispatch or nightly
+npx bombadil browser test --headless --exit-on-violation --time-limit $T \
+  --output-path .bombadil/rt.bin --output-path-overwrite http://127.0.0.1:5173/ bombadil/save-rt.spec.ts
+npx bombadil browser test --headless --exit-on-violation --chrome-virtual-time-policy Advance --time-limit $T \
   --output-path .bombadil/vt.bin --output-path-overwrite http://127.0.0.1:5173/ bombadil/save-vt.spec.ts
 npx bombadil trace .bombadil/rt.bin --json   # one JSON object per state
 ```
 
-In the trial, a page that left Save enabled while saving failed the real-time pass in under a
-second. In virtual time it passed every safety property, and only the `reachesSaving` witness failed
-the run. `--output-path` refuses an existing file without `--output-path-overwrite`, and its folder
-must exist. The spec's `tsconfig.json`:
+ci-local runs every entry's `check` on pre-push, and long exploration belongs to dispatch or nightly
+runs. So the registered `check` is the short pass: `tsc` and 25 seconds in each clock, enough for
+the 20-second witnesses. It took about 55 seconds in the trial, before the dev server's start-up.
+Run the same passes with `--time-limit 60s` or more by dispatch or nightly.
+
+In the trial's 25-second passes, a page that left Save enabled while saving failed the real-time
+pass within 3 seconds. Run in virtual time with every property of `save.spec.ts`, it passed every
+safety property and failed only on the `reachesSaving` witness, at 21 seconds. `--output-path`
+refuses an existing file without `--output-path-overwrite`, and its folder must exist. The spec's
+`tsconfig.json`:
 
 ```json
 { "compilerOptions": { "target": "ES2022", "module": "ESNext", "moduleResolution": "Bundler", "strict": true,
@@ -134,6 +151,9 @@ must exist. The spec's `tsconfig.json`:
   unit in `.within()` is dropped without an error (so the bound can never fail), and a spec with no
   action generator fails at start. Run `tsc` first; it catches the first two.
 - States are sampled. A transition property must tolerate skipped intermediate states.
+- Exploration is random, so a pass is evidence only if it passes every time. Run a new spec several
+  times before you register it; a witness that is met only sometimes belongs to the other clock or
+  needs a longer bound.
 - `--reproduce` is best effort. The printed reproduce line drops `--chrome-virtual-time-policy`; add
   it back. A reproduce that exits 0 does not prove a fix.
 - Default script instrumentation (`--instrument-javascript files,inline`) rewrites scripts and breaks
@@ -157,21 +177,23 @@ title = "Save: disabled while saving, resolves within 3 s, no token in the URL"
 kind = "ui-flow"
 tool = "bombadil"
 status = "checked"
-artefacts = ["bombadil/save.spec.ts", "bombadil/save-vt.spec.ts", "bombadil/tsconfig.json"]
+artefacts = ["bombadil/save.spec.ts", "bombadil/save-rt.spec.ts", "bombadil/save-vt.spec.ts", "bombadil/tsconfig.json"]
 covers = ["src/settings/**"]
 requires = ["node", "bombadil", "chromium"]
 check = ["npm", "run", "--silent", "spec:save-flow"]
-timeout_seconds = 240
+timeout_seconds = 120
 properties = ["saveDisabledWhileSaving", "saveResolvesWithin3s", "noTokenInUrl"]
-notes = "Runs against the dev server with the API stubbed. Real-time and virtual-time passes, 60 s each."
+notes = "Dev server with the API stubbed. check: tsc and 25 s in each clock. 60 s passes by dispatch or nightly."
 ```
 
 ## PR verification block
 
+Bombadil 0.8.0 has no seed: record the time limits and keep the trace files for `--reproduce`.
+
 ```markdown
 | Entry | Tool | Command | Commit | Bounds | Result |
 |---|---|---|---|---|---|
-| save-flow | bombadil 0.8.0, Chrome <version> | `npm run spec:save-flow` | abc1234 | 60 s real time + 60 s virtual time | no violation; witnesses reached |
+| save-flow | bombadil 0.8.0, Chrome <version> | `npm run spec:save-flow` | abc1234 | 25 s real time + 25 s virtual time | no violation; witnesses reached |
 ```
 
 ## References
