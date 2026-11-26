@@ -1,8 +1,59 @@
 import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
-import { ROOT, fileExists, readJson, readYaml } from "./core.ts";
+import { ROOT, fileExists, readJson, readText, readYaml } from "./core.ts";
+import type { DecodeResult } from "./spec-registry.ts";
+import { POLICY_FILE, TOOLCHAINS_FILE, activeTools, policyProblems, readToolchains } from "./toolchains.ts";
 
 type Check = { id: string; status: "ok" | "error"; detail: string };
+
+/** Registries that validate decodes: the shipped template and this repository's own. */
+export const VERIFICATION_REGISTRIES = [
+  { id: "example", file: "integrations/verification/specs.toml.example" },
+  { id: "repository", file: ".agent-configs/specs.toml" },
+] as const;
+
+export type VerificationVocabulary = {
+  readonly tools: ReadonlyArray<string>;
+  readonly kinds: ReadonlyArray<string>;
+  readonly gates: ReadonlyArray<string>;
+  readonly statuses: ReadonlyArray<string>;
+};
+
+/**
+ * Cross-checks for integrations/verification: toolchain ids are unique and well formed,
+ * the policy names only known tools, and every registry decodes and requires only known
+ * toolchains. Pure, so the tests can feed it broken input.
+ */
+export function verificationChecks(input: {
+  toolchains: unknown;
+  policy: unknown;
+  registries: ReadonlyArray<{ id: string; file: string; text: string }>;
+  decode: (text: string) => DecodeResult;
+  vocabulary: VerificationVocabulary;
+}): Check[] {
+  const checks: Check[] = [];
+  const { toolchains, problems } = readToolchains(input.toolchains, input.vocabulary.tools);
+  const known = new Set(toolchains.map((toolchain) => toolchain.id));
+  const byId = new Map<string, string[]>();
+  for (const problem of problems) byId.set(problem.id, [...(byId.get(problem.id) || []), problem.message]);
+  for (const toolchain of toolchains) add(checks, `verification.toolchain.${toolchain.id}`, "ok", `${toolchain.kind}, ring ${toolchain.ring}, ${toolchain.version ? `pinned ${toolchain.version}` : toolchain.minimum ? `minimum ${toolchain.minimum}` : "no minimum"}`);
+  for (const [id, messages] of byId) add(checks, `verification.toolchain.${id}`, "error", messages.join("; "));
+  const policy = policyProblems(input.policy, { ...input.vocabulary, tools: activeTools(toolchains) });
+  if (policy.length === 0) add(checks, "verification.policy", "ok", "names only known tools, kinds, gates and statuses");
+  for (const problem of policy) add(checks, `verification.policy.${problem.id}`, "error", problem.message);
+  for (const registry of input.registries) {
+    const decoded = input.decode(registry.text);
+    if (!decoded.ok) {
+      add(checks, `verification.registry.${registry.id}`, "error", `${registry.file}: ${decoded.issues.map((issue) => `${issue.path || "(root)"}: ${issue.message}`).join("; ")}`);
+      continue;
+    }
+    const entries = decoded.registry.spec ?? [];
+    add(checks, `verification.registry.${registry.id}`, "ok", `${registry.file} decodes (${entries.length} ${entries.length === 1 ? "entry" : "entries"})`);
+    const unknown = entries.flatMap((entry, index) => (entry.requires ?? []).filter((id) => !known.has(id)).map((id) => `spec[${index}].requires: "${id}" is not a toolchain id`));
+    if (unknown.length > 0) add(checks, `verification.registry.${registry.id}.requires`, "error", unknown.join("; "));
+  }
+  return checks;
+}
 
 function filesUnder(relativeRoot: string, extension: string): string[] {
   const root = join(ROOT, relativeRoot);
@@ -22,7 +73,7 @@ function add(checks: Check[], id: string, status: Check["status"], detail: strin
   checks.push({ id, status, detail });
 }
 
-export function validateStore(options: { json?: boolean } = {}): { exitCode: number; result: any } {
+export async function validateStore(options: { json?: boolean } = {}): Promise<{ exitCode: number; result: any }> {
   const checks: Check[] = [];
   const yamlFiles = ["integrations", "profiles", "repos", "sync", "providers"].flatMap((root) => filesUnder(root, ".yaml"));
   for (const file of yamlFiles) {
@@ -74,6 +125,21 @@ export function validateStore(options: { json?: boolean } = {}): { exitCode: num
     add(checks, "sync.manifest", missing.length === 0 ? "ok" : "error", missing.length === 0 ? "all sources exist" : `missing: ${missing.join(", ")}`);
   } catch (error) {
     add(checks, "sync.manifest", "error", String(error));
+  }
+
+  try {
+    // Loaded on demand: the registry schema pulls in Effect, which no other check needs.
+    const registry = await import("./spec-registry.ts");
+    const registries = VERIFICATION_REGISTRIES.filter((item) => fileExists(item.file)).map((item) => ({ ...item, text: readText(item.file) }));
+    checks.push(...verificationChecks({
+      toolchains: readYaml(TOOLCHAINS_FILE),
+      policy: readYaml(POLICY_FILE),
+      registries,
+      decode: registry.parseRegistry,
+      vocabulary: { tools: registry.SPEC_TOOLS, kinds: registry.SPEC_KINDS, gates: registry.SPEC_GATES, statuses: registry.SPEC_STATUSES },
+    }));
+  } catch (error) {
+    add(checks, "verification", "error", String(error));
   }
   const summary = { ok: checks.filter((check) => check.status === "ok").length, error: checks.filter((check) => check.status === "error").length };
   const result = { schema_version: 1, summary, checks };

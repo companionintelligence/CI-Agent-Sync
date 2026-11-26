@@ -87,7 +87,7 @@ async function agentctlCommand(args: string[]): Promise<number> {
   switch (target) {
     case "atlas": return startAtlas(args);
     case "doctor": return (await doctor({ json: args.includes("--json"), strict: args.includes("--strict") })).exitCode;
-    case "validate": return validateStore({ json: args.includes("--json") }).exitCode;
+    case "validate": return (await validateStore({ json: args.includes("--json") })).exitCode;
     case "profile":
     case "profiles": return profileCommand(args);
     case "skills": return skillsCommand(args);
@@ -126,7 +126,7 @@ async function agentctlCommand(args: string[]): Promise<number> {
     case "bootstrap": return runInteractive("zsh", [join(ROOT, "scripts", "bootstrap-machine.zsh"), ...args]);
     case "openclaw": return runInteractive(join(ROOT, "bin", "openclaw-runtime"), args);
     case "check": {
-      const validation = validateStore({ json: false });
+      const validation = await validateStore({ json: false });
       const required = ["web/index.html", "web/styles.css", "web/app.js", "web/assets/ci-common/tokens.css"];
       const missing = required.filter((file) => !commandPath(join(ROOT, file)));
       if (missing.length) { console.error(`Missing assets: ${missing.join(", ")}`); return 1; }
