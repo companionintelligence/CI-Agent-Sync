@@ -30,6 +30,103 @@ default_skills:
       chatgpt: download the repo ZIP and upload it as a skill in the app settings
     not_applicable: [ollama]
 
+# Skills written in this repository, one folder each under skills/<id>/SKILL.md (index: skills/README.md).
+# They are opt-in, not default skills. `installs` is a template for every skill below: replace {id}
+# with the skill id and {commit} with the full SHA of the CI-Agent-Sync commit you reviewed (the
+# skills CLI pins a source with owner/repo@<commit>). From a reviewed checkout, the source `.` works in
+# place of the GitHub pin. DISABLE_TELEMETRY=1 turns off the skills CLI's usage reporting, and the CLI
+# needs Node 22.20 or newer. Installs stay audit-then-explicit: read the SKILL.md first.
+first_party_skills:
+  source: companionintelligence/CI-Agent-Sync
+  path: skills/{id}/SKILL.md
+  license: PolyForm-Noncommercial-1.0.0
+  installs:
+    claude: DISABLE_TELEMETRY=1 npx skills add companionintelligence/CI-Agent-Sync@{commit} --skill {id} --global --agent claude-code
+    codex: DISABLE_TELEMETRY=1 npx skills add companionintelligence/CI-Agent-Sync@{commit} --skill {id} --global --agent codex
+    opencode: copy skills/{id}/SKILL.md to ~/.config/opencode/skills/{id}/SKILL.md
+    hermes: copy skills/{id}/SKILL.md to ~/.hermes/skills/{id}/SKILL.md
+    openclaw: copy skills/{id}/SKILL.md to ~/.openclaw/skills/{id}/SKILL.md
+    vscode: DISABLE_TELEMETRY=1 npx skills add companionintelligence/CI-Agent-Sync@{commit} --skill {id} --global --agent github-copilot
+    antigravity: DISABLE_TELEMETRY=1 npx skills add companionintelligence/CI-Agent-Sync@{commit} --skill {id} --global --agent antigravity
+    pi: copy skills/{id}/SKILL.md to ~/.pi/skills/{id}/SKILL.md
+    aider-desk: copy skills/{id}/SKILL.md into the app's skills folder; verify the path in the app first
+    chatgpt: download the repo ZIP and upload skills/{id} as a skill in the app settings
+  not_applicable: [ollama]
+  skills:
+    - id: spec-first
+      path: skills/spec-first/SKILL.md
+      purpose: The umbrella for spec-first work. The .agent-configs/specs.toml registry, the status ladder, choosing a tool by kind of rule, the six-step agent loop, agentctl spec, evidence rules and the PR verification block.
+    - id: quint-spec
+      path: skills/quint-spec/SKILL.md
+      purpose: Model protocols, lifecycles and races in Quint 0.34.0. Invariants and observations, typecheck, run, test, bounded verify on a per-run Apalache port, QUINT_HOME and replaying ITF traces against TypeScript code.
+    - id: lemmascript-proof
+      path: skills/lemmascript-proof/SKILL.md
+      purpose: Prove small pure TypeScript decision functions in place with LemmaScript 0.6.14 and Dafny 4.11.0, with unread-annotations at error and the gates CI owns.
+    - id: dafny-reference-model
+      path: skills/dafny-reference-model/SKILL.md
+      purpose: Write Dafny 4.11.0 reference models, audit .dfy files against a baseline, and use generated JavaScript only as a test oracle.
+    - id: effect-schema-contract
+      path: skills/effect-schema-contract/SKILL.md
+      purpose: Data contracts at boundaries with effect 4.1.6 Schema. Subpath imports, decoding with every error, a sound JSON Schema export, Standard Schema interop and effect/Arbitrary properties.
+    - id: storybook-contract
+      path: skills/storybook-contract/SKILL.md
+      purpose: Component contracts with Storybook 10.6.9 and the Vitest addon. Play functions, axe at error, telemetry off, exact pins after init and no Chromatic.
+    - id: bombadil-property
+      path: skills/bombadil-property/SKILL.md
+      purpose: Temporal properties of web UIs with Bombadil 0.8.0. Extractors, weighted actions, real and virtual time, reachability witnesses and no secrets in tool arguments.
+    - id: doc-claim-binding
+      path: skills/doc-claim-binding/SKILL.md
+      purpose: Never type a product fact by hand. Cite a spec id, claim id or test, and check claims before a docs push.
+
+# Upstream skills worth reading beside the first-party ones, recorded at the commit that was read.
+# Reference only: none is a default skill and none is copied into this repository. Review the
+# upstream diff before moving a pin.
+upstream_skill_references:
+  - id: quint-lang
+    repository: quint-co/quint
+    path: skills/quint-lang/SKILL.md
+    pinned_commit: 95141d4691cce7e60104bdfcbc1d1b074f1cb789
+    license: Apache-2.0
+    used_by: [quint-spec]
+    install: gh skill install quint-co/quint quint-lang --pin 95141d4691cce7e60104bdfcbc1d1b074f1cb789 --agent claude-code --scope user
+    notes: Language and CLI reference. The skills folder last changed at 389cf78 (2026-11-02), before Quint 0.34.0, so it still teaches --witnesses and says piped REPL input needs the TypeScript backend. The quint-llm-kit ships older skills with the same names; do not install both.
+  - id: quint-modeling
+    repository: quint-co/quint
+    path: skills/quint-modeling/SKILL.md
+    pinned_commit: 95141d4691cce7e60104bdfcbc1d1b074f1cb789
+    license: Apache-2.0
+    used_by: [quint-spec]
+    install: gh skill install quint-co/quint quint-modeling --pin 95141d4691cce7e60104bdfcbc1d1b074f1cb789 --agent claude-code --scope user
+    notes: Modelling flows from code, requirements or TLA+, and a review checklist. Same 0.34.0 caveats as quint-lang.
+  - id: effect-ts
+    repository: Effect-TS/skills
+    path: skills/effect-ts/SKILL.md
+    pinned_commit: 155c50c911f9c99c294ef8a4461981c5bbe6453e
+    license: MIT
+    used_by: [effect-schema-contract]
+    install: DISABLE_TELEMETRY=1 npx skills add Effect-TS/skills@155c50c911f9c99c294ef8a4461981c5bbe6453e --skill effect-ts --global --agent claude-code
+    notes: Its step 1 installs effect@latest and step 2 edits AGENTS.md and CLAUDE.md. Keep the exact effect 4.1.6 pin and leave agent files to sync; take only the advice to read node_modules/effect/AGENTS.md.
+  - id: effect-v3-to-v4
+    repository: Effect-TS/skills
+    path: skills/effect-v3-to-v4/SKILL.md
+    pinned_commit: 155c50c911f9c99c294ef8a4461981c5bbe6453e
+    license: MIT
+    used_by: [effect-schema-contract]
+    notes: A bounded v3 to v4 migration workflow driven by the migration notes in the Effect repository. Only for repositories that already use Effect 3.
+  - id: storybook-11-skills
+    repository: storybookjs/storybook
+    path: code/lib/claude-plugin/skills
+    pinned_commit: 7bfb4ca1d4bc2e74f7b1a60a2b220eb9cfd2e8eb
+    license: MIT
+    used_by: [storybook-contract]
+    notes: The seven skills that Storybook 11.0.0-rc.1 installs, in the MIT monorepo at tag v11.0.0-rc.1. They describe 11.x; do not use them while repositories pin 10.6.9. The storybookjs/skills repository that `storybook upgrade` fetches them from has no licence.
+  - id: lemmascript-skills
+    repository: midspiral/lemmascript-skills
+    pinned_commit: ddd73a1fe6a2fb9d587efa9ec0427e28833a0d2f
+    license: none
+    used_by: [lemmascript-proof]
+    notes: No licence file and no licence statement. Link to it only; never copy or adapt its text into this repository.
+
 sources:
   - id: companion-hub-agent-skills
     repository: companionintelligence/Companion-Hub
