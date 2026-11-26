@@ -301,13 +301,45 @@ export function runInteractive(command: string, args: string[] = [], cwd = ROOT)
   return result.status ?? 1;
 }
 
+const REDACTED = "[REDACTED]";
+
+/** Does `value` decode from base64 to printable text with a colon, as user:password does? */
+function isBasicCredential(value: string): boolean {
+  if (value.length % 4 !== 0) return false;
+  const text = Buffer.from(value, "base64").toString("utf8");
+  return text.includes(":") && !/[\u0000-\u001f\u007f\ufffd]/u.test(text);
+}
+
+/**
+ * Replace each credential that has a recognisable shape with [REDACTED] and keep the text
+ * around it: the password in a URL's userinfo, Bearer and Basic authorization values,
+ * GitHub and Slack tokens, OpenAI- and Anthropic-style keys, AWS access key ids and JSON
+ * Web Tokens. A secret without such a shape passes through, so this is best effort.
+ */
+export function redactCredentials(text: string): string {
+  return text
+    // scheme://user:password@host keeps the scheme, the user and the host.
+    .replace(/(?<![A-Za-z0-9+.-])([A-Za-z][A-Za-z0-9+.-]{0,31}:\/\/[^\s:/?#@]*:)[^\s/?#]+(?=@)/gu, `$1${REDACTED}`)
+    .replace(/(Bearer\s+)[A-Za-z0-9._~+\/-]+=*/giu, `$1${REDACTED}`)
+    .replace(/((?:proxy-)?authorization["']?\s*[:=]\s*["']?Basic\s+)[^\s"',;]+/giu, `$1${REDACTED}`)
+    .replace(/\b(Basic\s+)([A-Za-z0-9+/]+={0,2})(?![A-Za-z0-9+/=])/giu, (match: string, scheme: string, value: string) => (isBasicCredential(value) ? `${scheme}${REDACTED}` : match))
+    .replace(/\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})/gu, REDACTED)
+    .replace(/\bxox[abprs]-[A-Za-z0-9-]{10,}/gu, REDACTED)
+    .replace(/\bsk-[A-Za-z0-9_-]{8,}/gu, REDACTED)
+    .replace(/\bAKIA[0-9A-Z]{16}\b/gu, REDACTED)
+    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*/gu, REDACTED);
+}
+
+/**
+ * Command output for a report: escape codes removed, credentials redacted, and the last 20
+ * non-empty lines kept, at most `maxLength` characters.
+ */
 export function safeDetail(value: unknown, maxLength = 5_000): string {
-  let cleaned = String(value ?? "").replace(/\u001b\[[0-?]*[ -\/]*[@-~]/g, "");
+  let cleaned = redactCredentials(String(value ?? "").replace(/\u001b\[[0-?]*[ -\/]*[@-~]/g, ""));
+  // The value after a secret-named key, unless a credential shape above has replaced it.
   cleaned = cleaned
-    .replace(/(Bearer\s+)[A-Za-z0-9._~+\/-]+/gi, "$1[REDACTED]")
-    .replace(/(sk-[A-Za-z0-9_-]{8,})/g, "[REDACTED]")
-    .replace(/((?:api[_-]?key|token|secret|password|credential|authorization|cookie)\s*[:=]\s*)[^\s,}\"]+/gi, "$1[REDACTED]")
-    .replace(/((?:["']?)(?:api[_-]?key|token|secret|password|credential|authorization|cookie)(?:["']?\s*[:=]\s*))(["'][^"']*["']|[^,}\s]+)/gi, "$1[REDACTED]");
+    .replace(/((?:api[_-]?key|token|secret|password|credential|authorization|cookie)\s*[:=]\s*)(?!(?:(?:Basic|Bearer)\s+)?\[REDACTED\])[^\s,}\"]+/gi, "$1[REDACTED]")
+    .replace(/((?:["']?)(?:api[_-]?key|token|secret|password|credential|authorization|cookie)(?:["']?\s*[:=]\s*))(?!["']?(?:(?:Basic|Bearer)\s+)?\[REDACTED\])(["'][^"']*["']|[^,}\s]+)/gi, "$1[REDACTED]");
   return cleaned.split(/\r?\n/).filter(Boolean).slice(-20).join("\n").slice(0, maxLength);
 }
 
@@ -319,11 +351,7 @@ export function redactSecrets(value: unknown): unknown {
   if (value && typeof value === "object") {
     return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, SENSITIVE_KEY.test(key) ? "<redacted>" : redactSecrets(child)]));
   }
-  if (typeof value === "string") {
-    return value
-      .replace(/(Bearer\s+)[A-Za-z0-9._~+\/-]+/gi, "$1[REDACTED]")
-      .replace(/(sk-[A-Za-z0-9_-]{8,})/g, "[REDACTED]");
-  }
+  if (typeof value === "string") return redactCredentials(value);
   return value;
 }
 

@@ -312,9 +312,14 @@ This repository keeps its own registry in `.agent-configs/specs.toml`.
   the check exits, or after its timeout, the rest of the group is stopped and
   the result is returned.
 - A failing check's detail keeps the last 20 lines of its output (at most
-  2,000 characters), with common credential patterns redacted. The redaction is best effort, so read the
-  output before you paste it anywhere. Reports show the home directory as `~`,
-  so a report pasted into a pull request does not carry a local user name.
+  2,000 characters). Credentials with a recognisable shape become `[REDACTED]`
+  and the text around them is kept: the password in a URL
+  (`scheme://user:password@host`), Bearer and Basic authorization values,
+  GitHub and Slack tokens, OpenAI- and Anthropic-style keys, AWS access key
+  ids, JSON Web Tokens, and the value after a key such as `token=` or
+  `password:`. The redaction is best effort, so read the output before you
+  paste it anywhere. Reports show the home directory as `~`, so a report
+  pasted into a pull request does not carry a local user name.
 - Probes have a short timeout, and the git reads behind `--changed-from` and the
   `covers` check run with `GIT_OPTIONAL_LOCKS=0`, so they never contend with
   other agents' checkouts.

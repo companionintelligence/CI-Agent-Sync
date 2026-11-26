@@ -464,6 +464,73 @@ function specCliChecks(): void {
   assert(cli("bogus").exitCode === 2 && cli("check", "--write").exitCode === 2, "a bad spec command or option did not exit 2");
 }
 
+// Credential shapes in report output become a fixed placeholder, the text around them is
+// kept, and ordinary text passes through unchanged. Every value here is synthetic and is
+// built at run time, so the source holds nothing credential-shaped.
+async function redactionChecks(): Promise<void> {
+  const body = "Q7xT2mK9vR4wZ8nB".repeat(4);
+  const base64url = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  const jwt = `${base64url({ alg: "HS256", typ: "JWT" })}.${base64url({ sub: "someone", iat: 0 })}.${body.slice(0, 43)}`;
+  const shapes: Array<[string, string]> = [
+    ...["p", "o", "u", "s", "r"].map((letter): [string, string] => [`a GitHub gh${letter}_ token`, `gh${letter}_${body.slice(0, 36)}`]),
+    ["a GitHub fine-grained token", `github_pat_${body.slice(0, 22)}_${body.slice(0, 59)}`],
+    ...["a", "b", "p", "r", "s"].map((letter): [string, string] => [`a Slack xox${letter}- token`, `xox${letter}-1234567890-1234567890123-${body.slice(0, 24)}`]),
+    ["an sk- key", `sk-${body.slice(0, 48)}`],
+    ["an sk-proj- key", `sk-proj-${body}`],
+    ["an sk-ant- key", `sk-ant-api03-${body}`],
+    ["an AWS access key id", `AKIA${body.slice(0, 16).toUpperCase()}`],
+    ["a JSON Web Token", jwt],
+    ["an unsigned JSON Web Token", `${base64url({ alg: "none" })}.${base64url({ sub: "someone" })}.`],
+  ];
+  for (const [label, secret] of shapes) {
+    const redacted = safeDetail(`before ${secret} after`);
+    assert(redacted === "before [REDACTED] after", `${label} was not replaced with the text around it kept: ${redacted}`);
+  }
+
+  const password = `not-a-real-${body.slice(0, 12)}`;
+  const basic = Buffer.from(`someone:${password}`).toString("base64");
+  const github = `ghs_${body.slice(0, 36)}`;
+  const inContext: Array<[string, string, string]> = [
+    ["a Bearer value", `Authorization: Bearer ${body}`, "Authorization: Bearer [REDACTED]"],
+    ["a Basic header", `Authorization: Basic ${basic}`, "Authorization: Basic [REDACTED]"],
+    ["a Basic header in JSON", `{"authorization": "Basic ${basic}", "accept": "*/*"}`, '{"authorization": "Basic [REDACTED]", "accept": "*/*"}'],
+    ["a Basic value without a header", `retrying with Basic ${basic} now`, "retrying with Basic [REDACTED] now"],
+    ["a URL password", `cloning https://someone:${password}@example.invalid/repo.git failed`, "cloning https://someone:[REDACTED]@example.invalid/repo.git failed"],
+    ["a URL password with an @ in it", `redis://:p@ss${password}@cache.example.invalid:6379/0`, "redis://:[REDACTED]@cache.example.invalid:6379/0"],
+    ["a token as a URL password", `https://x-access-token:${github}@github.com/o/r.git`, "https://x-access-token:[REDACTED]@github.com/o/r.git"],
+    ["a token as a URL user", `https://${github}@github.com/o/r.git`, "https://[REDACTED]@github.com/o/r.git"],
+    ["a token after a key", `export GITHUB_TOKEN=${github}; npm test`, "export GITHUB_TOKEN=[REDACTED]; npm test"],
+  ];
+  for (const [label, text, expected] of inContext) {
+    const redacted = safeDetail(text);
+    assert(redacted === expected, `${label} was redacted wrongly: ${redacted}`);
+  }
+
+  const ordinary = [
+    "commit a5324b2f8bb45e9638fb6aec6c18dc63818432bc (HEAD -> fix/verification-review), parent 7094152",
+    "Basic functionality works; Basic data and Basic auth checks passed",
+    "task-runner-for-everything and disk-cleanup-scheduled-nightly finished in 1.2 s",
+    "see https://example.invalid/docs#section and http://localhost:3000/path?x=1",
+    "ssh://deploy@127.0.0.1:2222/srv/repo and http://[::1]:8080/health",
+    "AKIA is a prefix, eyJ starts base64 JSON, and 4 of 4 checks passed",
+  ];
+  for (const line of ordinary) assert(safeDetail(line) === line, `ordinary text was changed: ${safeDetail(line)}`);
+
+  const payload = redactSecrets({ note: `pushed with ${github}`, nested: [`session ${jwt}`] }) as { note: string; nested: string[] };
+  assert(payload.note === "pushed with [REDACTED]" && payload.nested[0] === "session [REDACTED]", "payload strings were not redacted with the same shapes");
+
+  // A failing check's detail in `agentctl spec check` goes through the same redaction.
+  await withTempDir("check-redaction", async (repo) => {
+    writeRepoFile(repo, "spec/a.txt", "x\n");
+    const leak = "console.error('pushing with gh' + 'p_' + 'Q7xT2mK9'.repeat(5) + ' to https://someone:' + 'pw'.repeat(8) + '@example.invalid/x'); process.exit(1)";
+    writeRepoFile(repo, ".agent-configs/specs.toml", 'version = 1\nrepo = "redaction-test"\n\n'
+      + entry({ id: "leaky", title: "Leaky", kind: "invariant", tool: "property", status: "checked", artefacts: ["spec/a.txt"], check: [process.execPath, "-e", leak] }));
+    const { checks } = await checkEntries({ repo, toolchains: [] });
+    const leaky = checks.find((check) => check.id === "spec.leaky");
+    assert(leaky?.status === "warn" && leaky.detail === "failed with exit 1\npushing with [REDACTED] to https://someone:[REDACTED]@example.invalid/x", `a failing check's output was not redacted: ${leaky?.detail}`);
+  });
+}
+
 function encodingChecks(): void {
   // Ruby must read the store's UTF-8 files as UTF-8 even when the caller has no UTF-8 locale.
   const probe = runCommand("ruby", ["-e", "print Encoding.default_external.name"], { env: { LANG: "", LC_ALL: "", LC_CTYPE: "" } });
@@ -493,6 +560,7 @@ async function main(): Promise<void> {
   await blockAndInitChecks();
   specCliChecks();
   encodingChecks();
+  await redactionChecks();
   assert(!safeDetail('{"apiKey":"not-for-output"}').includes("not-for-output"), "structured secret detail was not redacted");
   assert((redactSecrets({ apiKey: "not-for-output", status: "ok" }) as any).apiKey === "<redacted>", "structured payload secret was not redacted");
   const tailnet = summarizeTailscaleStatus({
