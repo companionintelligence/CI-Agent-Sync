@@ -118,6 +118,7 @@
     "game-engine:cleanup": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/cleanup-game-engine-tests.ps1",
     "prepack": "npm run build:cli",
     "prepublishOnly": "node .github/scripts/refuse-local-publish.mjs",
+    "spec:schema": "node --experimental-strip-types --no-warnings src/cli.ts spec schema --check",
     "test": "node --experimental-strip-types --no-warnings src/test.ts"
   },
   "dependencies": {

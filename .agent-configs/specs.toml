@@ -1,0 +1,65 @@
+#:schema https://raw.githubusercontent.com/companionintelligence/CI-Agent-Sync/main/integrations/verification/specs.schema.json
+# Spec registry: the formal and executable specifications this repo keeps.
+# Format and commands: docs/verification.md. Check it with `./bin/agentctl spec validate`.
+version = 1
+repo = "CI-Agent-Sync"
+
+[[spec]]
+id = "spec-registry-schema"
+title = "Spec registry: the TOML format, its cross-field rules and the generated JSON Schema"
+kind = "data-contract"
+tool = "effect-schema"
+status = "checked"
+gate = "required"
+artefacts = ["src/spec-registry.ts", "integrations/verification/specs.schema.json"]
+covers = ["src/spec-registry.ts", "integrations/verification/**"]
+docs = ["docs/verification.md"]
+requires = ["node", "effect"]
+check = ["npm", "run", "--silent", "spec:schema"]
+timeout_seconds = 60
+properties = ["schemaFileMatchesSchema", "everyErrorAtItsPath", "crossFieldRulesInOnePass"]
+conformance = "The decoder in src/spec-registry.ts is the code agentctl runs, and src/test.ts decodes valid and invalid registries with it."
+
+[[spec]]
+id = "action-ledger"
+title = "Action ledger: plan, approve, complete, cancel and expire"
+kind = "state-machine"
+tool = "quint"
+status = "planned"
+covers = ["scripts/action-ledger.rb"]
+docs = ["integrations/operator-contract.yaml"]
+requires = ["node", "quint"]
+target = "AS-LEDGER-1"
+
+[[spec]]
+id = "path-containment"
+title = "Path containment for sync destinations"
+kind = "invariant"
+tool = "lemmascript"
+status = "planned"
+covers = ["scripts/sync.rb"]
+docs = ["sync/README.md"]
+requires = ["node", "lemmascript", "dafny"]
+target = "AS-SYNC-1"
+
+[[spec]]
+id = "sync-plan-model"
+title = "Sync plan and apply: selection, skipped targets, backups and prune"
+kind = "state-machine"
+tool = "quint"
+status = "planned"
+covers = ["scripts/sync.rb", "sync/manifest.yaml"]
+docs = ["sync/README.md"]
+requires = ["node", "quint"]
+target = "AS-SYNC-2"
+
+[[spec]]
+id = "store-schemas"
+title = "Typed schemas for every YAML store file"
+kind = "data-contract"
+tool = "effect-schema"
+status = "planned"
+covers = ["src/validate.ts", "integrations/**", "providers/**", "profiles/**", "repos/**", "sync/**"]
+docs = ["docs/control-plane.md"]
+requires = ["node", "effect"]
+target = "AS-SCHEMA-1"

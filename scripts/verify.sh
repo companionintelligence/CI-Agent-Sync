@@ -50,6 +50,8 @@ zsh -n bin/openclaw-runtime
 zsh -n scripts/bootstrap-machine.zsh
 zsh -n scripts/sync-repos.zsh
 quiet node --experimental-strip-types --no-warnings src/cli.ts check
+# This repository's own spec registry: every non-planned entry's check, as a pre-push gate runs it.
+quiet node --experimental-strip-types --no-warnings src/cli.ts spec check --repo .
 quiet node --experimental-strip-types --no-warnings src/test.ts
 quiet node --experimental-strip-types --no-warnings src/cli.ts conformance --json --timeout 5
 quiet node --experimental-strip-types --no-warnings src/cli.ts harness-smoke --json --timeout 5
