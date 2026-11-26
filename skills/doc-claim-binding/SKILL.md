@@ -51,9 +51,10 @@ contains one.
 ## Cite it
 
 ```markdown
-A job is sent at most three times, then dropped
-(spec `retry-queue`, property `triesBounded`: model-checked to 10 steps in
-[spec/quint/retryQueue.qnt](../spec/quint/retryQueue.qnt)).
+A job is sent at most three times (spec `retry-queue`, property `triesBounded`), and it is dropped
+only after its third try (property `droppedOnlyAfterLastTry`). Both are checked in the model
+[spec/quint/retryQueue.qnt](../spec/quint/retryQueue.qnt) by simulation: 10000 random runs of up to
+20 steps, which finds violations but does not prove their absence.
 
 Settings files reject unknown keys (spec `settings-contract`; the published schema is
 [schemas/settings.schema.json](../schemas/settings.schema.json), generated from the decoder).
@@ -83,13 +84,18 @@ does not yet catch one of these, check that case by hand and say so in the PR.
 
 ## Finding hand-typed facts
 
-Search the change before you push, then cite or generate every hit:
+Search the whole change before you push, committed or not, then cite or generate every hit. Diff
+against the point where the branch left the default branch (here `main`); `git add -N` new files
+first so the diff includes them:
 
 ```sh
-git diff --cached -U0 | grep -nE '^\+.*\b[0-9]+ (tools|intents|endpoints|clients|stories)\b'
-git diff --cached -U0 | grep -nE '^\+.*\b[A-Z][A-Z0-9]+_[A-Z0-9_]+\b'      # environment variable names
-git diff --cached -U0 | grep -nE '^\+.*(latest|default(s)? to|port [0-9]+|fails closed|never)'
+BASE=$(git merge-base origin/main HEAD)
+git diff -U0 "$BASE" | grep -nE '^\+.*\b[0-9]+ (tools|intents|endpoints|clients|stories)\b'
+git diff -U0 "$BASE" | grep -nE '^\+.*\b[A-Z][A-Z0-9]+_[A-Z0-9_]+\b'      # environment variable names
+git diff -U0 "$BASE" | grep -nE '^\+.*(latest|default(s)? to|port [0-9]+|fails closed|never)'
 ```
+
+`git diff --cached` is empty once the change is committed, so it finds nothing just when it matters.
 
 ## When the docs and the product disagree
 
@@ -105,7 +111,7 @@ doc as unverified.
 
 | Page | Claim | Evidence | Checked at | Result |
 |---|---|---|---|---|
-| docs/queue.md | at most three sends | `retry-queue` / `triesBounded` | abc1234 | `agentctl spec check` pass |
+| docs/queue.md | at most three sends; dropped only after the third try | `retry-queue` / `triesBounded`, `droppedOnlyAfterLastTry` (simulation, 10000 runs of 20 steps) | abc1234 | `agentctl spec check` pass |
 | docs/settings.md | unknown keys rejected | `settings-contract` | abc1234 | schema regenerated, no diff |
 ```
 
