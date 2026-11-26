@@ -19,7 +19,7 @@ agent_loop:
   - id: spec-first
     text: If the change alters a rule, change the spec first and make its check pass. A counterexample becomes a regression test before the fix.
   - id: check-before-push
-    text: Before you push, run each entry's check, or `agentctl spec check --repo .` where CI Agent Sync is installed. A skipped check is not a pass, and a check that cannot find its toolchain fails.
+    text: "Before you push, run each entry's check, or `agentctl spec check --repo .` where CI Agent Sync is installed. A skipped check is not a pass, and neither is a check that cannot find its toolchain: it fails a required entry and warns for any other."
   - id: cite-claims
     text: A doc claim about behaviour cites a spec id, a claim id or a test. Do not type product facts by hand.
   - id: no-weakening
@@ -32,8 +32,8 @@ change_classes:
     description: "More than one actor, or time: sign-in and consent, payments and entitlements, approvals and ledgers, leases, queues, outboxes, sync and lifecycles."
     kinds: [protocol, state-machine]
     tools: [quint]
-    evidence: A Quint model with named invariants and one observation (a reachability witness) per invariant, passing quint typecheck, quint test and a bounded quint run.
-    deep_evidence: quint verify with Apalache and an explicit --max-steps, or with TLC, on a dispatch-only or nightly runner.
+    evidence: "A Quint model with named invariants and one observation (a reachability witness) per invariant, passing quint typecheck, quint test with a progress test, and quint run with an explicit --max-samples and --max-steps. The gate script requires each tool's result line and keeps a planted-bug variant of the model that must fail."
+    deep_evidence: "quint verify on a dispatch-only or nightly runner: Apalache with an explicit --max-steps for invariants, and --backend tlc for temporal and action properties. Cross-check verify against run; neither checker reports deadlocks."
     conformance: Replay `quint run --mbt` traces against the code; src/itf.ts decodes them for TypeScript tests.
   - id: decision-core
     description: "A small pure function whose answer gates something: consent and grant policy, path containment, redirect validation, scope checks, ranking."
@@ -98,11 +98,15 @@ evidence_rules:
   - id: skipped-is-not-passed
     rule: A skipped, planned or missing-toolchain entry is reported as skipped, a warning or an error, never as ok.
   - id: record-run-parameters
-    rule: "Every run records the commit and its seed, bound or depth: quint --seed, --max-samples and --max-steps; the property-test seed, runs and size; the Bombadil seed and time limit."
+    rule: "Every run records the commit and its seed, bound or depth: for Quint the --seed with its explicit --max-samples, and --max-steps; the property-test seed, runs and size; the Bombadil seed and time limit."
   - id: counterexample-to-regression
     rule: A counterexample becomes a regression test (a Quint run or test, a fixed-seed property case, a story or a unit test) before the fix lands.
   - id: no-vacuous-pass
-    rule: "Every important invariant has a witness that its antecedent is reachable: a Quint observation, a bounded Bombadil eventually, a nonzero verification-condition count."
+    rule: "Every important invariant has a witness that its antecedent is reachable: a Quint observation, a bounded Bombadil eventually, a nonzero verification-condition count. A protocol model also has a progress test, such as quint test with reps, because the model checkers do not report deadlocks."
+  - id: exit-zero-is-not-evidence
+    rule: "A gate script never trusts an exit code alone. It passes explicit sample counts (--max-samples whenever it passes --seed), checks temporal and action properties with quint verify --backend tlc, requires the tool's result line in the output, keeps a planted-bug variant that must fail, and treats any exit code it does not expect as a failure."
+  - id: no-prompts
+    rule: "A check never waits for input. `agentctl spec check` runs every check with stdin closed, and a tool that prompts then reads end of file: quint verify --temporal on Apalache exits 0 that way, having checked nothing."
   - id: pin-and-verify
     rule: Every tool is pinned to an exact version, and every download is checked against its published checksum.
   - id: verification-block
@@ -112,7 +116,7 @@ escape_hatches:
   rule: An agent's change never adds an escape hatch, deletes a property, lowers a bound, or downgrades a gate or status. Any of these needs the owner's review in the same pull request.
   by_tool:
     - tool: quint
-      forbidden: [an assume in a spec, a deleted invariant or observation, a lowered --max-steps or --max-samples, a removed --observation]
+      forbidden: [an assume in a spec, a deleted invariant or observation, a lowered --max-steps or --max-samples, a removed --observation, a --seed without --max-samples, --temporal on the Apalache backend]
     - tool: lemmascript
       forbidden: ["//@ assume", "//@ havoc", "//@ autohavoc", "//@ extern", "a type override such as nat", "an added include line", "flags in the third column of LemmaScript-files.txt", "a callee file missing from LemmaScript-files.txt", "unread-annotations other than error"]
     - tool: dafny

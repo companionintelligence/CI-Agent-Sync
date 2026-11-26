@@ -134,6 +134,9 @@ section when a file has no markers, and changes nothing outside them.
   unrun entry as ok.
 - A timeout, an output over 8 MB, or a program that cannot start counts as a
   failure.
+- A check runs with stdin closed, so it cannot wait for input. A tool that asks
+  a question reads end of file instead, and some tools then exit 0 having
+  checked nothing (see [Exit 0 is not evidence](#exit-0-is-not-evidence)).
 - Pre-push checks stay within about two minutes: typecheck and a bounded
   simulation for Quint, proofs on changed files for LemmaScript and Dafny, the
   stories a change touches. Apalache verification, full story runs and Bombadil
@@ -156,7 +159,8 @@ section when a file has no markers, and changes nothing outside them.
 
 It also sets the evidence rules (a skipped check is not a pass; every run
 records its seed, bound or depth; a counterexample becomes a regression test
-before the fix), the escape hatches an agent's change never adds without the
+before the fix; an exit code alone is not evidence; a check never waits for
+input), the escape hatches an agent's change never adds without the
 owner's review (`assume`, axioms, `havoc`, `{:verify false}`, a deleted
 invariant, a lowered bound, a gate downgrade), the confidentiality rule, and the
 cost rule: no new automatic CI trigger without an owner decision, and local
@@ -181,8 +185,8 @@ or status that the registry and the toolchains do not know.
 Each entry in `toolchains.yaml` gives the install channels with the npm
 integrity or the sha256 of each release asset, the probe, the environment
 (`QUINT_HOME`, `STORYBOOK_DISABLE_TELEMETRY=1`), prerequisites, the licence, the
-upstream AI docs and skills, and the traps found when the tool was tried. Three
-to know first:
+upstream AI docs and skills, what the tool is not for (`not_for`), and the traps
+found when the tool was tried. Three to know first:
 
 - Concurrent `quint verify` runs share Apalache's server on port 8822 and break
   each other. Give every run its own `--server-endpoint=localhost:<port>`.
@@ -190,6 +194,29 @@ to know first:
   checking a checksum. Pre-seed `QUINT_HOME` from the checksummed archives.
 - LemmaScript passes a misspelled annotation silently unless `lemmascript.json`
   sets `unread-annotations` to `error`.
+
+### Exit 0 is not evidence
+
+Some runs exit 0 having checked less than they seem. On Quint 0.34.0:
+
+- `--seed` drops the default `--max-samples` from 10000 to 1, so a seeded
+  `quint run` checks one trace.
+- `quint verify --temporal` on the default Apalache backend stops at a y/N
+  prompt. With stdin closed, as under `agentctl spec check`, it exits 0 having
+  checked nothing, even on a violating spec.
+- Apalache can swallow an exception while it reports a violation, then exit 0
+  with no result line
+  ([quint-co/quint#2074](https://github.com/quint-co/quint/issues/2074)).
+- The TLC route can check a different model after a name collision and report
+  a false pass ([quint-co/quint#2072](https://github.com/quint-co/quint/issues/2072)).
+- Neither model checker reports deadlocks.
+
+So a gate script passes explicit sample counts (`--max-samples` whenever it
+passes `--seed`), checks temporal and action properties with `--backend tlc`,
+requires the tool's result line in the output, keeps a planted-bug variant
+that must fail, and treats any exit code it does not expect as a failure. A
+protocol model also gets a progress test. Bombadil 0.8.0 needs the same care: a
+usage error and a violation both exit 2.
 
 ## Replaying Quint traces
 

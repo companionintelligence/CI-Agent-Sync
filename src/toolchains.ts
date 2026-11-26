@@ -108,6 +108,10 @@ export function readToolchains(raw: unknown, knownTools: ReadonlyArray<string>):
     } else if (typeof entry.version !== "string" || !EXACT_VERSION.test(entry.version)) {
       local.push("version must be an exact quoted version such as \"1.2.3\"");
     }
+    // A tool's scope is part of adopting it, so every tool and library says what it is not for.
+    const notFor = entry.not_for;
+    const listsScope = isStringList(notFor) && notFor.length > 0 && notFor.every((item: string) => item.trim() !== "");
+    if (entry.kind === "runtime" ? notFor !== undefined && !listsScope : !listsScope) local.push("not_for must be a non-empty list of what the tool is not for");
     if (!isStringList(entry.provides)) local.push("provides must be a list of registry tools");
     for (const tool of strings(entry.provides)) if (!knownTools.includes(tool) || tool === "other") local.push(`provides names unknown registry tool "${tool}"`);
     if (entry.prerequisites !== undefined && !isStringList(entry.prerequisites)) local.push("prerequisites must be a list of toolchain ids");

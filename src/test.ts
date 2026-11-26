@@ -229,11 +229,13 @@ function storeVerificationChecks(): void {
   assert(clean.some((check) => check.id === "verification.toolchain.vibelang") && toolchains.toolchains.find((item: any) => item.id === "vibelang").ring === "hold", "vibelang must stay listed on hold");
   const duplicated = structuredClone(toolchains);
   duplicated.toolchains.push(structuredClone(duplicated.toolchains.find((item: any) => item.id === "quint")));
+  delete duplicated.toolchains.find((item: any) => item.id === "bombadil").not_for;
   const broken = structuredClone(policy);
   broken.change_classes[0].tools.push("tla-plus");
   const failing = verificationChecks({ toolchains: duplicated, policy: broken, registries: [{ id: "bad", file: "x", text: 'version = 1\nrepo = "x"\n' + entry({ id: "a", title: "A", kind: "protocol", tool: "quint", status: "planned", requires: ["no-such-toolchain"] }) }], decode: parseRegistry, vocabulary });
   const errors = failing.filter((check) => check.status === "error").map((check) => `${check.id}: ${check.detail}`);
   assert(errors.some((error) => error.startsWith("verification.toolchain.quint: duplicate id")), `a duplicate toolchain id was not caught: ${errors.join("; ")}`);
+  assert(errors.some((error) => error.startsWith("verification.toolchain.bombadil: not_for")), `a tool without not_for was not caught: ${errors.join("; ")}`);
   assert(errors.some((error) => error.includes('unknown or held tool "tla-plus"')), "a policy naming an unknown tool was not caught");
   assert(errors.some((error) => error.includes('"no-such-toolchain" is not a toolchain id')), "a registry requiring an unknown toolchain was not caught");
 }
