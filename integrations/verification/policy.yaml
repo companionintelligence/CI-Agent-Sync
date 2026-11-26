@@ -1,0 +1,148 @@
+version: 1
+
+# Verification policy: which changes need which evidence, how registry gates behave, and
+# the rules every harness follows. Tools are named by the spec registry's `tool` values
+# (.agent-configs/specs.toml); toolchains.yaml says how to install and probe each one.
+# `agentctl spec block` renders agent_loop into the managed section of AGENTS.md and
+# CLAUDE.md, and `agentctl validate` checks that this file names only known tools.
+
+policy:
+  registry: .agent-configs/specs.toml
+  registry_schema: integrations/verification/specs.schema.json
+  default_gate: advisory
+  default_timeout_seconds: 300
+  weakening_needs_owner_review: true
+
+agent_loop:
+  - id: read-first
+    text: Before you change behaviour that a registry entry covers, read the entry and its artefacts.
+  - id: spec-first
+    text: If the change alters a rule, change the spec first and make its check pass. A counterexample becomes a regression test before the fix.
+  - id: check-before-push
+    text: Before you push, run each entry's check, or `agentctl spec check --repo .` where CI Agent Sync is installed. A skipped check is not a pass, and a check that cannot find its toolchain fails.
+  - id: cite-claims
+    text: A doc claim about behaviour cites a spec id, a claim id or a test. Do not type product facts by hand.
+  - id: no-weakening
+    text: "Do not weaken a spec without the owner's review: no assume, axiom, havoc, {:verify false}, deleted invariant, lowered bound or gate downgrade."
+  - id: verification-block
+    text: "The PR body carries a verification block: which entries ran, on which commit, with which seed, bound or depth."
+
+change_classes:
+  - id: protocol
+    description: "More than one actor, or time: sign-in and consent, payments and entitlements, approvals and ledgers, leases, queues, outboxes, sync and lifecycles."
+    kinds: [protocol, state-machine]
+    tools: [quint]
+    evidence: A Quint model with named invariants and one observation (a reachability witness) per invariant, passing quint typecheck, quint test and a bounded quint run.
+    deep_evidence: quint verify with Apalache and an explicit --max-steps, or with TLC, on a dispatch-only or nightly runner.
+    conformance: Replay `quint run --mbt` traces against the code; src/itf.ts decodes them for TypeScript tests.
+  - id: decision-core
+    description: "A small pure function whose answer gates something: consent and grant policy, path containment, redirect validation, scope checks, ranking."
+    kinds: [invariant, algorithm]
+    tools: [lemmascript, dafny]
+    evidence: LemmaScript contracts in the .ts file, with unread-annotations set to error and a nonzero verification-condition count, or a Dafny reference model with lemmas.
+    conformance: The verified TypeScript is the shipped code, or a differential test runs the Dafny oracle against it.
+  - id: data-contract
+    description: Wire formats, config and store files, manifests, registries, and any file another language reads.
+    kinds: [data-contract]
+    tools: [effect-schema, property]
+    evidence: An Effect Schema that decodes every example with path-exact errors, a committed JSON Schema generated from it with a drift check, and a round-trip property test.
+  - id: agent-step
+    description: "A typed step an agent or harness runs: tool inputs and outputs, intent contracts."
+    kinds: [agent-step]
+    tools: [effect-schema, property]
+    evidence: Schemas for the step's input and output, and property tests over generated inputs.
+  - id: ui-component
+    description: A React and Vite component with states and interactions.
+    kinds: [component]
+    tools: [storybook]
+    evidence: A story per state, a play function per interaction, and axe at error, run as Vitest browser tests.
+  - id: ui-flow
+    description: "A temporal property of a DOM web flow: no secrets in URLs, no telemetry after opt-out, no success without a success event."
+    kinds: [ui-flow]
+    tools: [bombadil]
+    evidence: A Bombadil property suite against a stubbed API, with virtual time and a bounded reachability witness.
+  - id: doc-claim
+    description: A sentence in the docs that states behaviour, a count, a default or an identifier.
+    kinds: [doc-claims]
+    tools: []
+    evidence: The claim cites a spec id, a claim id or a test, and the docs gate checks it.
+  - id: other-change
+    description: A change that alters no covered rule.
+    kinds: []
+    tools: []
+    evidence: The repository's existing gates, plus every registry entry whose covers match the change.
+
+gates:
+  levels:
+    - id: advisory
+      meaning: The check runs and reports. A failure is a warning; it never stops a push. This is the default.
+    - id: required
+      meaning: A failure stops the push. Allowed only with status checked or conformance.
+  statuses:
+    - id: planned
+      meaning: A target with no artefact yet. It never runs and never gates.
+    - id: draft
+      meaning: An artefact whose check may fail. It runs and reports, and a failure is a warning.
+    - id: checked
+      meaning: The check passes on the default branch. A failure follows the gate.
+    - id: conformance
+      meaning: The check passes and the code is tied to the spec by trace replay, a differential test, or because the verified code ships. A failure follows the gate.
+  missing_toolchain: An error for a required entry and a warning for an advisory one. The check does not run.
+  promotion: An entry moves from advisory to required after two weeks green on the default branch, with the owner's review.
+  pre_push_budget_seconds: 120
+  pre_push: Typecheck and a bounded simulation for Quint, proofs on changed files only for LemmaScript and Dafny, and the stories a change touches.
+  deep: Apalache verification, full story runs and Bombadil exploration run on a dispatch-only Linux workflow or a nightly local run.
+  integrity: A hook that cannot find or run its suite fails, and it gates the pushed tree, not the checked-out one.
+
+evidence_rules:
+  - id: skipped-is-not-passed
+    rule: A skipped, planned or missing-toolchain entry is reported as skipped, a warning or an error, never as ok.
+  - id: record-run-parameters
+    rule: "Every run records the commit and its seed, bound or depth: quint --seed, --max-samples and --max-steps; the property-test seed, runs and size; the Bombadil seed and time limit."
+  - id: counterexample-to-regression
+    rule: A counterexample becomes a regression test (a Quint run or test, a fixed-seed property case, a story or a unit test) before the fix lands.
+  - id: no-vacuous-pass
+    rule: "Every important invariant has a witness that its antecedent is reachable: a Quint observation, a bounded Bombadil eventually, a nonzero verification-condition count."
+  - id: pin-and-verify
+    rule: Every tool is pinned to an exact version, and every download is checked against its published checksum.
+  - id: verification-block
+    rule: A PR that touches a covered path lists, in a verification block, the entries it ran, the commit, and the seed, bound or depth.
+
+escape_hatches:
+  rule: An agent's change never adds an escape hatch, deletes a property, lowers a bound, or downgrades a gate or status. Any of these needs the owner's review in the same pull request.
+  by_tool:
+    - tool: quint
+      forbidden: [an assume in a spec, a deleted invariant or observation, a lowered --max-steps or --max-samples, a removed --observation]
+    - tool: lemmascript
+      forbidden: ["//@ assume", "//@ havoc", "//@ autohavoc", "//@ extern", "a type override such as nat", "an added include line", "flags in the third column of LemmaScript-files.txt", "a callee file missing from LemmaScript-files.txt", "unread-annotations other than error"]
+    - tool: dafny
+      forbidden: [assume, "{:axiom}", "{:verify false}", a bodiless lemma, --allow-warnings on a proof gate]
+    - tool: effect-schema
+      forbidden: [Schema.Any or Schema.Unknown at a boundary, disableChecks, a dropped onExcessProperty error mode, a pattern without the u flag]
+    - tool: property
+      forbidden: [lowered runs or size, a fixed seed as the only run, a deleted regression case]
+    - tool: storybook
+      forbidden: [an a11y test level below error, a story tagged out of the test run, a deleted play function]
+    - tool: bombadil
+      forbidden: [a deleted property, an unbounded eventually in place of a bounded one, real time without a reachability witness]
+  gate_checks:
+    - "`dafny audit --compare-report` over every .dfy file, failing only on added findings."
+    - lemmascript.json sets unread-annotations to error.
+    - No include line or flags column in LemmaScript-files.txt without review, and every callee file is listed.
+    - CODEOWNERS covers proof files, lemmascript.json, LemmaScript-files.txt and .agent-configs/specs.toml.
+
+confidentiality:
+  rule: Models, proofs, tests, traces and counterexamples that describe an unfixed security defect stay in a private repository or a private advisory fork until the fix is published.
+  public_repositories: Run a pilot in a private worktree first. If a check finds a defect, stop, keep the work private and report the finding privately.
+  commit_and_pr_text: Never describe an unfixed defect in a commit message, PR text, comment or registry note.
+  fixtures: Synthetic only. No pilot reads a personal corpus.
+  tool_arguments: Never pass secrets as tool arguments; some tools echo them, as Bombadil's reproduce line does for --header and --cookie values.
+  telemetry: Off. Set STORYBOOK_DISABLE_TELEMETRY=1 and DOTNET_CLI_TELEMETRY_OPTOUT=1, and pass --disable-telemetry to Storybook init.
+
+cost:
+  rule: No new automatic GitHub Actions trigger without an owner decision. Spec checks run locally first, within the pre-push budget.
+  local_first: true
+  pre_push_budget_seconds: 120
+  heavy_checks: dispatch_only
+  hosted_runners: An owner decision, per repository.
+  caches: Share QUINT_HOME keyed on the Quint and Apalache versions, and unpack the Dafny zip once per version.

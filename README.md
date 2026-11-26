@@ -48,6 +48,9 @@ identity remain local to each app.
 | Generate portable config | `./bin/agentctl render --agent all` | Writes ignored cross-harness artifacts under `local/rendered/` |
 | Back up agent configs | `./bin/agentctl backup` | Creates a redacted snapshot under `local/backups/` |
 | Plan a sync | `./bin/agentctl sync` | Shows what would be distributed; use `--apply` only after review |
+| Check verification toolchains | `./bin/agentctl spec toolchains` | Probes the pinned Quint, Effect, LemmaScript, Dafny, Storybook and Bombadil installs. See [docs/verification.md](docs/verification.md) |
+| Run a repo's spec checks | `./bin/agentctl spec check --repo .` | Runs each spec registry entry's check, bounded; a skipped check never counts as passed |
+| Start a spec registry | `./bin/agentctl spec init --repo . --apply` | Writes `.agent-configs/specs.toml` from the template, only when the file is absent |
 
 The shortest useful setup is:
 

@@ -1,0 +1,316 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/companionintelligence/CI-Agent-Sync/main/integrations/verification/specs.schema.json",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "number",
+      "enum": [
+        1
+      ],
+      "description": "Format version. Always 1."
+    },
+    "repo": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]+$",
+      "description": "The GitHub repository name."
+    },
+    "spec": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "description": "Kebab case, unique in the repository."
+          },
+          "title": {
+            "type": "string",
+            "pattern": "^[^\\r\\n]+$",
+            "description": "One line."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "protocol",
+              "state-machine",
+              "invariant",
+              "algorithm",
+              "data-contract",
+              "ui-flow",
+              "component",
+              "agent-step",
+              "doc-claims"
+            ],
+            "description": "What the spec describes."
+          },
+          "tool": {
+            "type": "string",
+            "enum": [
+              "quint",
+              "lemmascript",
+              "dafny",
+              "effect-schema",
+              "storybook",
+              "bombadil",
+              "property",
+              "other"
+            ],
+            "description": "The tool that checks it. \"other\" needs notes."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "draft",
+              "checked",
+              "conformance"
+            ],
+            "description": "planned: a target with no artefact yet. draft: an artefact whose check may fail; never gates. checked: the check passes on the default branch. conformance: it passes and the code is tied to it."
+          },
+          "gate": {
+            "type": "string",
+            "enum": [
+              "advisory",
+              "required"
+            ],
+            "description": "advisory (the default) or required. required needs status checked or conformance."
+          },
+          "artefacts": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "allOf": [
+                {
+                  "not": {
+                    "pattern": "^(?:/|[A-Za-z]:)"
+                  }
+                },
+                {
+                  "not": {
+                    "pattern": "\\\\"
+                  }
+                },
+                {
+                  "not": {
+                    "pattern": "(?:^|/)\\.\\.(?:/|$)"
+                  }
+                }
+              ]
+            },
+            "description": "Repo-relative paths. They must exist unless the entry is planned."
+          },
+          "covers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "allOf": [
+                {
+                  "not": {
+                    "pattern": "^(?:/|[A-Za-z]:)"
+                  }
+                },
+                {
+                  "not": {
+                    "pattern": "\\\\"
+                  }
+                },
+                {
+                  "not": {
+                    "pattern": "(?:^|/)\\.\\.(?:/|$)"
+                  }
+                }
+              ]
+            },
+            "description": "Repo-relative paths or globs (*, **, ?) of the code the spec constrains."
+          },
+          "docs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "allOf": [
+                {
+                  "not": {
+                    "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9._-]+:)?/"
+                  }
+                },
+                {
+                  "not": {
+                    "pattern": "\\\\"
+                  }
+                }
+              ]
+            },
+            "description": "Documents the spec backs: a repo path, or <Repo>:<path>[#anchor]."
+          },
+          "requires": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            },
+            "description": "Toolchain ids from CI-Agent-Sync's integrations/verification/toolchains.yaml."
+          },
+          "check": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "description": "An argv array, run without a shell from the repo root or workdir. Required unless planned."
+          },
+          "workdir": {
+            "type": "string",
+            "description": "Directory to run the check in, relative to the repository root.",
+            "minLength": 1,
+            "allOf": [
+              {
+                "not": {
+                  "pattern": "^(?:/|[A-Za-z]:)"
+                }
+              },
+              {
+                "not": {
+                  "pattern": "\\\\"
+                }
+              },
+              {
+                "not": {
+                  "pattern": "(?:^|/)\\.\\.(?:/|$)"
+                }
+              }
+            ]
+          },
+          "timeout_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 86400,
+            "description": "Seconds before the check is stopped. Default 300."
+          },
+          "properties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "A property name.",
+              "minLength": 1
+            },
+            "description": "Named properties, invariants or lemmas the check covers."
+          },
+          "conformance": {
+            "type": "string",
+            "description": "How the code is tied to the spec: trace replay, a differential test, or verified code that ships.",
+            "minLength": 1
+          },
+          "target": {
+            "type": "string",
+            "description": "A target id from the planning catalogue, such as AS-LEDGER-1.",
+            "pattern": "^[A-Za-z0-9]+(?:[-_.][A-Za-z0-9]+)*$"
+          },
+          "owner": {
+            "type": "string",
+            "description": "Who reviews changes to this spec.",
+            "minLength": 1
+          },
+          "notes": {
+            "type": "string",
+            "description": "Assumptions, limits, or the reason for tool other.",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "tool",
+          "status"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "gate": {
+                  "const": "required"
+                }
+              },
+              "required": [
+                "gate"
+              ]
+            },
+            "then": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "checked",
+                    "conformance"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "planned"
+                }
+              }
+            },
+            "else": {
+              "required": [
+                "artefacts",
+                "check"
+              ],
+              "properties": {
+                "artefacts": {
+                  "type": "array",
+                  "minItems": 1
+                },
+                "check": {
+                  "type": "array",
+                  "minItems": 1
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "tool": {
+                  "const": "other"
+                }
+              },
+              "required": [
+                "tool"
+              ]
+            },
+            "then": {
+              "required": [
+                "notes"
+              ],
+              "properties": {
+                "notes": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        ]
+      },
+      "description": "Zero or more entries. A registry with none is valid."
+    }
+  },
+  "required": [
+    "version",
+    "repo"
+  ],
+  "additionalProperties": false,
+  "title": "Spec registry",
+  "description": "The formal and executable specifications a repository keeps, at .agent-configs/specs.toml. Format owned by CI-Agent-Sync."
+}

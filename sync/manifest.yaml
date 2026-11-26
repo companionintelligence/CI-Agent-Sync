@@ -243,6 +243,37 @@ items:
     groups: [shared]
     description: Reviewed private planning and public implementation references
 
+  # Opt-in group: a target lists `verification` in its groups to receive these. The
+  # target's own .agent-configs/specs.toml is never a destination; it belongs to the
+  # target repository, which copies specs.toml.example (or runs agentctl spec init).
+  - id: verification/policy
+    version: 1
+    source: integrations/verification/policy.yaml
+    destination: .agent-configs/verification/policy.yaml
+    groups: [verification]
+    description: Verification policy, gates, evidence rules and escape-hatch rules
+
+  - id: verification/toolchains
+    version: 1
+    source: integrations/verification/toolchains.yaml
+    destination: .agent-configs/verification/toolchains.yaml
+    groups: [verification]
+    description: Pinned verification toolchains with install channels, checksums, probes and traps
+
+  - id: verification/registry-schema
+    version: 1
+    source: integrations/verification/specs.schema.json
+    destination: .agent-configs/verification/specs.schema.json
+    groups: [verification]
+    description: JSON Schema for .agent-configs/specs.toml, generated from the Effect Schema
+
+  - id: verification/registry-template
+    version: 1
+    source: integrations/verification/specs.toml.example
+    destination: .agent-configs/verification/specs.toml.example
+    groups: [verification]
+    description: Spec registry template for a target that has none yet
+
 # Renames and removals are intentionally explicit. The sync command will not
 # delete target files unless --prune is supplied and an entry exists here.
 deletions: []

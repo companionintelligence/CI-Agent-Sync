@@ -21,3 +21,8 @@ node_modules/
 dist/
 # Personal editor snapshot, regenerated locally by the backup step; never published.
 agents/vscode/extensions.txt
+# Model-checker and trace output from Quint and Apalache. Hand-written trace fixtures stay tracked.
+_apalache-out/
+.quint/
+*.itf.json
+!src/fixtures/**/*.itf.json

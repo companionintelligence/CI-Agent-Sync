@@ -1,0 +1,403 @@
+version: 1
+
+# Verification toolchains: one entry per tool, library or runtime that a spec registry
+# entry can name in `requires` (.agent-configs/specs.toml). `agentctl spec toolchains`
+# probes every entry; `agentctl spec check` probes the ones an entry requires before it
+# runs the entry's check.
+#
+# Tools and libraries are pinned to one exact version. Runtimes state a minimum. Install
+# a tool as an exact-pinned devDependency of the repository that uses it (so a frozen
+# install provides it), or from the listed release with its checksum checked. Never
+# install globally, never with sudo, and never from a floating tag such as `latest`.
+#
+# `provides` maps a toolchain to the registry `tool` values it checks. A probe reads the
+# named stream (stdout, stderr or both) and takes the version from the first capture
+# group of `pattern`. A command list is tried in order; `${VAR}` is read from the
+# environment and skipped when unset. Commands resolve in the repository's
+# node_modules/.bin first, then on PATH.
+#
+# Checksums: `npm` entries list the registry's sha512 integrity, which the lockfile
+# records. Release assets list sha256 digests as published by the project or by GitHub
+# for the release asset. Rings: adopt, trial, assess, hold.
+
+policy:
+  pins: exact
+  runtimes: minimum_version
+  verify_downloads: sha256_where_published
+  install_scope: repository_dev_dependency_or_versioned_tool_cache
+  floating_tags_allowed: false
+  telemetry: off
+  first_use_downloads_are_listed_in_traps: true
+
+toolchains:
+  - id: node
+    name: Node.js
+    kind: runtime
+    ring: adopt
+    minimum: "22.6.0"
+    provides: []
+    purpose: Runs agentctl, Quint, LemmaScript, Storybook and the Bombadil wrapper. 22.6 is the first release with type stripping.
+    install:
+      - channel: official
+        url: https://nodejs.org/en/download
+        note: Use the LTS installer or a version manager; CI Agent Sync needs 22.6 or later.
+    probe:
+      command: node
+      args: ["--version"]
+      stream: stdout
+      pattern: '^v(\d+\.\d+\.\d+)'
+    licence: MIT
+    upstream:
+      docs: https://nodejs.org/docs/latest-v22.x/api/
+    traps:
+      - "--experimental-strip-types accepts only erasable syntax: no enums, namespaces, parameter properties or decorators."
+      - Node will not strip types under node_modules, so published packages ship compiled JavaScript.
+
+  - id: java
+    name: Java Development Kit
+    kind: runtime
+    ring: trial
+    minimum: "21"
+    provides: []
+    purpose: Runs Apalache and TLC for `quint verify`. `quint typecheck`, `run` and `test` do not need it.
+    install:
+      - channel: official
+        url: https://adoptium.net/temurin/releases/?version=21
+        note: Eclipse Temurin 21 is the build Quint's own CI uses. In GitHub Actions use actions/setup-java with distribution temurin and java-version 21.
+    probe:
+      command: ["${JAVA_HOME}/bin/java", java]
+      args: ["-version"]
+      stream: stderr
+      pattern: 'version "(\d+(?:\.\d+)*)'
+    licence: GPL-2.0-with-classpath-exception (OpenJDK); used as a separate program, nothing links to it.
+    upstream:
+      docs: https://quint.sh/docs/getting-started
+    traps:
+      - "`java -version` writes to stderr, not stdout."
+      - On macOS /usr/bin/java is a stub that prints an error when no JDK is installed; the probe reads no version from it.
+      - Quint 0.34 needs JDK 21 or later for `quint verify`.
+      - Apalache defaults to a 4 GB heap (JVM_ARGS) and TLC to 8 GB.
+
+  - id: chromium
+    name: Chrome or Chromium
+    kind: runtime
+    ring: trial
+    provides: []
+    purpose: The browser Bombadil drives. Storybook's Vitest addon uses its own Playwright Chromium instead (see storybook).
+    install:
+      - channel: official
+        url: https://www.chromium.org/getting-involved/download-chromium/
+        note: Bombadil finds Chrome or Chromium on PATH, in the standard locations, or through the CHROME variable.
+    probe:
+      command: ["${CHROME}", google-chrome, google-chrome-stable, chromium, chromium-browser, "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/Applications/Chromium.app/Contents/MacOS/Chromium"]
+      args: ["--version"]
+      stream: stdout
+      pattern: '(\d+\.\d+\.\d+\.\d+)'
+    licence: BSD-3-Clause (Chromium); Google Chrome has its own terms. Used as a separate program.
+    upstream:
+      docs: https://antithesishq.github.io/bombadil/
+    traps:
+      - Branded Google Chrome 137 and later ignore --load-extension, so extension work needs Chromium or Chrome for Testing.
+
+  - id: quint
+    name: Quint
+    kind: tool
+    ring: trial
+    version: "0.34.0"
+    provides: [quint]
+    purpose: "Protocols, state machines, leases, queues and races: simulate in seconds, model-check with Apalache or TLC, replay ITF traces against code."
+    install:
+      - channel: npm
+        command: npm install --save-dev --save-exact @informalsystems/quint@0.34.0
+        package: "@informalsystems/quint@0.34.0"
+        integrity: "sha512-+lErYsupIixqctj52iu1ddw+0zQ5P9JUff66XjgNvxCVGht+SXT9OFuHVRbW5Wv25jYSe/A+w/lEar+Tu3SJbg=="
+        note: The npm release carries SLSA provenance. Prefer this channel; Homebrew and nixpkgs lag at 0.33.1.
+      - channel: github-release
+        url: https://github.com/quint-co/quint/releases/tag/v0.34.0
+        note: Standalone binaries that need no Node.
+        sha256:
+          quint-macos-arm64: "8cfcb43b8ebfaa91e931ead55b93bd4fc7dbcbbd10aa99c05184fd9d7a2e4e35"
+          quint-macos-amd64: "eed4c1552409ae1fd41778ed111f5b467b83646721d3a32ffb613cafb87f208a"
+          quint-linux-amd64: "5091d7d1ea944e794d9106c7e62e3b844d70f77ddbbcbb4feb5ee5a6025b5ac7"
+          quint-linux-arm64: "a077b08bd912a9e44566b322ffce138aa5f60fe1d944a92d61a5dd98f7cdfd61"
+          quint-pc-amd64.exe: "27134177a514b7bcf0d05bc73154ad8c1c05a0e3ececaf80978823337fdb1c59"
+    components:
+      - name: Apalache
+        version: "0.62.4"
+        url: https://github.com/apalache-mc/apalache/releases/download/v0.62.4/apalache.tgz
+        sha256: "8ac8488422c30d552735bae11b92a2d014d8e02e8608702acc08f9a2d8a9abb2"
+        checksum_source: sha256sum.txt in the Apalache v0.62.4 release
+        location: $QUINT_HOME/apalache-dist-0.62.4
+        note: Quint downloads this on the first `quint verify` without checking the checksum. To pre-seed, download it, check the sha256, and unpack it into the location, so that apalache/bin/apalache-mc exists there.
+      - name: Quint Rust evaluator
+        version: "0.8.0"
+        url: https://github.com/quint-co/quint/releases/tag/evaluator/v0.8.0
+        location: $QUINT_HOME/rust-evaluator-v0.8.0
+        sha256:
+          quint_evaluator-aarch64-apple-darwin.tar.gz: "cc016a73031f8717f7c7b9f2a54eb21b15d58b2a1f1ee7f1750a225e00a76672"
+          quint_evaluator-x86_64-apple-darwin.tar.gz: "7d0bf5d2955ec1644025c9ff0fa97f4b50c158bf3167c55d0a882a3dee51efbb"
+          quint_evaluator-aarch64-unknown-linux-gnu.tar.gz: "bba4edec6fc51a0491cc54add445b7204819cbcb013bd32222f5e97c00f126ef"
+          quint_evaluator-x86_64-unknown-linux-gnu.tar.gz: "774020b648a887f511d040fd564a8223c62a996b80f8dc50ea24d8630235be51"
+          quint_evaluator-x86_64-pc-windows-msvc.zip: "fc15ed5776f1e3f140e3e6fa647d5ca9b017c62dce7a8435db709b192e3b1111"
+        note: Quint fetches this from the GitHub API on the first `quint run` or `quint test`, without a checksum check. The Linux build needs glibc 2.31 or later; on musl use --backend typescript.
+    probe:
+      command: quint
+      args: ["--version"]
+      stream: stdout
+      pattern: '(\d+\.\d+\.\d+)'
+    environment:
+      - name: QUINT_HOME
+        purpose: Shared cache for the evaluator and Apalache (about 196 MB). Key it on the Quint and Apalache versions.
+    prerequisites: [node, java]
+    licence: Apache-2.0 (the npm packages say "Apache 2.0" and ship no LICENSE file). Apalache is Apache-2.0 and bundles Z3 and TLC (MIT). Nothing ships at runtime.
+    upstream:
+      docs: https://quint.sh/docs/quint
+      ai_docs: https://quint.sh/llms.txt
+      skills:
+        - source: https://github.com/quint-co/quint/tree/main/skills
+          licence: Apache-2.0
+          note: quint-lang and quint-modeling. Reference them at a pinned commit. Parts predate 0.34.0 (they still teach --witnesses).
+        - source: https://github.com/quint-co/quint-llm-kit
+          licence: Apache-2.0
+          note: Agents, commands and MCP servers. Its README calls it internal use, not thoroughly evaluated.
+    traps:
+      - Concurrent `quint verify` runs share Apalache's server on localhost:8822 and break each other. Give each run its own --server-endpoint=localhost:<port>.
+      - First use downloads the evaluator and the 193 MB Apalache archive with no checksum check. Pre-seed QUINT_HOME from the checksummed archives above.
+      - Apalache writes _apalache-out/ into the working directory. Gitignore it, and .quint/ and generated *.itf.json traces.
+      - "0.34 deprecates --witnesses: declare `observation` definitions and pass one --observation per property, which exits 1 when it is never reached."
+      - "`quint verify` rejects --hide and prints 170 to 220 lines of Apalache logs; use --verbosity 1 with --out or --out-itf for machine-readable results."
+      - Apalache cost climbs steeply with depth and encoding. Prefer fixed-domain maps and sets over lists grown with put, and bound --max-steps.
+      - With --mbt, the ITF vars list names mbt::actionTaken and mbt::nondetPicks twice. Harmless; decoders dedupe.
+      - There is no official TypeScript model-based-testing connector. Replay traces with a small driver (src/itf.ts here) instead.
+      - The VS Code extension is not on Open VSX; Cursor and VSCodium need a VSIX or the npm language server (@informalsystems/quint-language-server@0.21.0).
+
+  - id: effect
+    name: Effect (Schema and Arbitrary)
+    kind: library
+    ring: trial
+    version: "4.1.6"
+    provides: [effect-schema, property]
+    purpose: "Data contracts at boundaries: one Schema decodes at runtime with path-exact errors and exports JSON Schema for other languages. effect/Arbitrary derives property-test generators from schemas."
+    install:
+      - channel: npm
+        command: npm install --save-exact effect@4.1.6
+        package: effect@4.1.6
+        integrity: "sha512-P3CxMsdcSCle/7/FnPILd9GJkNqGtduKam2LX9Xsb8LoOjmeQ9Kmsuh16JwtIthaxLyiTCOzUUt+PZsXIohl+A=="
+        note: "Import subpaths such as effect/Schema. Effect 4 has no runtime dependencies and is ESM only."
+    probe:
+      package: effect
+    prerequisites: [node]
+    licence: MIT
+    upstream:
+      docs: https://effect.website/docs/v4/onboarding.md
+      ai_docs: node_modules/effect/AGENTS.md (shipped in the package); SCHEMA.md and ARBITRARY.md in the Effect-TS/effect repository at the release tag
+      skills:
+        - source: https://github.com/Effect-TS/skills
+          licence: MIT
+          note: Its effect-ts skill installs effect@latest and edits AGENTS.md and CLAUDE.md. Vendor a reviewed copy at a pinned commit instead of running it.
+    traps:
+      - npm's latest for @effect/platform, @effect/cli, @effect/rpc, @effect/sql and @effect/ai is a v3-era 0.x package that fails to resolve beside effect 4. In v4 these live inside effect/<area>.
+      - JSON Schema export drops every isPattern regex that lacks the u flag, and every custom filter without a toJsonSchema annotation. Use the u flag on every pattern.
+      - toJsonSchemaDocument returns a wrapper whose root $ref points at $defs it does not contain. Publish a standalone document with $schema and $defs, as src/spec-registry.ts does.
+      - A struct's own checks run only after its fields decode, so cross-field rules need a second pass over the raw input to report every error at once.
+      - "Property tests: size, not run count, bounds generated strings (default 10). Set size at or above the largest bound in the schema; record the seed and size."
+      - The fast-check bridge is gone in 4.x; use effect/Arbitrary, which is still unstable.
+      - Stable modules have changed in patch and minor releases (Layer memoization in 4.0.6, TaggedUnion.match in 4.1.0). Pin exactly.
+      - esbuild does not tree-shake the `effect` barrel import; subpath imports keep bundles small.
+
+  - id: lemmascript
+    name: LemmaScript
+    kind: tool
+    ring: trial
+    version: "0.6.14"
+    provides: [lemmascript]
+    purpose: "Small pure TypeScript decision cores proved in place: contracts in //@ comments, translated to Dafny and proved. The annotated .ts stays the production code."
+    install:
+      - channel: npm
+        command: npm install --save-dev --save-exact --ignore-scripts lemmascript@0.6.14
+        package: lemmascript@0.6.14
+        integrity: "sha512-JQ3ylVl0QxPguMvi1FyqZklVRqo4qAXbIaEU+vfRynTuZJt0rvVHxO2lI/+TIS6W4Ne/24rlBafE5Trt+HVt4w=="
+        note: The 111 MB install is mostly LLM SDKs pulled in through caret ranges by claimcheck; only a committed lockfile pins them.
+    config:
+      file: lemmascript.json
+      required: { unread-annotations: error }
+    probe:
+      command: lsc
+      args: [version]
+      stream: both
+      pattern: '(\d+\.\d+\.\d+)'
+    prerequisites: [node, dafny]
+    licence: MIT. Dafny and Z3 are MIT. Annotations are comments, so nothing ships at runtime.
+    upstream:
+      docs: https://lemmascript.org/
+      ai_docs: https://lemmascript.org/llms.txt
+      skills:
+        - source: https://github.com/midspiral/lemmascript-skills
+          licence: none
+          note: The repository has no licence. Do not vendor it; link to it.
+    traps:
+      - "Misspelled annotations fail open: with unread-annotations at warn, `lsc check` reports 0 verified, 0 errors and exits 0. Set unread-annotations to error and fail any //@ verify function with zero verification conditions."
+      - The additions-only check is not an anti-cheat boundary. An added include with an axiom file, flags in the third column of LemmaScript-files.txt, an extra .dfy passed as a flag, or a callee file left out of the list all let a false proof pass with exit 0.
+      - A callee in an unlisted file is emitted as an axiom carrying its contract. List every imported callee file in LemmaScript-files.txt.
+      - Numbers are mathematical integers or reals, never IEEE doubles. A proof of n + 1 > n says nothing about 2**53.
+      - Prover errors point at the generated .dfy, not the TypeScript line. Front-end rejections carry no location.
+      - "Out of model: regex, async, I/O, randomness, DOM. Pull a pure core out of real helpers first."
+      - "`lsc check src/` fails with EISDIR in 0.6.14; use LemmaScript-files.txt batches."
+      - "`lsc claimcheck` sends contract text to a hosted model unless --claims-only is set."
+
+  - id: dafny
+    name: Dafny
+    kind: tool
+    ring: trial
+    version: "4.11.0"
+    provides: [dafny]
+    purpose: Reference models with proofs for non-TypeScript code or as differential-test oracles; LemmaScript's backend.
+    install:
+      - channel: github-release
+        url: https://github.com/dafny-lang/dafny/releases/tag/v4.11.0
+        note: The release zip is self-contained (.NET 8 runtime and Z3 4.12.1 and 4.14.1 bundled). Unpack it into a per-version tool cache and put its dafny folder on PATH. There is no Linux arm64 zip.
+        sha256:
+          dafny-4.11.0-arm64-macos-13.zip: "c90c75e7d5db9c6ccbb7127840dfe43f0ac938b039a7ebed146d8ead383a572f"
+          dafny-4.11.0-x64-macos-13.zip: "5fc0de946c5b2fad33f16bd22a5b06f4fd0dfa7f6d770284237e3f1f3ca9f73d"
+          dafny-4.11.0-x64-ubuntu-22.04.zip: "a46a9ff7cdd720f7955854c78e95df13f4cfe6b80691b05f8654fe19e8267179"
+          dafny-4.11.0-x64-windows-2022.zip: "3653f05a111ca21e234709ea7b25ce96083fd6c6f10484256ba54110dbc0654d"
+      - channel: dotnet-tool
+        command: dotnet tool install dafny --version 4.11.0 --tool-path <tool-dir>
+        note: Needs .NET 8 and a separate Z3 4.12.1 passed with --solver-path. Set DOTNET_CLI_TELEMETRY_OPTOUT=1.
+      - channel: github-actions
+        command: "uses: dafny-lang/setup-dafny-action@v1 with dafny-version: 4.11.0"
+        note: Pin the action to a commit SHA and run it on a dispatch-only workflow.
+    probe:
+      command: dafny
+      args: ["--version"]
+      stream: stdout
+      pattern: '^(\d+\.\d+\.\d+)'
+    environment:
+      - name: DOTNET_CLI_TELEMETRY_OPTOUT
+        value: "1"
+        purpose: Keeps the dotnet-tool route from sending telemetry.
+    prerequisites: []
+    licence: MIT (Microsoft). Bundled Z3 and Boogie are MIT. Coco/R sources are GPL-2.0+ with an exception for generated code. Generated JavaScript, if shipped, also needs bignumber.js (MIT).
+    upstream:
+      docs: https://dafny.org/latest/DafnyRef/DafnyRef
+      ai_docs: none (no llms.txt); docs/DafnyRef in the dafny-lang/dafny repository
+    traps:
+      - "`lemma {:axiom} ... ensures false` verifies with exit 0. Run `dafny audit --compare-report` over every .dfy file, and `dafny verify --analyze-proofs` to flag proofs that rest on a contradiction."
+      - "`dafny audit --compare-report` is an exact-text snapshot: it also fails when a finding is removed. Wrap it to fail only on added rows."
+      - 4.11.0 verifies some false lemmas (open soundness issues, and an auto-induction fix only on master). Pair every proof with a test against the real code.
+      - "Exit codes: 0 ok, 1 CLI error, 2 parse, resolution or warnings (also an audit mismatch), 3 compile, 4 verification failure, 5 format --check failure."
+      - Homebrew's formula is deprecated (2026-11-10) and runs Homebrew's newer Z3 found on PATH, not the bundled 4.12.1. Avoid it.
+      - "`--json-output` errorId is null on verifier diagnostics; key on source, severity and location, not message text, which changes in the next release."
+      - Generated JavaScript has no exports or typings and uses BigNumber for integers. Use it only as a test oracle.
+      - "`dafny test` and the JS backend write output into the working directory unless --output is set; `dafny build -t:js` must run where node_modules holds bignumber.js."
+
+  - id: storybook
+    name: Storybook
+    kind: tool
+    ring: trial
+    version: "10.6.9"
+    provides: [storybook]
+    purpose: "Component contracts for React and Vite: every state a story, a play function per interaction, axe at error, run as Vitest browser tests."
+    install:
+      - channel: npm
+        command: npm install --save-dev --save-exact storybook@10.6.9 @storybook/react-vite@10.6.9 @storybook/addon-vitest@10.6.9 @storybook/addon-a11y@10.6.9
+        integrity:
+          storybook@10.6.9: "sha512-oHrKKrDqpvIgwo8631SlHR/20pSOKStm5PQ+SxXXjSanE+xnQwu0az+n7GaBCpNKOOzrgfiA+ML+o2TcwLAQ9g=="
+          "@storybook/react-vite@10.6.9": "sha512-dRpAn9wkpykwYjB8/SgwGGE2jy41rUOiUuP2FHs3mRxft5JuD+q7VqD6f5XtrOjPDb+3XCCp7hdGrhblAOMrjA=="
+          "@storybook/addon-vitest@10.6.9": "sha512-L+GHQ0QJRti0cb/UXIeUnihufqC+zt+ZcDiS3MoHCps2KSFV04EJ4rXBDw4z6qPRbZ+CdR+z61lt5hX03AaVYg=="
+          "@storybook/addon-a11y@10.6.9": "sha512-z+nQJ0yCIRovchelyzE5I1ReujJ0FdTcA3eMyzB7zM+zZbUc3OO6NqDMdyYNhybocNbhVH5+wa2Jd470HeOnvQ=="
+        note: "To scaffold, run create-storybook@10.6.9 with --features docs test a11y --disable-telemetry, then remove @chromatic-com/storybook and pin every `latest` range it wrote."
+      - channel: playwright
+        command: npx playwright install chromium
+        note: The Vitest addon runs stories in Playwright's Chromium (about 600 MB). Set PLAYWRIGHT_BROWSERS_PATH to a shared cache.
+    probe:
+      command: storybook
+      args: ["--version"]
+      stream: both
+      pattern: '(\d+\.\d+\.\d+)'
+    environment:
+      - name: STORYBOOK_DISABLE_TELEMETRY
+        value: "1"
+        purpose: Storybook sends a boot event before it reads main.ts unless this is set.
+      - name: PLAYWRIGHT_BROWSERS_PATH
+        purpose: Shared Playwright browser cache.
+    prerequisites: [node]
+    licence: MIT. Dev-only.
+    upstream:
+      docs: https://storybook.js.org/docs/writing-tests/integrations/vitest-addon
+      ai_docs: https://storybook.js.org/llms.txt
+      skills:
+        - source: https://github.com/storybookjs/storybook/tree/next/code/lib/claude-plugin/skills
+          licence: MIT
+          note: The same SKILL.md text as storybookjs/skills, which has no licence file. Take it from the MIT monorepo at a pinned tag.
+    traps:
+      - Telemetry is sent at boot unless STORYBOOK_DISABLE_TELEMETRY=1.
+      - Init adds @chromatic-com/storybook (the Chromatic cloud client) and unpinned latest ranges for vitest, @vitest/browser-playwright, @vitest/coverage-v8 and playwright.
+      - Init detects an AI agent, switches to an agentic flow and writes a debug-storybook.log into the project.
+      - 10.6.x reports failing assertions several lines off, sometimes inside a neighbouring story. Read the assertion message, not the code frame.
+      - The components manifest embeds absolute build-machine paths, so a published Storybook leaks them.
+      - Screenshot baselines are platform-suffixed; Linux CI needs its own, and the first run always fails by design.
+      - The 11.0 release candidate changes the MCP tools and the dev server manifest routes. Stay on 10.6.9 until 11.0 is GA.
+
+  - id: bombadil
+    name: Bombadil
+    kind: tool
+    ring: trial
+    version: "0.8.0"
+    provides: [bombadil]
+    purpose: "Temporal properties of DOM web UIs against stubbed APIs: no secrets in URLs, no telemetry after opt-out, no success without a success event."
+    install:
+      - channel: npm
+        command: npm install --save-dev --save-exact @antithesishq/bombadil@0.8.0
+        package: "@antithesishq/bombadil@0.8.0"
+        integrity: "sha512-BVMjC4vDR2wOhSS0uWMiS3KqVWb8Y9BdN+KiJwBSXi7+vZ5HkLkBfTCk83Dal5E0Evb3wSOT46SFxLgNCGXbmQ=="
+        note: No install scripts; it bundles the darwin-arm64, linux-arm64 and linux-x64 binaries and the .d.ts types.
+      - channel: github-release
+        url: https://github.com/antithesishq/bombadil/releases/tag/v0.8.0
+        sha256:
+          bombadil-aarch64-darwin: "2ea26a68ac9b5296a8828ff138fb17a3343f7e8cf50647e9d1a81074505f995c"
+          bombadil-aarch64-linux: "8ac5e26b609296ec7017480220baf310617b9a799352c6fd5e723b2a30d246d3"
+          bombadil-x86_64-linux: "d9d1d2832cb23c874744a4f20526d2064ce8571c31f8ecd01ddf8e1c44da4814"
+    probe:
+      command: bombadil
+      args: ["--version"]
+      stream: both
+      pattern: '(\d+\.\d+\.\d+)'
+    environment:
+      - name: CHROME
+        purpose: Path to the Chrome or Chromium binary when it is not on PATH or in a standard location.
+    prerequisites: [node, chromium]
+    licence: MIT. The GitHub Action declares MIT in package.json but has no LICENSE file.
+    upstream:
+      docs: https://antithesishq.github.io/bombadil/
+      ai_docs: https://antithesishq.github.io/bombadil/llms-full.txt
+      skills:
+        - source: https://github.com/antithesishq/bombadil/pulls
+          licence: MIT
+          note: Official skills are still unmerged pull requests. Vendor reviewed text through CI Agent Sync rather than letting `bombadil skill setup` write agent configs.
+    traps:
+      - In real time a run can miss timer-gated states and pass a buggy app. Use --chrome-virtual-time-policy Advance and a bounded reachability witness such as eventually(state).within(8, "seconds").
+      - An unbounded eventually never fails.
+      - The printed reproduce line omits --chrome-virtual-time-policy and echoes --header and --cookie values. Never pass secrets as arguments.
+      - "In 0.8.0 a usage error exits 2, the same as a violation, and `terminal test` exits 1 on a violation. Treat any non-zero exit as failure and read violations from `bombadil trace --json`."
+      - Bombadil strips types but never type-checks specs. Run tsc first.
+      - "--output-path fails when the trace exists or its parent directory is missing. Create the directory and pass --output-path-overwrite."
+      - chrome-extension:// origins are rejected; serve extension pages over http to test them.
+      - Shrinking is weak on timing-dependent properties.
+
+  - id: vibelang
+    name: VibeLang
+    kind: tool
+    ring: hold
+    version: "0.0.13"
+    provides: []
+    purpose: Nothing yet. An alpha Effect syntax layer, not a specification language. Revisit at a human-reviewed beta.
+    install: []
+    licence: MIT and Apache-2.0
+    upstream:
+      docs: https://vibelang.sh/
+      ai_docs: https://vibelang.sh/llms.txt
+    traps:
+      - The documented `prove` feature is absent from the published 0.0.13 binary.
+      - It pins effect to exactly 4.1.1, and a rename to Vibe will change the package names.
+      - "Its `agents init` pattern (skills, an AGENTS.md section, a verify-after-edit hook) is worth borrowing; CI Agent Sync does that instead of installing it."

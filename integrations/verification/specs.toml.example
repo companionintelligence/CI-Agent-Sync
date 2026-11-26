@@ -1,0 +1,38 @@
+#:schema https://raw.githubusercontent.com/companionintelligence/CI-Agent-Sync/main/integrations/verification/specs.schema.json
+# Spec registry: the formal and executable specifications this repo keeps.
+#
+# Copy this file to .agent-configs/specs.toml, or run `agentctl spec init --apply`,
+# then replace the example entry. The format is described in CI-Agent-Sync's
+# docs/verification.md. Check it with `agentctl spec validate --repo .`.
+version = 1
+repo = "your-repo"
+
+# A planned entry names a target before any artefact exists. It never runs and
+# never gates, but it tells the next agent what to model first.
+[[spec]]
+id = "example-lifecycle"
+title = "Example lifecycle: create, approve, complete, cancel and expire"
+kind = "state-machine"
+tool = "quint"
+status = "planned"
+covers = ["src/lifecycle/**"]
+notes = "Replace this example with the first target for this repository."
+
+# A checked entry runs its check from the repo root, without a shell, before a push.
+# `gate = "required"` is allowed only with status "checked" or "conformance".
+#
+# [[spec]]
+# id = "example-contract"
+# title = "Example contract: the config file decodes with every error reported"
+# kind = "data-contract"
+# tool = "effect-schema"
+# status = "checked"
+# gate = "advisory"
+# artefacts = ["src/config-schema.ts"]
+# covers = ["src/config-schema.ts", "config/**"]
+# docs = ["docs/config.md", "OtherRepo:docs/config.md#format"]
+# requires = ["node", "effect"]
+# check = ["npm", "run", "--silent", "spec:config"]
+# timeout_seconds = 120
+# properties = ["decodesEveryExample", "rejectsUnknownKeys"]
+# owner = "@your-handle"

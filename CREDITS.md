@@ -6,9 +6,11 @@ of this repository stands on them.
 
 ## 1. Runtime dependencies
 
-|                                                                                 | Project                                  | Licence | What it does                               |
-| :-----------------------------------------------------------------------------: | ---------------------------------------- | ------- | ------------------------------------------ |
-| <img src="https://github.com/eemeli.png?size=40" width="20" height="20" alt=""> | [`yaml`](https://github.com/eemeli/yaml) | ISC     | JavaScript parser and stringifier for YAML |
+|                                                                                    | Project                                         | Licence      | What it does                                                                        |
+| :--------------------------------------------------------------------------------: | ----------------------------------------------- | ------------ | ----------------------------------------------------------------------------------- |
+| <img src="https://github.com/Effect-TS.png?size=40" width="20" height="20" alt=""> | [`effect`](https://github.com/Effect-TS/effect) | MIT          | The missing standard library for TypeScript, for writing production-grade software. |
+|                                                                                    | [`smol-toml`](github:squirrelchat/smol-toml)    | BSD-3-Clause | A small, fast, and correct TOML parser/serializer                                   |
+|  <img src="https://github.com/eemeli.png?size=40" width="20" height="20" alt="">   | [`yaml`](https://github.com/eemeli/yaml)        | ISC          | JavaScript parser and stringifier for YAML                                          |
 
 ## 2. Build and tooling
 
