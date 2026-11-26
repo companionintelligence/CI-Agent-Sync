@@ -48,3 +48,22 @@ packs:
     writes: true
     requires: [explicit_target, explicit_confirmation, action_ledger]
     output: publication-record
+  spec-first-change:
+    profile: engineering
+    bundle: development
+    sequence: [read-registry-entry, change-spec, spec-check, change-code, spec-check, update-docs, verification-block]
+    command: ./bin/agentctl spec check --repo . --changed-from origin/main
+    writes: false_until_confirmed
+    output: verified-change
+  doc-claim-audit:
+    profiles: [ceo, engineering]
+    bundle: development
+    sequence: [list-behaviour-claims, bind-claim-to-spec-or-test, spec-check, flag-unbound-claims, propose-doc-fix]
+    writes: false_until_confirmed
+    output: doc-claim-report
+  counterexample-to-regression:
+    profile: engineering
+    bundle: development
+    sequence: [capture-counterexample, record-seed-bound-depth, write-regression-test, confirm-test-fails, fix-code, spec-check, verification-block]
+    writes: false_until_confirmed
+    output: regression-test

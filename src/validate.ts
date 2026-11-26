@@ -123,6 +123,9 @@ export async function validateStore(options: { json?: boolean } = {}): Promise<{
     const manifest = readYaml<any>("sync/manifest.yaml");
     const missing = (manifest.items || []).filter((item: any) => !fileExists(item.source)).map((item: any) => item.source);
     add(checks, "sync.manifest", missing.length === 0 ? "ok" : "error", missing.length === 0 ? "all sources exist" : `missing: ${missing.join(", ")}`);
+    // A target owns its spec registry; sync may ship the template but never the live file.
+    const registryWriters = (manifest.items || []).filter((item: any) => String(item.destination || "").replace(/^\.\//, "") === ".agent-configs/specs.toml").map((item: any) => item.id);
+    add(checks, "sync.manifest.registry", registryWriters.length === 0 ? "ok" : "error", registryWriters.length === 0 ? "no item writes a target's .agent-configs/specs.toml" : `items overwrite the target-owned registry: ${registryWriters.join(", ")}`);
   } catch (error) {
     add(checks, "sync.manifest", "error", String(error));
   }

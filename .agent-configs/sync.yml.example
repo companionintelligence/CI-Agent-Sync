@@ -3,6 +3,8 @@ version: 1
 # Place this file at .agent-configs/sync.yml in a target repository when that
 # repository needs a different selection than sync/targets.yaml.
 enabled: true
+# Add `verification` to receive the spec registry policy, toolchains, JSON Schema and
+# template under .agent-configs/verification/.
 groups: [shared]
 
 # Exclude inherited group items or include an opt-in item explicitly.
