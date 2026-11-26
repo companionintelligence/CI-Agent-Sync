@@ -256,12 +256,15 @@ async function checkRunnerChecks(): Promise<void> {
     writeRepoFile(repo, "spec/a.txt", "x\n");
     const optOut = fakeToolchain({ id: "fake-ui", provides: ["storybook"], environment: [{ name: "AGENT_SYNC_TEST_OPT_OUT", value: "1" }], probe: { kind: "command", commands: ["agent-sync-no-such-tool"], args: ["--version"], stream: "both", pattern: "(\\d+)" } });
     writeRepoFile(repo, ".agent-configs/specs.toml", 'version = 1\nrepo = "tool-test"\n\n'
-      + entry({ id: "stories", title: "Stories", kind: "component", tool: "storybook", status: "checked", artefacts: ["spec/a.txt"], requires: ["node"], check: [process.execPath, "-e", "process.exit(process.env.AGENT_SYNC_TEST_OPT_OUT === '1' ? 0 : 7)"] }));
+      + entry({ id: "stories", title: "Stories", kind: "component", tool: "storybook", status: "checked", artefacts: ["spec/a.txt"], requires: ["node"], check: [process.execPath, "-e", "process.exit(process.env.AGENT_SYNC_TEST_OPT_OUT === '1' ? 0 : 7)"] })
+      + entry({ id: "later", title: "Later", kind: "component", tool: "storybook", status: "planned" }));
     const ran = await checkEntries({ repo, toolchains: [nodeToolchain, optOut] });
     const run = ran.checks.find((check) => check.id === "spec.stories");
     assert(run?.status === "ok", `the tool's environment was not set for its check: ${run?.detail}`);
     assert(ran.checks.some((check) => check.id === "spec.stories.requires" && check.status === "warn" && check.detail.includes('"fake-ui"')), "check did not warn that requires leaves out the tool's toolchain");
-    assert(validateChecks(repo, { toolchains: [nodeToolchain, optOut] }).some((check) => check.id === "spec.stories.requires" && check.status === "warn"), "validate did not warn that requires leaves out the tool's toolchain");
+    const validated = validateChecks(repo, { toolchains: [nodeToolchain, optOut] });
+    assert(validated.some((check) => check.id === "spec.stories.requires" && check.status === "warn"), "validate did not warn that requires leaves out the tool's toolchain");
+    assert(!validated.some((check) => check.id === "spec.later.requires"), "validate warned about requires on a planned entry, which has nothing to probe");
   });
 }
 

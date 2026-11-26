@@ -113,9 +113,10 @@ the committed file in a strict validator (Ajv) against good and bad registries.
 | `block` | Renders the managed section from the registry: the agent loop, a table of the entries that run (id, tool, status, gate), the planned entries, and a pointer to this repository's `integrations/verification/`, plus `skills/` when the installed CI Agent Sync carries it. It prints the section by default; `--check` exits non-zero when a file is out of date, and `--apply` writes. |
 | `schema` | Prints the JSON Schema generated from `src/spec-registry.ts`. `--write` regenerates the committed file and `--check` fails when it differs. |
 
-`validate` and `check` warn when an entry's `requires` names no toolchain that
-provides its `tool` (`tool = "storybook"` without `storybook`, say), because
-then the tool is not probed before the check runs.
+`validate` and `check` warn when the `requires` of an entry that is not
+`planned` names no toolchain that provides its `tool` (`tool = "storybook"`
+without `storybook`, say), because then the tool is not probed before the check
+runs.
 
 Every command takes `--json` and prints the standard envelope,
 `{schema_version, summary, checks}`, where each check has an `id`, a `status`

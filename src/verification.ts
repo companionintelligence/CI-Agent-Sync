@@ -319,8 +319,9 @@ export function validateChecks(repo: string, options: { toolchains?: ReadonlyArr
     for (const id of entry.requires ?? []) {
       if (!known.has(id)) checks.push({ id: `spec.${entry.id}.requires.${id}`, status: "error", detail: `"${id}" is not a toolchain in CI-Agent-Sync's ${TOOLCHAINS_FILE}` });
     }
+    // A planned entry has no check yet, so there is nothing to probe for.
     const { warning } = toolProviders(entry, loaded.toolchains);
-    if (warning) checks.push(warning);
+    if (warning && !planned) checks.push(warning);
     for (const artefact of entry.artefacts ?? []) {
       const where = resolveInsideRepo(repo, artefact);
       if ("error" in where) checks.push({ id: `spec.${entry.id}.artefact.${artefact}`, status: "error", detail: where.error });
