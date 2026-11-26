@@ -105,10 +105,10 @@ the committed file in a strict validator (Ajv) against good and bad registries.
 
 | Command | What it does |
 | --- | --- |
-| `toolchains` | Probes each entry in `toolchains.yaml`, from the repository's `node_modules/.bin` and then `PATH`, reading stdout, stderr or both (`java -version` writes to stderr), with a 5-second timeout (`--timeout` changes it). A tool is ok at its pinned version, a warning at another version, and not installed when no candidate is found. `--only` limits the probes. Probes do not read Yarn Plug'n'Play installs yet (see below). |
+| `toolchains` | Probes each entry in `toolchains.yaml` from the repository root. A package probe reads the version from `node_modules/<package>/package.json` and runs nothing. A command probe runs the tool from `node_modules/.bin` or `PATH` and reads stdout, stderr or both (`java -version` writes to stderr), with a 5-second timeout (`--timeout` changes it). A tool is ok at its pinned version, a warning at another version, and not installed when no candidate is found. `--only` limits the probes. Probes do not read Yarn Plug'n'Play installs yet (see below). |
 | `validate` | Decodes `.agent-configs/specs.toml` under `--repo` (default: the current directory) and checks that artefacts and workdirs exist inside the repository, that `requires` names known toolchains, and that each `covers` pattern matches a tracked file (a warning otherwise). |
 | `list` | Lists the entries with their tool, status, gate and check. |
-| `check` | Runs each selected entry's `check`. `--only IDS`, `--tool NAMES` and `--changed-from REF` select entries. `--changed-from` reads `git diff --name-only REF...HEAD` and picks the entries whose `covers` or `artefacts` match a changed file. A change to `package.json` or a lockfile at the root also picks every entry with a check, one in a `workdir` picks the entries that run there, and a change to the registry itself picks every entry. The check runs with the environment of the toolchains it requires and of the toolchain that provides its `tool`. |
+| `check` | Runs each selected entry's `check`. `--only IDS`, `--tool NAMES` and `--changed-from REF` select entries. `--changed-from` reads `git diff --name-only REF...HEAD` and picks the entries whose `covers` or `artefacts` match a changed file. A change to `package.json` or a lockfile at the root also picks every entry with a check, one in a `workdir` picks the entries that run there, and a change to the registry itself picks every entry. The toolchains an entry requires are probed from the entry's own directories (see [Toolchains](#toolchains)). The check runs with the environment of the toolchains it requires and of the toolchain that provides its `tool`. |
 | `init` | Prints the template with `repo` filled in. With `--apply` it writes `.agent-configs/specs.toml`, and only when that file does not exist. |
 | `block` | Renders the managed section from the registry: the agent loop, a table of the entries that run (id, tool, status, gate), the planned entries, and a pointer to this repository's `integrations/verification/`, plus `skills/` when the installed CI Agent Sync carries it. It prints the section by default; `--check` exits non-zero when a file is out of date, and `--apply` writes. |
 | `schema` | Prints the JSON Schema generated from `src/spec-registry.ts`. `--write` regenerates the committed file and `--check` fails when it differs. |
@@ -206,11 +206,31 @@ found when the tool was tried. Three to know first:
 - LemmaScript passes a misspelled annotation silently unless `lemmascript.json`
   sets `unread-annotations` to `error`.
 
-Probes look for npm-installed tools in the repository's `node_modules`. A
-repository that uses Yarn Plug'n'Play has none, so its npm tools are reported
-as not installed, with a note, and `check` does not run the entries that
-require them. Run those checks with `yarn` directly until probes can read
-Plug'n'Play installs.
+A probe either reads a package or runs a command. A package probe
+(`probe: { package: storybook }`) reads the version from the package's
+`package.json` and runs nothing. It suits an npm tool whose CLI is slow or can
+download to answer `--version`: in 10.6.9, `storybook --version` hands off to
+`pnpm dlx @storybook/cli@10.6.9` (or `npx`), which installs about 200 packages
+once its cache has expired. Storybook, LemmaScript and Effect use package
+probes. The other tools run a command: Quint and Bombadil also install as
+standalone binaries on `PATH` and answer `--version` without downloading, and
+for Bombadil the command shows that its bundled binary runs on the platform.
+
+`check` looks for an entry's toolchains in `node_modules` (in
+`node_modules/.bin` for a command) in the entry's `workdir`, then in the
+directory of each `artefacts` and `covers` path, each walking up to the
+repository root, then at the root. A command not found there is looked up on
+`PATH`. So a tool installed in a workspace package, such as
+`apps/web/node_modules`, is found for the entries whose files live there. A
+path that is a directory counts from itself, and a glob from the part before
+its first wildcard. The lookup never leaves the repository: it stops at the
+root and skips a directory that a symlink takes outside it. `toolchains` has no
+entry, so it looks at the root only.
+
+A repository that uses Yarn Plug'n'Play has no `node_modules`, so its npm tools
+are reported as not installed, with a note, and `check` does not run the
+entries that require them. Run those checks with `yarn` directly until probes
+can read Plug'n'Play installs.
 
 ### Exit 0 is not evidence
 

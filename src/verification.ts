@@ -27,7 +27,7 @@ import {
   type SpecEntry,
   type SpecRegistry,
 } from "./spec-registry.ts";
-import { DEFAULT_PROBE_TIMEOUT_MS, POLICY_FILE, TOOLCHAINS_FILE, displayPath, hideHome, probeToolchain, readToolchains, toolchainEnvironment, type ProbeResult, type Toolchain } from "./toolchains.ts";
+import { DEFAULT_PROBE_TIMEOUT_MS, POLICY_FILE, TOOLCHAINS_FILE, displayPath, hideHome, locateProbe, probeToolchain, readToolchains, toolchainEnvironment, type ProbeResult, type Toolchain } from "./toolchains.ts";
 
 export const TEMPLATE_FILE = "integrations/verification/specs.toml.example";
 export const BLOCK_BEGIN = "<!-- agent-sync:specs:begin -->";
@@ -153,6 +153,52 @@ export function resolveInsideRepo(repo: string, relativePath: string): { real: s
 
 function repoOption(args: SpecArgs): string {
   return resolve(lastValue(args, "--repo") || process.cwd());
+}
+
+function isDirectory(path: string): boolean {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The directories whose node_modules an entry's toolchains are looked for in, most
+ * specific first: the entry's workdir, then the directory of each artefacts and covers
+ * path, each walking up towards the repository root, then the root itself. A path that is
+ * a directory counts from itself, and a glob from the part before its first wildcard. A
+ * directory that does not exist, or that a symlink takes outside the repository, is left
+ * out, so the lookup never leaves the repository.
+ */
+export function probeDirs(repo: string, entry: Pick<SpecEntry, "workdir" | "artefacts" | "covers">): string[] {
+  let root: string;
+  try {
+    root = realpathSync(repo);
+  } catch {
+    return [resolve(repo)];
+  }
+  const dirs: string[] = [];
+  const seen = new Set([root]);
+  for (const path of [...(entry.workdir === undefined ? [] : [entry.workdir]), ...(entry.artefacts ?? []), ...(entry.covers ?? [])]) {
+    const segments = path.split("/").filter((segment) => segment !== "" && segment !== ".");
+    const wildcard = segments.findIndex((segment) => /[*?]/u.test(segment));
+    let parts = wildcard === -1 ? segments : segments.slice(0, wildcard);
+    if (wildcard === -1 && !isDirectory(join(root, ...parts))) parts = parts.slice(0, -1);
+    for (; parts.length > 0; parts = parts.slice(0, -1)) {
+      const dir = join(root, ...parts);
+      let real: string;
+      try {
+        real = realpathSync(dir);
+      } catch {
+        continue;
+      }
+      if (!within(root, real) || seen.has(real)) continue;
+      seen.add(real);
+      dirs.push(dir);
+    }
+  }
+  return [...dirs, root];
 }
 
 // ── registry and toolchains ─────────────────────────────────────────────────────────
@@ -406,12 +452,16 @@ export async function checkEntries(options: CheckOptions): Promise<{ checks: Che
   selection.selected = selected.map((entry) => entry.id);
 
   const toolchainsById = new Map(loaded.toolchains.map((toolchain) => [toolchain.id, toolchain]));
+  // An entry's toolchains are looked for from its own directories (probeDirs). Entries that
+  // find a tool in the same place share one probe, so a command runs once per place.
   const probes = new Map<string, Promise<ProbeResult>>();
-  const probe = (toolchain: Toolchain) => {
-    if (!probes.has(toolchain.id)) probes.set(toolchain.id, probeToolchain(toolchain, { repo: options.repo, timeoutMs: options.probeTimeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS }));
-    return probes.get(toolchain.id)!;
+  const probe = (toolchain: Toolchain, dirs: ReadonlyArray<string>) => {
+    const location = locateProbe(toolchain, { repo: options.repo, dirs });
+    const key = [toolchain.id, location ? `${location.kind}:${location.path}` : "missing", ...(location ? [] : dirs)].join("\0");
+    if (!probes.has(key)) probes.set(key, probeToolchain(toolchain, { repo: options.repo, dirs, timeoutMs: options.probeTimeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS }));
+    return probes.get(key)!;
   };
-  const reportedToolchains = new Set<string>();
+  const reportedWarnings = new Set<string>();
 
   for (const entry of selected) {
     const base = { entry: entry.id, tool: entry.tool, entry_status: entry.status, gate: entryGate(entry) };
@@ -427,10 +477,12 @@ export async function checkEntries(options: CheckOptions): Promise<{ checks: Che
     const required = (entry.requires ?? []).map((id) => toolchainsById.get(id)!);
     const { providers, warning } = toolProviders(entry, loaded.toolchains);
     if (warning) checks.push(warning);
-    const results = await Promise.all(required.map((toolchain) => probe(toolchain)));
+    const dirs = probeDirs(options.repo, entry);
+    const results = await Promise.all(required.map((toolchain) => probe(toolchain, dirs)));
     for (const result of results) {
-      if (result.usable && result.status === "warn" && !reportedToolchains.has(result.id)) {
-        reportedToolchains.add(result.id);
+      const reported = `${result.id}\0${result.detail}`;
+      if (result.usable && result.status === "warn" && !reportedWarnings.has(reported)) {
+        reportedWarnings.add(reported);
         checks.push({ id: `toolchain.${result.id}`, status: "warn", detail: result.detail });
       }
     }

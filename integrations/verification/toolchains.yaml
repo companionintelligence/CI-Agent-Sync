@@ -10,11 +10,19 @@ version: 1
 # install provides it), or from the listed release with its checksum checked. Never
 # install globally, never with sudo, and never from a floating tag such as `latest`.
 #
-# `provides` maps a toolchain to the registry `tool` values it checks. A probe reads the
-# named stream (stdout, stderr or both) and takes the version from the first capture
-# group of `pattern`. A command list is tried in order; `${VAR}` is read from the
-# environment and skipped when unset. Commands resolve in the repository's
-# node_modules/.bin first, then on PATH.
+# `provides` maps a toolchain to the registry `tool` values it checks. A probe is either a
+# package or a command. A package probe (`package: <npm name>`) reads the version from
+# node_modules/<name>/package.json and runs nothing; use it for an npm tool whose CLI is
+# slow or can download packages to answer --version. A command probe runs the command,
+# reads the named stream (stdout, stderr or both) and takes the version from the first
+# capture group of `pattern`. A command list is tried in order; `${VAR}` is read from the
+# environment and skipped when unset.
+#
+# Packages and commands resolve in node_modules (node_modules/.bin for commands) from the
+# registry entry's workdir, then from the directory of each of its artefacts and covers
+# paths, each walking up to the repository root, then at the root; never outside the
+# repository. A command not found there is looked up on PATH. `agentctl spec toolchains`
+# has no entry, so it resolves from the root.
 #
 # Checksums: `npm` entries list the registry's sha512 integrity, which the lockfile
 # records. Release assets list sha256 digests as published by the project or by GitHub
@@ -240,10 +248,7 @@ toolchains:
       file: lemmascript.json
       required: { unread-annotations: error }
     probe:
-      command: lsc
-      args: [version]
-      stream: both
-      pattern: '(\d+\.\d+\.\d+)'
+      package: lemmascript
     prerequisites: [node, dafny]
     licence: MIT. Dafny and Z3 are MIT. Annotations are comments, so nothing ships at runtime.
     upstream:
@@ -262,6 +267,7 @@ toolchains:
       - "Out of model: regex, async, I/O, randomness, DOM. Pull a pure core out of real helpers first."
       - "`lsc check src/` fails with EISDIR in 0.6.14; use LemmaScript-files.txt batches."
       - "`lsc claimcheck` sends contract text to a hosted model unless --claims-only is set."
+      - "`lsc` is also the LiveScript compiler's command, so a lookup on PATH can find another program. LemmaScript installs only from npm, so the probe reads node_modules/lemmascript/package.json and runs nothing."
 
   - id: dafny
     name: Dafny
@@ -335,10 +341,7 @@ toolchains:
         command: npx playwright install chromium
         note: The Vitest addon runs stories in Playwright's Chromium (about 600 MB). Set PLAYWRIGHT_BROWSERS_PATH to a shared cache.
     probe:
-      command: storybook
-      args: ["--version"]
-      stream: both
-      pattern: '(\d+\.\d+\.\d+)'
+      package: storybook
     environment:
       - name: STORYBOOK_DISABLE_TELEMETRY
         value: "1"
@@ -356,6 +359,7 @@ toolchains:
           note: The same SKILL.md text as storybookjs/skills, which has no licence file. Take it from the MIT monorepo at a pinned tag.
     traps:
       - "Never go below 10.6.2. Earlier releases, and @storybook/addon-vitest in the same range, carry GHSA-f2ph-cmg5-wxc8 (critical) and GHSA-px85-f4q5-jh77 (high); on older lines the fixes are 9.1.21 and 8.6.19. The second advisory also sets floors for Vite (6.4.2, 7.3.2 or 8.0.5) and Vitest (3.2.7 or 4.1.10): keep both at or above them."
+      - "The storybook bin in 10.6.9 does not answer `storybook --version` itself: it runs `pnpm dlx @storybook/cli@10.6.9 --version` (or npx), which installs about 200 packages from the registry once the dlx cache has expired and usually takes longer than the 5-second probe timeout. The probe reads node_modules/storybook/package.json instead and runs nothing."
       - Keep `storybook dev` and its /mcp endpoint on loopback. To share a Storybook, publish a built one.
       - Telemetry is sent at boot unless STORYBOOK_DISABLE_TELEMETRY=1.
       - Init adds @chromatic-com/storybook (the Chromatic cloud client) and unpinned latest ranges for vitest, @vitest/browser-playwright, @vitest/coverage-v8 and playwright.

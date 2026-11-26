@@ -2,13 +2,14 @@
 // and probing each tool for its version.
 //
 // This module stays free of Effect, so validate.ts can import it up front and load the
-// Effect-based registry decoder only where it can report a failure to load. Probes run
-// with a short timeout, read stdout, stderr or both (`java -version` writes to stderr),
-// and never go through a shell.
+// Effect-based registry decoder only where it can report a failure to load. A package
+// probe reads an installed package's package.json and runs nothing. A command probe runs
+// with a short timeout, reads stdout, stderr or both (`java -version` writes to stderr),
+// and never goes through a shell.
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
-import { isAbsolute, join, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { commandPath, runCommandAsync } from "./core.ts";
 
 export const TOOLCHAINS_FILE = "integrations/verification/toolchains.yaml";
@@ -132,7 +133,9 @@ export function readToolchains(raw: unknown, knownTools: ReadonlyArray<string>):
     } else if (!isLoose(entry.probe)) {
       local.push("probe is required");
     } else if (entry.probe.package !== undefined) {
+      const commandKeys = ["command", "args", "stream", "pattern"].filter((key) => entry.probe[key] !== undefined);
       if (typeof entry.probe.package !== "string" || !NPM_NAME.test(entry.probe.package)) local.push("probe.package must be an npm package name");
+      else if (commandKeys.length > 0) local.push(`a package probe runs nothing, so it takes no ${commandKeys.join(", ")}`);
       else probe = { kind: "package", package: entry.probe.package };
     } else {
       const commands = typeof entry.probe.command === "string" ? [entry.probe.command] : strings(entry.probe.command);
@@ -249,10 +252,11 @@ function expandCandidate(candidate: string, env: NodeJS.ProcessEnv): string | un
 }
 
 /**
- * Resolve the first candidate that exists: a path, or a bare name looked up in the
- * repository's node_modules/.bin and then on PATH.
+ * Resolve the first candidate that exists: a path (relative to the repository), or a bare
+ * name looked up in node_modules/.bin under each of `dirs` in order (the repository root
+ * by default) and then on PATH.
  */
-export function resolveProbeCommand(candidates: ReadonlyArray<string>, repo: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function resolveProbeCommand(candidates: ReadonlyArray<string>, repo: string, env: NodeJS.ProcessEnv = process.env, dirs: ReadonlyArray<string> = [repo]): string | undefined {
   for (const candidate of candidates) {
     const expanded = expandCandidate(candidate, env);
     if (!expanded) continue;
@@ -261,11 +265,53 @@ export function resolveProbeCommand(candidates: ReadonlyArray<string>, repo: str
       if (existsSync(path)) return path;
       continue;
     }
-    const local = [join(repo, "node_modules", ".bin", expanded), ...(process.platform === "win32" ? [join(repo, "node_modules", ".bin", `${expanded}.cmd`)] : [])];
+    const names = process.platform === "win32" ? [expanded, `${expanded}.cmd`] : [expanded];
+    const local = dirs.flatMap((dir) => names.map((name) => join(dir, "node_modules", ".bin", name)));
     const found = local.find((path) => existsSync(path)) || commandPath(expanded);
     if (found) return found;
   }
   return undefined;
+}
+
+/** The real path of `repo`, so that directories under it compare and display the same way. */
+function repositoryRoot(repo: string): string {
+  try {
+    return realpathSync(repo);
+  } catch {
+    return resolve(repo);
+  }
+}
+
+/** A searched directory for a report: repo-relative, or "the repository root". */
+function placeName(root: string, dir: string): string {
+  const path = relative(root, dir);
+  if (path === "") return "the repository root";
+  return path === ".." || path.startsWith(`..${sep}`) || isAbsolute(path) ? displayPath(dir) : path.split(sep).join("/");
+}
+
+function placeList(root: string, dirs: ReadonlyArray<string>): string {
+  const names = [...new Set(dirs.map((dir) => placeName(root, dir)))];
+  return names.length < 2 ? (names[0] ?? "the repository root") : `${names.slice(0, -1).join(", ")} or ${names.at(-1)}`;
+}
+
+export type ProbeLocation = { readonly kind: "package" | "command"; readonly path: string };
+
+/**
+ * Where a toolchain's probe finds its tool, without running anything: the first
+ * node_modules/<package>/package.json under `dirs` for a package probe, or the first
+ * command candidate that exists for a command probe. `dirs` are searched in order and
+ * default to the repository root; the caller keeps them inside the repository.
+ */
+export function locateProbe(toolchain: Toolchain, options: { repo: string; dirs?: ReadonlyArray<string>; env?: NodeJS.ProcessEnv }): ProbeLocation | undefined {
+  const probe = toolchain.probe;
+  if (toolchain.ring === "hold" || probe === undefined) return undefined;
+  const dirs = options.dirs?.length ? options.dirs : [repositoryRoot(options.repo)];
+  if (probe.kind === "package") {
+    const manifest = dirs.map((dir) => join(dir, "node_modules", ...probe.package.split("/"), "package.json")).find((path) => existsSync(path));
+    return manifest === undefined ? undefined : { kind: "package", path: manifest };
+  }
+  const command = resolveProbeCommand(probe.commands, options.repo, { ...process.env, ...options.env }, dirs);
+  return command === undefined ? undefined : { kind: "command", path: command };
 }
 
 /**
@@ -314,33 +360,40 @@ function judge(toolchain: Toolchain, version: string, path: string): { status: P
 }
 
 /**
- * Why a tool may look missing in `repo` although it is installed: Yarn Plug'n'Play keeps
- * packages in zip archives instead of node_modules, and probes do not read those yet.
+ * Why a tool may look missing although it is installed: Yarn Plug'n'Play keeps packages in
+ * zip archives instead of node_modules, and probes do not read those yet.
  */
-function plugAndPlayNote(repo: string): string {
-  return existsSync(join(repo, ".pnp.cjs")) || existsSync(join(repo, ".pnp.js"))
+function plugAndPlayNote(dirs: ReadonlyArray<string>): string {
+  return dirs.some((dir) => existsSync(join(dir, ".pnp.cjs")) || existsSync(join(dir, ".pnp.js")))
     ? "; the repository uses Yarn Plug'n'Play, which probes cannot read, so run its checks with yarn"
     : "";
 }
 
-/** Probe one toolchain from `repo`. It never throws; a failure is a status. */
-export async function probeToolchain(toolchain: Toolchain, options: { repo: string; timeoutMs?: number; env?: NodeJS.ProcessEnv }): Promise<ProbeResult> {
+/**
+ * Probe one toolchain from `repo`, looking in node_modules under each of `dirs` in order
+ * (see locateProbe; the repository root by default). A package probe only reads the
+ * package's package.json; a command probe runs the command. It never throws; a failure is
+ * a status.
+ */
+export async function probeToolchain(toolchain: Toolchain, options: { repo: string; dirs?: ReadonlyArray<string>; timeoutMs?: number; env?: NodeJS.ProcessEnv }): Promise<ProbeResult> {
   const probe = toolchain.probe;
   if (toolchain.ring === "hold" || probe === undefined) return { id: toolchain.id, status: "info", detail: `ring ${toolchain.ring}: not probed`, usable: false };
+  const root = repositoryRoot(options.repo);
+  const dirs = options.dirs?.length ? options.dirs : [root];
+  const location = locateProbe(toolchain, { repo: options.repo, dirs, env: options.env });
   if (probe.kind === "package") {
-    const manifest = join(options.repo, "node_modules", ...probe.package.split("/"), "package.json");
-    if (!existsSync(manifest)) return { id: toolchain.id, status: "not-installed", detail: `${probe.package} is not installed in ${displayPath(options.repo)}${plugAndPlayNote(options.repo)}`, usable: false };
+    if (location === undefined) return { id: toolchain.id, status: "not-installed", detail: `no node_modules/${probe.package} in ${placeList(root, dirs)}${plugAndPlayNote(dirs)}`, usable: false };
+    const where = placeName(root, dirname(location.path));
     try {
-      const version = String(JSON.parse(readFileSync(manifest, "utf8")).version || "");
-      if (!version) return { id: toolchain.id, status: "warn", detail: `${probe.package} has no version in its package.json`, usable: false };
-      return { id: toolchain.id, ...judge(toolchain, version, `node_modules/${probe.package}`), usable: true, version };
+      const version = String(JSON.parse(readFileSync(location.path, "utf8")).version || "");
+      if (!version) return { id: toolchain.id, status: "warn", detail: `${where} has no version in its package.json`, usable: false };
+      return { id: toolchain.id, ...judge(toolchain, version, where), usable: true, version };
     } catch (error) {
-      return { id: toolchain.id, status: "warn", detail: `could not read ${probe.package}'s package.json: ${error instanceof Error ? error.message : String(error)}`, usable: false };
+      return { id: toolchain.id, status: "warn", detail: `could not read ${where}/package.json: ${hideHome(error instanceof Error ? error.message : String(error))}`, usable: false };
     }
   }
-  const env = { ...process.env, ...options.env };
-  const command = resolveProbeCommand(probe.commands, options.repo, env);
-  if (!command) return { id: toolchain.id, status: "not-installed", detail: `none of ${probe.commands.join(", ")} was found${plugAndPlayNote(options.repo)}`, usable: false };
+  if (location === undefined) return { id: toolchain.id, status: "not-installed", detail: `none of ${probe.commands.join(", ")} was found in node_modules/.bin at ${placeList(root, dirs)}, or on PATH${plugAndPlayNote(dirs)}`, usable: false };
+  const command = location.path;
   const timeoutMs = options.timeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS;
   const result = await runCommandAsync(command, probe.args, { cwd: options.repo, timeoutMs, maxBuffer: 64 * 1024, env: { ...options.env, ...toolchainEnvironment([toolchain]) } });
   if (result.timedOut) return { id: toolchain.id, status: "warn", detail: `${displayPath(command)} ${probe.args.join(" ")} timed out after ${timeoutMs / 1000} s`, usable: false, command: displayPath(command) };

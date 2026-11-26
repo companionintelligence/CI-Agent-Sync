@@ -1,7 +1,8 @@
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { createRequire, syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { parse as parseYaml } from "yaml";
 import { ROOT, fileExists, readText, redactSecrets, runCommand, runCommandAsync, safeDetail } from "./core.ts";
@@ -22,6 +23,7 @@ import {
   initRegistry,
   matchesPattern,
   parseSpecArgs,
+  probeDirs,
   renderSpecBlock,
   resolveInsideRepo,
   validateChecks,
@@ -159,6 +161,96 @@ async function probeChecks(): Promise<void> {
   });
 }
 
+/**
+ * Run `task` and count the child processes it starts. The node:child_process exports are
+ * wrapped and synced into the ESM bindings, so the spawn that core.ts imports is counted.
+ */
+async function countChildProcesses<T>(task: () => Promise<T>): Promise<{ result: T; started: number }> {
+  const childProcess = createRequire(import.meta.url)("node:child_process");
+  const originals = new Map(["spawn", "spawnSync", "exec", "execSync", "execFile", "execFileSync", "fork"].map((name) => [name, childProcess[name]]));
+  let started = 0;
+  for (const [name, original] of originals) {
+    childProcess[name] = (...args: unknown[]) => {
+      started += 1;
+      return original(...args);
+    };
+  }
+  syncBuiltinESMExports();
+  try {
+    const result = await task();
+    return { result, started };
+  } finally {
+    for (const [name, original] of originals) childProcess[name] = original;
+    syncBuiltinESMExports();
+  }
+}
+
+// A monorepo keeps a tool in a workspace package, so probes look in node_modules from the
+// entry's own directories up to the repository root, and never above it or through a
+// symlink out of it. A package probe runs nothing.
+async function workspaceProbeChecks(): Promise<void> {
+  await withTempDir("probe-workspace", async (dir) => {
+    const repo = join(dir, "repo");
+    writeRepoFile(repo, "apps/web/node_modules/fake-ui/package.json", JSON.stringify({ name: "fake-ui", version: "2.0.0", bin: { "fake-ui": "cli.js" } }));
+    writeRepoFile(repo, "apps/web/node_modules/fake-ui/cli.js", "require('node:fs').writeFileSync(__dirname + '/ran', '');\n");
+    writeRepoFile(repo, "apps/web/src/Button.stories.tsx", "export {};\n");
+    writeRepoFile(repo, "packages/ui/src/index.ts", "export {};\n");
+    writeRepoFile(repo, "spec/a.txt", "x\n");
+    // The same package outside the repository: above its root, and behind a symlink in it.
+    writeRepoFile(dir, "node_modules/fake-ui/package.json", JSON.stringify({ name: "fake-ui", version: "2.0.0" }));
+    writeRepoFile(dir, "elsewhere/node_modules/fake-ui/package.json", JSON.stringify({ name: "fake-ui", version: "2.0.0" }));
+    writeRepoFile(dir, "elsewhere/src/x.ts", "export {};\n");
+    symlinkSync(join(dir, "elsewhere"), join(repo, "apps", "linked"));
+    const root = realpathSync(repo);
+    const names = (dirs: string[]) => dirs.map((path) => relative(root, path).split(sep).join("/"));
+
+    const fromArtefact = probeDirs(repo, { artefacts: ["apps/web/src/Button.stories.tsx"] });
+    assert(isDeepStrictEqual(names(fromArtefact), ["apps/web/src", "apps/web", "apps", ""]), `an artefact's directories were wrong: ${names(fromArtefact).join(", ")}`);
+    const ordered = probeDirs(repo, { workdir: "apps/web", artefacts: ["spec/a.txt"], covers: ["packages/ui/src/**", "**/*.ts", "missing/dir/x.ts"] });
+    assert(isDeepStrictEqual(names(ordered), ["apps/web", "apps", "spec", "packages/ui/src", "packages/ui", "packages", ""]), `the workdir, artefact and covers directories were wrong: ${names(ordered).join(", ")}`);
+    const linked = probeDirs(repo, { artefacts: ["apps/linked/src/x.ts"], covers: ["apps/linked/**"] });
+    assert(isDeepStrictEqual(names(linked), ["apps", ""]), `a symlink out of the repository was searched: ${names(linked).join(", ")}`);
+
+    const fakeUi = fakeToolchain({ id: "fake-ui", version: "2.0.0", provides: ["storybook"], probe: { kind: "package", package: "fake-ui" } });
+    const found = await countChildProcesses(() => probeToolchain(fakeUi, { repo, dirs: fromArtefact }));
+    assert(found.result.status === "ok" && found.result.usable && found.result.detail.includes("apps/web/node_modules/fake-ui"), `a package in a workspace was not found from an artefact path: ${found.result.detail}`);
+    assert(found.started === 0 && !existsSync(join(repo, "apps/web/node_modules/fake-ui/ran")), `a package probe ran something (${found.started} child processes)`);
+    const control = await countChildProcesses(() => probeToolchain(nodeToolchain, { repo }));
+    assert(control.result.usable && control.started > 0, "the child process count missed a command probe, so it proves nothing");
+    const atRoot = await probeToolchain(fakeUi, { repo });
+    assert(atRoot.status === "not-installed" && !atRoot.usable && atRoot.detail.includes("no node_modules/fake-ui in the repository root"), `a package above the repository root was found: ${atRoot.detail}`);
+
+    const common = { kind: "component", tool: "storybook", status: "checked", gate: "required", requires: ["fake-ui"], check: [process.execPath, "-e", "0"] };
+    writeRepoFile(repo, ".agent-configs/specs.toml", 'version = 1\nrepo = "workspace-test"\n\n'
+      + entry({ id: "web", title: "Web", ...common, artefacts: ["apps/web/src/Button.stories.tsx"] })
+      + entry({ id: "root", title: "Root", ...common, artefacts: ["spec/a.txt"] })
+      + entry({ id: "linked", title: "Linked", ...common, artefacts: ["apps/linked/src/x.ts"], covers: ["apps/linked/**"] }));
+    const { checks } = await checkEntries({ repo, toolchains: [fakeUi] });
+    const byId = new Map(checks.map((check) => [check.id, check]));
+    assert(byId.get("spec.web")?.status === "ok", `an entry did not find its tool in its workspace package: ${byId.get("spec.web")?.detail}`);
+    assert(byId.get("spec.root")?.status === "error" && String(byId.get("spec.root")?.detail).includes("no node_modules/fake-ui in spec or the repository root"), `a tool outside the repository was found: ${byId.get("spec.root")?.detail}`);
+    assert(byId.get("spec.linked")?.status === "error" && String(byId.get("spec.linked")?.detail).includes("no node_modules/fake-ui in apps or the repository root"), `a tool behind a symlink out of the repository was found: ${byId.get("spec.linked")?.detail}`);
+
+    // The node_modules/.bin lookup follows the same directories, and entries that find a
+    // command in the same place share one probe.
+    if (process.platform !== "win32") {
+      writeRepoFile(repo, "apps/web/node_modules/.bin/agent-sync-fake-cli", "#!/bin/sh\necho 'agent-sync-fake-cli 3.1.4'\n");
+      chmodSync(join(repo, "apps/web/node_modules/.bin/agent-sync-fake-cli"), 0o755);
+      const fakeCli = fakeToolchain({ id: "fake-cli", version: "3.1.4", probe: { kind: "command", commands: ["agent-sync-fake-cli"], args: ["--version"], stream: "stdout", pattern: "(\\d+\\.\\d+\\.\\d+)" } });
+      const fromWeb = await probeToolchain(fakeCli, { repo, dirs: fromArtefact });
+      const fromRoot = await probeToolchain(fakeCli, { repo });
+      assert(fromWeb.status === "ok" && fromWeb.version === "3.1.4" && fromRoot.status === "not-installed", `a command in a workspace's node_modules/.bin was resolved wrongly: ${fromWeb.detail}; ${fromRoot.detail}`);
+      const cli = { ...common, tool: "property", kind: "invariant", requires: ["fake-cli"] };
+      writeRepoFile(repo, ".agent-configs/specs.toml", 'version = 1\nrepo = "workspace-test"\n\n'
+        + entry({ id: "cli-a", title: "A", ...cli, artefacts: ["apps/web/src/Button.stories.tsx"] })
+        + entry({ id: "cli-b", title: "B", ...cli, workdir: "apps/web", artefacts: ["apps/web/src/Button.stories.tsx"] }));
+      const shared = await countChildProcesses(() => checkEntries({ repo, toolchains: [fakeCli] }));
+      const passed = shared.result.checks.filter((check) => check.status === "ok").map((check) => check.id);
+      assert(isDeepStrictEqual(passed, ["spec.cli-a", "spec.cli-b"]) && shared.started === 3, `two entries did not share one probe of the same command (${shared.started} child processes; ok: ${passed.join(", ")})`);
+    }
+  });
+}
+
 function storeVerificationChecks(): void {
   const vocabulary = { tools: SPEC_TOOLS, kinds: SPEC_KINDS, gates: SPEC_GATES, statuses: SPEC_STATUSES };
   const toolchains = parseYaml(readText(TOOLCHAINS_FILE));
@@ -170,12 +262,14 @@ function storeVerificationChecks(): void {
   const duplicated = structuredClone(toolchains);
   duplicated.toolchains.push(structuredClone(duplicated.toolchains.find((item: any) => item.id === "quint")));
   delete duplicated.toolchains.find((item: any) => item.id === "bombadil").not_for;
+  Object.assign(duplicated.toolchains.find((item: any) => item.id === "storybook").probe, { command: "storybook", args: ["--version"] });
   const broken = structuredClone(policy);
   broken.change_classes[0].tools.push("tla-plus");
   const failing = verificationChecks({ toolchains: duplicated, policy: broken, registries: [{ id: "bad", file: "x", text: 'version = 1\nrepo = "x"\n' + entry({ id: "a", title: "A", kind: "protocol", tool: "quint", status: "planned", requires: ["no-such-toolchain"] }) }], decode: parseRegistry, vocabulary });
   const errors = failing.filter((check) => check.status === "error").map((check) => `${check.id}: ${check.detail}`);
   assert(errors.some((error) => error.startsWith("verification.toolchain.quint: duplicate id")), `a duplicate toolchain id was not caught: ${errors.join("; ")}`);
   assert(errors.some((error) => error.startsWith("verification.toolchain.bombadil: not_for")), `a tool without not_for was not caught: ${errors.join("; ")}`);
+  assert(errors.some((error) => error === "verification.toolchain.storybook: a package probe runs nothing, so it takes no command, args"), `a package probe with command fields was not caught: ${errors.join("; ")}`);
   assert(errors.some((error) => error.includes('unknown or held tool "tla-plus"')), "a policy naming an unknown tool was not caught");
   assert(errors.some((error) => error.includes('"no-such-toolchain" is not a toolchain id')), "a registry requiring an unknown toolchain was not caught");
 }
@@ -394,6 +488,7 @@ async function main(): Promise<void> {
   storeVerificationChecks();
   argumentAndPathChecks();
   await probeChecks();
+  await workspaceProbeChecks();
   await checkRunnerChecks();
   await blockAndInitChecks();
   specCliChecks();
