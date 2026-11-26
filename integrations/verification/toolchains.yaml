@@ -18,8 +18,7 @@ version: 1
 #
 # Checksums: `npm` entries list the registry's sha512 integrity, which the lockfile
 # records. Release assets list sha256 digests as published by the project or by GitHub
-# for the release asset. The rings follow the owner's tech radar: adopt, trial, assess,
-# hold.
+# for the release asset. Rings: adopt, trial, assess, hold.
 
 policy:
   pins: exact
