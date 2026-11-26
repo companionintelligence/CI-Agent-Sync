@@ -258,8 +258,8 @@ hand-written fixture under `src/fixtures/` when a test needs one.
 
 The npm package ships only the compiled `dist/itf.js`, with no type
 declarations, so it is not an importable library. To replay traces in another
-repository, copy `src/itf.ts` into its test helpers: it has no dependencies and
-uses only erasable TypeScript, so Node's type stripping and `tsc` both run it.
+repository, copy `src/itf.ts` into its test helpers. It has no dependencies and
+uses only erasable TypeScript, so Node's type stripping runs it as it is.
 
 ## Opting a repository in
 
@@ -291,8 +291,8 @@ This repository keeps its own registry in `.agent-configs/specs.toml`.
   group and keeps the output open does not hold up the result: a second after
   the check exits, or after its timeout, the rest of the group is stopped and
   the result is returned.
-- A failing check's detail keeps the last 20 lines of its output, with common
-  credential patterns redacted. The redaction is best effort, so read the
+- A failing check's detail keeps the last 20 lines of its output (at most
+  2,000 characters), with common credential patterns redacted. The redaction is best effort, so read the
   output before you paste it anywhere. Reports show the home directory as `~`,
   so a report pasted into a pull request does not carry a local user name.
 - Probes have a short timeout, and the git reads behind `--changed-from` and the
