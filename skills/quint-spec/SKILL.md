@@ -17,9 +17,8 @@ seconds, model-check it with Apalache or TLC, and tie the code to it by replayin
 
 Use it for protocols, state machines and races: sign-in and consent steps, lifecycles with expiry,
 retries, leases, outboxes, anything where two actors or two steps can interleave. Not for a single
-pure function (`lemmascript-proof`), data validation (`effect-schema-contract`), UI
-(`storybook-contract`, `bombadil-property`) or string processing: Quint has no string operations,
-no recursion and no symmetry sets.
+pure function (`lemmascript-proof`), data validation (`effect-schema-contract`), UI or string
+processing: Quint has no string operations, no recursion and no symmetry sets.
 
 ## Install (pinned)
 
@@ -29,23 +28,23 @@ export QUINT_HOME="$HOME/.cache/quint-0.34.0"   # shared backend cache, keyed on
 npx quint --version                             # 0.34.0
 ```
 
-Node 18 or newer; `quint verify` needs Java 21 or newer. First use downloads two backends with no
-checksum check: the Rust evaluator (first `run` or `test`, through the unauthenticated GitHub API,
-60 requests an hour per address) and the 192 MB Apalache archive (first `verify`). Pre-seed
-`QUINT_HOME` from checked release assets instead (macOS arm64 shown; every platform's digest is in
-CI-Agent-Sync's `integrations/verification/toolchains.yaml`):
+Node 18 or newer; `quint verify` needs Java 21 or newer. First use downloads, with no checksum
+check, the Rust evaluator (first `run` or `test`, via the unauthenticated GitHub API, 60 requests an
+hour per address) and the 192 MB Apalache archive (first `verify`). Pre-seed `QUINT_HOME` from
+checked assets (macOS arm64 here; `integrations/verification/toolchains.yaml` has every digest):
 
 ```sh
-gh release download v0.62.4 -R apalache-mc/apalache -p apalache.tgz -p sha256sum.txt
-grep ' apalache.tgz$' sha256sum.txt | shasum -a 256 -c -
-mkdir -p "$QUINT_HOME/apalache-dist-0.62.4" && tar -xzf apalache.tgz -C "$QUINT_HOME/apalache-dist-0.62.4"
-
-gh release download evaluator/v0.8.0 -R quint-co/quint -p quint_evaluator-aarch64-apple-darwin.tar.gz
-echo "cc016a73031f8717f7c7b9f2a54eb21b15d58b2a1f1ee7f1750a225e00a76672  quint_evaluator-aarch64-apple-darwin.tar.gz" | shasum -a 256 -c -
-mkdir -p "$QUINT_HOME/rust-evaluator-v0.8.0" && tar -xzf quint_evaluator-aarch64-apple-darwin.tar.gz -C "$QUINT_HOME/rust-evaluator-v0.8.0"
+DL="$(mktemp -d)"; EV=quint_evaluator-aarch64-apple-darwin.tar.gz   # keep downloads out of the repo
+gh release download v0.62.4 -R apalache-mc/apalache -p apalache.tgz --dir "$DL" &&
+  echo "8ac8488422c30d552735bae11b92a2d014d8e02e8608702acc08f9a2d8a9abb2  $DL/apalache.tgz" | shasum -a 256 -c - &&
+  mkdir -p "$QUINT_HOME/apalache-dist-0.62.4" && tar -xzf "$DL/apalache.tgz" -C "$QUINT_HOME/apalache-dist-0.62.4"
+gh release download evaluator/v0.8.0 -R quint-co/quint -p "$EV" --dir "$DL" &&
+  echo "cc016a73031f8717f7c7b9f2a54eb21b15d58b2a1f1ee7f1750a225e00a76672  $DL/$EV" | shasum -a 256 -c - &&
+  mkdir -p "$QUINT_HOME/rust-evaluator-v0.8.0" && tar -xzf "$DL/$EV" -C "$QUINT_HOME/rust-evaluator-v0.8.0"
 ```
 
-Git-ignore `_apalache-out/` (Apalache writes it to the working directory) and trace folders.
+A failed check stops its chain before anything is unpacked. Git-ignore `_apalache-out/` (Apalache
+writes it to the working directory) and `traces/`.
 
 ## Model
 
@@ -114,69 +113,72 @@ module retryQueueTest {
 
 ## Fast gate (seconds, pre-push)
 
+The registry `check` runs this script, and ci-local runs it on every pre-push (7 s in the trial).
+
 ```sh
-quint typecheck spec/quint/retryQueue.qnt
-quint test spec/quint/retryQueueTest.qnt --main retryQueueTest --max-samples 10000
-quint run spec/quint/retryQueue.qnt --max-samples 10000 --max-steps 20 --verbosity 1
-quint run spec/quint/retryQueue.qnt --observation someDone --max-samples 10000 --max-steps 20 --verbosity 1
-quint run spec/quint/retryQueue.qnt --observation someDropped --max-samples 10000 --max-steps 20 --verbosity 1
-quint run spec/quint/bugs/retryQueue.qnt --max-samples 10000 --max-steps 20 --verbosity 1   # must exit 1
+# scripts/spec-retry-queue.sh, run by "spec:retry-queue": "sh scripts/spec-retry-queue.sh"
+set -eu
+M=spec/quint/retryQueue.qnt RUN="--max-samples 10000 --max-steps 20 --verbosity 1"
+# expect CODE TEXT CMD...: CMD must exit with CODE and print TEXT. Exit 0 alone is not evidence.
+expect() { code=$1 text=$2; shift 2; set +e; out=$("$@" 2>&1); got=$?; set -e; printf '%s\n' "$out"
+  [ "$got" -eq "$code" ] && printf '%s\n' "$out" | grep -qF -- "$text"; }
+quint typecheck $M
+expect 0 'passing' quint test spec/quint/retryQueueTest.qnt --main retryQueueTest --max-samples 10000
+expect 0 '[ok] No violation found' quint run $M $RUN
+expect 0 '[observed]' quint run $M --observation someDone $RUN      # one run per observation
+expect 0 '[observed]' quint run $M --observation someDropped $RUN
+expect 1 '[violation]' quint run spec/quint/bugs/retryQueue.qnt $RUN    # the planted bug
+printf '%s\n' "$out" | grep -qF droppedOnlyAfterLastTry                  # names the property it breaks
+rm -rf traces && mkdir traces                                            # never replay stale traces
+expect 0 '[ok] No violation found' quint run $M --mbt --n-traces 20 --max-samples 100 --max-steps 12 \
+  --seed 0x2a --out-itf 'traces/t_{seq}.itf.json' --verbosity 1        # --n-traces <= --max-samples
+node --experimental-strip-types --test test/retryQueue.replay.test.ts
 ```
 
-Put these in a package script (`spec:retry-queue`) and point the registry `check` at it. The planted
-bug is a copy of the model with one deliberate mistake (here `nack` drops after the second try); the
-script asserts that it fails. `--observation O` exits 1 when no trace reaches `O`, so run it once per
-observation: several flags in one run stop at the first one reached.
+The planted bug copies the model with one deliberate mistake (`nack` drops after the second try).
+`--observation O` exits 1 when no trace reaches `O`; several in one run stop at the first reached.
 
 ## Deep gate (minutes, dispatch or nightly)
 
 ```sh
-quint verify spec/quint/retryQueue.qnt --max-steps 10 --server-endpoint localhost:18823 --verbosity 1 < /dev/null
-quint verify spec/quint/retryQueue.qnt --max-steps 10 --observation someDropped --server-endpoint localhost:18823 < /dev/null
-quint verify spec/quint/retryQueue.qnt --backend tlc --server-endpoint localhost:18823 < /dev/null
+PORT=$(node -e 'const s = require("node:net").createServer().listen(0, () => { console.log(s.address().port); s.close(); })')
+quint verify spec/quint/retryQueue.qnt --max-steps 10 --server-endpoint "localhost:$PORT" --verbosity 1 < /dev/null
+quint verify spec/quint/retryQueue.qnt --max-steps 10 --observation someDropped --server-endpoint "localhost:$PORT" < /dev/null
+quint verify spec/quint/retryQueue.qnt --backend tlc --server-endpoint "localhost:$PORT" < /dev/null
 ```
 
-- Give every concurrent run its own `--server-endpoint` port, TLC runs included (they transpile
-  through the same server). Runs on the default `localhost:8822` share one Apalache server, and the
-  second fails when the first exits.
-- Apalache is bounded by `--max-steps` (default 10) and slows sharply with depth; growing lists and
-  maps cost far more than fixed-domain maps and sets.
+- Each concurrent run needs its own `--server-endpoint` port (the first line asks the system for a
+  free one), TLC runs too. On the shared default `localhost:8822` the second fails when the first exits.
+- Apalache is bounded by `--max-steps` (default 10) and slows sharply with depth.
 - Check temporal and action properties only with `--backend tlc`. On Apalache `--temporal` waits at
   a y/N prompt and, with stdin closed, exits 0 having checked nothing.
 
 ## Exit 0 is not evidence
 
-- `--seed` lowers the default `--max-samples` to 1, so a seeded run checks one trace. Always pass
-  `--max-samples` with `--seed`. Seeds are tied to the backend and the Quint version: keep failing
-  traces as fixtures, not only their seeds.
+- `--seed` lowers the default `--max-samples` to 1, so a seeded run checks one trace: always pass
+  `--max-samples` with it. Record the seed each run prints (`Use --seed=0x... to reproduce`). Seeds
+  are tied to the backend and the Quint version: keep failing traces as fixtures, not only seeds.
 - `quint run` ends a stuck trace silently and TLC runs with deadlock checking off. In the trial, a
   variant whose `nack` never dropped a job passed `quint run` (exit 0, one warning); the `reps` test
   (QNT513) and `--observation someDropped` both failed it.
 - `--search-observations` prints `was not observed` and still exits 0. Gate on `--observation`.
 - Open issues that give a false pass on 0.34.0: Apalache can drop an exception while reporting a
   violation and exit 0 with no result line (quint-co/quint#2074); TLC can check a different model
-  when a qualified name collides after transpiling (#2072). Require the result line
-  (`[ok] No violation found`, `[violation]`, `[observed]`) and cross-check `verify` against `run`.
+  when a qualified name collides after transpiling (#2072). Require the result line, as `expect`
+  does, and cross-check `verify` against `run`.
 - `--out` JSON is large and its line numbers are zero-based. `--out-itf` does not silence output.
 
 ## Replay traces against the code
 
-Only `quint run --mbt` records the action taken and its nondeterministic picks. `quint verify` has no
-`--mbt`, and the TLC backend writes no ITF file.
-
-```sh
-quint run spec/quint/retryQueue.qnt --mbt --n-traces 20 --max-samples 100 --max-steps 12 \
-  --seed 0x2a --out-itf 'traces/t_{seq}.itf.json' --verbosity 1    # --n-traces <= --max-samples
-```
-
-Each state carries `mbt::actionTaken` (`"send"`) and `mbt::nondetPicks`
-(`{"job": {"tag": "Some", "value": "c"}}`) beside the model's variables, in ITF encodings such as
-`{"#bigint": "1"}`, `{"#map": [[k, v]]}` and `{"tag": "Queued", "value": {"#tup": []}}`. There is no
-official TypeScript connector; CI-Agent-Sync's `src/itf.ts` is a small strict decoder.
-`parseItfTrace(text)` returns `{ vars, states, meta }` with every state decoded (`bigint`, `Map`,
-`Set`, arrays, variants as `{ tag, value }`), `itfAction(state)` gives the action, `itfPicks(state)`
-the picks (`Some(x)` as `x`, `None` as `undefined`), and `decodeItfValue` decodes one value. Copy it
-at a pinned commit:
+Only `quint run --mbt` records the action taken and its nondeterministic picks (`quint verify` has no
+`--mbt`, and TLC writes no ITF file); the fast-gate script writes 20 such traces. Each state carries
+`mbt::actionTaken` (`"send"`) and `mbt::nondetPicks` (`{"job": {"tag": "Some", "value": "c"}}`)
+beside the model's variables, in ITF encodings such as `{"#bigint": "1"}`, `{"#map": [[k, v]]}` and
+`{"tag": "Queued", "value": {"#tup": []}}`. There is no official TypeScript connector; the strict
+decoder `src/itf.ts` in CI-Agent-Sync has `parseItfTrace(text)`, which returns `{ vars, states, meta }`
+with every state decoded (`bigint`, `Map`, `Set`, arrays, variants as `{ tag, value }`), `itfAction`
+(the action), `itfPicks` (the picks, `Some(x)` as `x` and `None` as `undefined`) and `decodeItfValue`
+(one value). Copy it at a pinned commit:
 
 ```ts
 // test/retryQueue.replay.test.ts: drive the implementation through every model trace.
@@ -187,8 +189,11 @@ import { itfAction, itfPicks, parseItfTrace } from "./itf.ts";   // CI-Agent-Syn
 import { RetryQueue } from "../src/queue/retryQueue.ts";
 
 test("the queue follows every model trace", () => {
-  for (const file of readdirSync("traces").filter((f) => f.endsWith(".itf.json"))) {
+  const files = readdirSync("traces").filter((f) => f.endsWith(".itf.json"));
+  assert.equal(files.length, 20, "expected the 20 traces of --n-traces 20");   // no traces is a failure
+  for (const file of files) {
     const trace = parseItfTrace(readFileSync(`traces/${file}`, "utf8"));
+    assert.ok(trace.states.length > 1, `${file}: no step to replay`);
     const queue = new RetryQueue(["a", "b", "c"], 3);
     trace.states.forEach((state, i) => {
       const action = itfAction(state);                  // init, send, ack, nack or idle
@@ -207,9 +212,9 @@ test("the queue follows every model trace", () => {
 });
 ```
 
-In the trial, an implementation that dropped a job one try early failed at the first diverging state.
-Commit the generating command (seed, sample count, steps), not the traces; it reproduces only on the
-pinned version and backend. When replay passes, the registry entry moves to `conformance`:
+In the trial, a drop-early implementation failed at the first diverging state, and an empty or
+one-state `traces/` failed the count checks. Commit the script, not the traces. The entry says
+`conformance` only while its `check` regenerates the traces and runs this replay:
 
 ```toml
 [[spec]]
@@ -218,7 +223,8 @@ title = "Retry queue: send, acknowledge, refuse and drop after the last try"
 kind = "state-machine"
 tool = "quint"
 status = "conformance"
-artefacts = ["spec/quint/retryQueue.qnt", "spec/quint/retryQueueTest.qnt", "test/retryQueue.replay.test.ts"]
+artefacts = ["spec/quint/retryQueue.qnt", "spec/quint/retryQueueTest.qnt", "spec/quint/bugs/retryQueue.qnt",
+  "scripts/spec-retry-queue.sh", "test/retryQueue.replay.test.ts"]
 covers = ["src/queue/**"]
 requires = ["node", "quint"]
 check = ["npm", "run", "--silent", "spec:retry-queue"]
@@ -229,9 +235,9 @@ conformance = "test/retryQueue.replay.test.ts replays quint run --mbt traces aga
 ## PR verification block
 
 ```markdown
-| Entry | Tool | Command | Commit | Bounds | Result |
-|---|---|---|---|---|---|
-| retry-queue | quint 0.34.0, Apalache 0.62.4 | `npm run spec:retry-queue` | abc1234 | 10000 samples, 20 steps; verify 10 steps | pass; observations reached; planted bug fails |
+| Entry | Tool | Command | Commit | Seed | Bounds | Result |
+|---|---|---|---|---|---|---|
+| retry-queue | quint 0.34.0, Apalache 0.62.4 | `npm run spec:retry-queue` | abc1234 | run 0x625a443954cfb0a9; traces 0x2a | 10000 samples, 20 steps; 20 traces of 12 steps; verify 10 steps | pass; observations reached; planted bug fails; 20 traces replayed |
 ```
 
 ## References

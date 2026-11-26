@@ -22,18 +22,19 @@ Start with `spec-first`; it routes to the others by the kind of rule.
 ## Install
 
 Installs stay explicit and audit-first, like the default skills. Read the `SKILL.md` you install.
-Pin the source to the CI-Agent-Sync commit you reviewed (the skills CLI accepts a full commit after
-`@`), or install from a reviewed checkout:
+Pin the source to the CI-Agent-Sync commit you reviewed, or install from a reviewed checkout. Pin
+the skills CLI as well. Version 1.9.0 reads a full 40-character commit (or a version-like tag) after
+`@` as a ref, and any other text after `@`, a short commit included, as a skill name.
 
 ```sh
 COMMIT=0000000000000000000000000000000000000000   # replace with the full SHA you reviewed
-DISABLE_TELEMETRY=1 npx skills add "companionintelligence/CI-Agent-Sync@$COMMIT" --skill spec-first --global --agent claude-code
-DISABLE_TELEMETRY=1 npx skills add "companionintelligence/CI-Agent-Sync@$COMMIT" --skill '*' --global --agent codex
-DISABLE_TELEMETRY=1 npx skills add . --skill quint-spec --global --agent claude-code   # from the checkout root
+DISABLE_TELEMETRY=1 npx skills@1.9.0 add "companionintelligence/CI-Agent-Sync@$COMMIT" --skill spec-first --global --agent claude-code
+DISABLE_TELEMETRY=1 npx skills@1.9.0 add "companionintelligence/CI-Agent-Sync@$COMMIT" --skill '*' --global --agent codex
+DISABLE_TELEMETRY=1 npx skills@1.9.0 add . --skill quint-spec --global --agent claude-code   # from the checkout root
 ```
 
-The skills CLI needs Node 22.20 or newer; `DISABLE_TELEMETRY=1` turns off its usage reporting.
-`npx skills add . --list` shows the eight skills without installing anything. For harnesses the
+Skills CLI 1.9.0 needs Node 22.20 or newer; `DISABLE_TELEMETRY=1` turns off its usage reporting.
+`npx skills@1.9.0 add . --list` shows the eight skills without installing anything. For harnesses the
 skills CLI does not cover, copy `skills/<id>/SKILL.md` into that harness's skills folder; the
 per-harness commands are in `integrations/skills.yaml`.
 

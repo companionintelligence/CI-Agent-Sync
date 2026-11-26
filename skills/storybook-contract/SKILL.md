@@ -115,6 +115,13 @@ STORYBOOK_DISABLE_TELEMETRY=1 npx storybook build --quiet --disable-telemetry
 No running Storybook is needed for tests. The first run is slow (about 50 seconds cold on a laptop);
 warm runs of a few stories take seconds.
 
+ci-local runs every entry's `check` on pre-push, so an entry's `check` runs the stories it covers,
+not the whole suite: `vitest --project=storybook --run src/components/StatusBadge` ran that
+component's 4 stories in 12 seconds in the trial. Run the full suite, coverage and the build by
+dispatch or nightly. `--changed <ref>` also works with the storybook project and runs only the
+stories a change reaches. Use it in the local loop, not as `check`: with nothing changed it runs no
+story and exits 0.
+
 ## Traps
 
 - In 10.6.x the failure location can be 3 to 9 lines off and point into a neighbouring story. Find
@@ -151,18 +158,22 @@ tool = "storybook"
 status = "checked"
 artefacts = ["src/components/StatusBadge/StatusBadge.stories.tsx"]
 covers = ["src/components/StatusBadge/**"]
-requires = ["node", "storybook", "chromium"]
-check = ["npm", "run", "--silent", "test-storybook"]
+requires = ["node", "storybook"]
+check = ["npm", "run", "--silent", "spec:status-badge"]
 properties = ["Online", "Degraded", "Offline", "CustomLabel"]
 notes = "a11y.test is error on every story. Canvas content is not checked."
 ```
+
+Here `"spec:status-badge": "STORYBOOK_DISABLE_TELEMETRY=1 vitest --project=storybook --run src/components/StatusBadge"`.
+The `chromium` toolchain is the system Chrome that Bombadil drives; the Vitest addon brings its own
+Playwright Chromium, so a story entry does not require it.
 
 ## PR verification block
 
 ```markdown
 | Entry | Tool | Command | Commit | Result |
 |---|---|---|---|---|
-| status-badge | storybook 10.6.9, vitest <pinned>, playwright <pinned> | `npm run test-storybook` | abc1234 | 4 stories pass; 0 axe violations |
+| status-badge | storybook 10.6.9, vitest <pinned>, playwright <pinned> | `npm run spec:status-badge` | abc1234 | 4 stories pass; 0 axe violations |
 ```
 
 ## References

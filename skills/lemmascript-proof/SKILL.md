@@ -33,17 +33,20 @@ npm install --save-dev --save-exact lemmascript@0.6.14
 ```
 
 The install is about 111 MB, mostly LLM SDKs that `lemmascript` pulls in through caret ranges, so
-only the committed lockfile pins them. `lsc` calls `dafny` from `PATH`. Use the Dafny 4.11.0 release zip and check it (other platforms and
-their digests are in `dafny-reference-model`):
+only the committed lockfile pins them. `lsc` calls `dafny` from `PATH`. Use the Dafny 4.11.0 release
+zip, and unpack it only when its sha256 matches (other platforms' zips and digests are in
+`dafny-reference-model`):
 
 ```sh
-gh release download v4.11.0 -R dafny-lang/dafny -p 'dafny-4.11.0-arm64-macos-13.zip'
-shasum -a 256 dafny-4.11.0-arm64-macos-13.zip
-# c90c75e7d5db9c6ccbb7127840dfe43f0ac938b039a7ebed146d8ead383a572f
-unzip -q dafny-4.11.0-arm64-macos-13.zip -d "$HOME/.cache/dafny-4.11.0"
+DL="$(mktemp -d)"; ZIP=dafny-4.11.0-arm64-macos-13.zip   # keep downloads out of the repo
+gh release download v4.11.0 -R dafny-lang/dafny -p "$ZIP" --dir "$DL" &&
+  echo "c90c75e7d5db9c6ccbb7127840dfe43f0ac938b039a7ebed146d8ead383a572f  $DL/$ZIP" | shasum -a 256 -c - &&
+  mkdir -p "$HOME/.cache/dafny-4.11.0" && unzip -q "$DL/$ZIP" -d "$HOME/.cache/dafny-4.11.0"
 export PATH="$HOME/.cache/dafny-4.11.0/dafny:$PATH"
 npx lsc version && dafny --version   # 0.6.14 and 4.11.0+fcb2042d...
 ```
+
+A failed check stops the chain before `unzip`.
 
 Node 18 or newer (22 for `lsc guard`). There is no Linux arm64 Dafny zip.
 
@@ -168,8 +171,10 @@ conformance = "The verified function is the shipped code."
 notes = "Integer and Unicode-scalar string model; boundary cases are in test/redact.test.ts."
 ```
 
-`spec:redact` runs `lsc check --backend=dafny`, the staleness diff and the audit compare in one
-script.
+`spec:redact` runs `lsc check --backend=dafny src/policy/redact.ts` (one run per file the entry
+verifies, callee files included), the staleness diff, and the audit compare over every `.dfy` file.
+ci-local runs every entry's `check` on pre-push, so an entry checks only its own files. The batch
+over all of `LemmaScript-files.txt` runs by dispatch or nightly.
 
 ## PR verification block
 

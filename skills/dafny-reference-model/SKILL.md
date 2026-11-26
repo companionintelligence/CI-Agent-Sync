@@ -29,15 +29,19 @@ objects, and its sets and maps are arrays with linear-scan membership, so they s
 ## Install (pinned, checked)
 
 Use the release zip. It is self-contained (.NET 8 runtime, Z3 4.12.1 and 4.14.1), so `verify` needs
-no other install.
+no other install. Unpack it only when its sha256 matches: on another platform, put that platform's
+zip name and digest from the table into `ZIP` and the `echo` line.
 
 ```sh
-gh release download v4.11.0 -R dafny-lang/dafny -p 'dafny-4.11.0-arm64-macos-13.zip'
-shasum -a 256 dafny-4.11.0-arm64-macos-13.zip     # must match the table
-unzip -q dafny-4.11.0-arm64-macos-13.zip -d "$HOME/.cache/dafny-4.11.0"
+DL="$(mktemp -d)"; ZIP=dafny-4.11.0-arm64-macos-13.zip   # keep downloads out of the repo
+gh release download v4.11.0 -R dafny-lang/dafny -p "$ZIP" --dir "$DL" &&
+  echo "c90c75e7d5db9c6ccbb7127840dfe43f0ac938b039a7ebed146d8ead383a572f  $DL/$ZIP" | shasum -a 256 -c - &&
+  mkdir -p "$HOME/.cache/dafny-4.11.0" && unzip -q "$DL/$ZIP" -d "$HOME/.cache/dafny-4.11.0"
 export PATH="$HOME/.cache/dafny-4.11.0/dafny:$PATH"
 dafny --version                                   # 4.11.0+fcb2042d...
 ```
+
+A failed check prints `FAILED` and stops the chain before `unzip`.
 
 | Asset | sha256 |
 |---|---|
@@ -99,10 +103,19 @@ module SemVer {
 
 ## Gate
 
+The registry `check` runs this script: the proofs, the audit, then the oracle test (next section).
+It took 4 seconds in the trial.
+
 ```sh
+# scripts/spec-semver.sh, run by "spec:semver": "sh scripts/spec-semver.sh"
+set -eu
 dafny format --check dfyconfig.toml
-dafny verify dfyconfig.toml
+dafny verify dfyconfig.toml | tee /dev/stderr | grep -qE 'finished with [1-9][0-9]* verified, 0 errors'
 dafny audit dfyconfig.toml --report-file spec/dafny/AUDIT.md --compare-report
+rm -rf test/oracle && mkdir test/oracle            # the oracle is rebuilt by every run; git-ignore it
+dafny translate js --include-runtime --output test/oracle/SemVer.js spec/dafny/SemVer.dfy
+{ cat test/oracle/SemVer.js; printf '\nmodule.exports = { _dafny, SemVer };\n'; } > test/oracle/semver.cjs
+node --experimental-strip-types --test test/semver.oracle.test.ts
 ```
 
 Create the baseline once without `--compare-report` and commit it; with the flag and no baseline the
@@ -130,11 +143,9 @@ every Dafny or Z3 upgrade.
 
 ## Use the model as an oracle
 
-```sh
-npm install --save-dev --save-exact bignumber.js@11.1.5       # the generated code requires it
-dafny translate js --include-runtime --output test/oracle/SemVer.js spec/dafny/SemVer.dfy
-{ cat test/oracle/SemVer.js; printf '\nmodule.exports = { _dafny, SemVer };\n'; } > test/oracle/semver.cjs
-```
+The generated code requires `bignumber.js`: `npm install --save-dev --save-exact bignumber.js@11.1.5`.
+The gate's `printf` line adds the exports the generated script lacks. Never commit the generated
+files: a committed oracle can drift from `SemVer.dfy` while the entry still says `conformance`.
 
 ```ts
 // test/semver.oracle.test.ts: compare the shipped comparator with the verified model.
@@ -164,6 +175,9 @@ Never import the oracle from shipped code.
 
 ## Register it
 
+The entry says `conformance` only while its `check` rebuilds the oracle and runs the differential
+test, as the gate script does:
+
 ```toml
 [[spec]]
 id = "semver-order"
@@ -171,7 +185,8 @@ title = "Version comparison is a total order"
 kind = "algorithm"
 tool = "dafny"
 status = "conformance"
-artefacts = ["spec/dafny/SemVer.dfy", "dfyconfig.toml", "spec/dafny/AUDIT.md"]
+artefacts = ["spec/dafny/SemVer.dfy", "dfyconfig.toml", "spec/dafny/AUDIT.md", "scripts/spec-semver.sh",
+  "test/semver.oracle.test.ts"]
 covers = ["src/semver.ts"]
 requires = ["dafny", "node"]
 check = ["npm", "run", "--silent", "spec:semver"]
