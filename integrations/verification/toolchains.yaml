@@ -10,15 +10,24 @@ version: 1
 # install provides it), or from the listed release with its checksum checked. Never
 # install globally, never with sudo, and never from a floating tag such as `latest`.
 #
-# `provides` maps a toolchain to the registry `tool` values it checks. A probe reads the
-# named stream (stdout, stderr or both) and takes the version from the first capture
-# group of `pattern`. A command list is tried in order; `${VAR}` is read from the
-# environment and skipped when unset. Commands resolve in the repository's
-# node_modules/.bin first, then on PATH.
+# `provides` maps a toolchain to the registry `tool` values it checks. A probe is either a
+# package or a command. A package probe (`package: <npm name>`) reads the version from
+# node_modules/<name>/package.json and runs nothing; use it for an npm tool whose CLI is
+# slow or can download packages to answer --version. A command probe runs the command,
+# reads the named stream (stdout, stderr or both) and takes the version from the first
+# capture group of `pattern`. A command list is tried in order; `${VAR}` is read from the
+# environment and skipped when unset.
+#
+# Packages and commands resolve in node_modules (node_modules/.bin for commands) from the
+# registry entry's workdir, then from the directory of each of its artefacts and covers
+# paths, each walking up to the repository root, then at the root; never outside the
+# repository. A command not found there is looked up on PATH. `agentctl spec toolchains`
+# has no entry, so it resolves from the root.
 #
 # Checksums: `npm` entries list the registry's sha512 integrity, which the lockfile
 # records. Release assets list sha256 digests as published by the project or by GitHub
-# for the release asset. Rings: adopt, trial, assess, hold.
+# for the release asset. Rings: adopt, trial, assess, hold. Every tool and library lists
+# what it is `not_for`; a change that needs one of those uses another tool.
 
 policy:
   pins: exact
@@ -106,12 +115,15 @@ toolchains:
     version: "0.34.0"
     provides: [quint]
     purpose: "Protocols, state machines, leases, queues and races: simulate in seconds, model-check with Apalache or TLC, replay ITF traces against code."
+    not_for:
+      - "Single pure functions: prove them with lemmascript or dafny instead."
+      - UI.
     install:
       - channel: npm
         command: npm install --save-dev --save-exact @informalsystems/quint@0.34.0
         package: "@informalsystems/quint@0.34.0"
         integrity: "sha512-+lErYsupIixqctj52iu1ddw+0zQ5P9JUff66XjgNvxCVGht+SXT9OFuHVRbW5Wv25jYSe/A+w/lEar+Tu3SJbg=="
-        note: The npm release carries SLSA provenance. Prefer this channel; Homebrew and nixpkgs lag at 0.33.1.
+        note: The npm release carries SLSA provenance. Prefer this channel. Homebrew core has 0.34.0; nixpkgs lags at 0.33.1.
       - channel: github-release
         url: https://github.com/quint-co/quint/releases/tag/v0.34.0
         note: Standalone binaries that need no Node.
@@ -161,6 +173,12 @@ toolchains:
           licence: Apache-2.0
           note: Agents, commands and MCP servers. Its README calls it internal use, not thoroughly evaluated.
     traps:
+      - "Exit 0 is not evidence on 0.34.0: each of the next five traps is a run that exits 0 having checked less than it seems. A gate script passes explicit sample counts, uses --backend tlc for temporal and action properties, requires the tool's result line, keeps a planted-bug variant that must fail, and treats any exit code it does not expect as a failure."
+      - "--seed drops the default --max-samples from 10000 to 1, so a seeded `quint run` checks one trace and can pass a buggy spec. Pass --max-samples whenever you pass --seed. A seed is tied to the backend and the Quint version, so keep a failing trace as a fixture, not only its seed."
+      - "`quint verify --temporal` on the default Apalache backend stops at a y/N prompt. With stdin closed, as under agents, CI and `agentctl spec check`, it exits 0 having checked nothing, even on a violating spec. Answering y does not help: Apalache then missed action-property violations that TLC finds. Check temporal and action properties with --backend tlc."
+      - "The Apalache route can swallow an exception raised while it reports a violation, print no result line and exit 0 (quint-co/quint#2074, open on 0.34.0; one trigger is an invariant violated in a state that holds a set of maps). Require the result line. `quint run` can also lose its result line on a slow pipe (quint-co/quint#2036); a missing line is a failure, never a pass."
+      - "The TLC route can report a false [ok]: after transpilation a qualified name such as a::x becomes a_x, collides with a real a_x, and TLC checks a different model (quint-co/quint#2072, open on 0.34.0). Avoid such names, and cross-check verify against run."
+      - "Deadlocks go unreported: TLC is launched with -deadlock, `quint run` ends a stuck trace silently, and Apalache reports a deadlock only when every path is stuck. Add a progress test, such as `quint test` with reps, where QNT513 fires."
       - Concurrent `quint verify` runs share Apalache's server on localhost:8822 and break each other. Give each run its own --server-endpoint=localhost:<port>.
       - First use downloads the evaluator and the 193 MB Apalache archive with no checksum check. Pre-seed QUINT_HOME from the checksummed archives above.
       - Apalache writes _apalache-out/ into the working directory. Gitignore it, and .quint/ and generated *.itf.json traces.
@@ -178,6 +196,9 @@ toolchains:
     version: "4.1.6"
     provides: [effect-schema, property]
     purpose: "Data contracts at boundaries: one Schema decodes at runtime with path-exact errors and exports JSON Schema for other languages. effect/Arbitrary derives property-test generators from schemas."
+    not_for:
+      - Rewriting NestJS backends into Effect.
+      - Replacing Zod where it already ships, until a migration decision record says so.
     install:
       - channel: npm
         command: npm install --save-exact effect@4.1.6
@@ -196,6 +217,7 @@ toolchains:
           licence: MIT
           note: Its effect-ts skill installs effect@latest and edits AGENTS.md and CLAUDE.md. Vendor a reviewed copy at a pinned commit instead of running it.
     traps:
+      - Effect 4 states support for Node.js 22.19 or later. `agentctl validate`, `agentctl check` and `agentctl spec` load it.
       - npm's latest for @effect/platform, @effect/cli, @effect/rpc, @effect/sql and @effect/ai is a v3-era 0.x package that fails to resolve beside effect 4. In v4 these live inside effect/<area>.
       - JSON Schema export drops every isPattern regex that lacks the u flag, and every custom filter without a toJsonSchema annotation. Use the u flag on every pattern.
       - toJsonSchemaDocument returns a wrapper whose root $ref points at $defs it does not contain. Publish a standalone document with $schema and $defs, as src/spec-registry.ts does.
@@ -212,6 +234,10 @@ toolchains:
     version: "0.6.14"
     provides: [lemmascript]
     purpose: "Small pure TypeScript decision cores proved in place: contracts in //@ comments, translated to Dafny and proved. The annotated .ts stays the production code."
+    not_for:
+      - Regex, async code, I/O, randomness or the DOM.
+      - "Float-heavy maths: numbers are modelled as mathematical integers or reals."
+      - NestJS-shaped code before a pure core is pulled out of it.
     install:
       - channel: npm
         command: npm install --save-dev --save-exact --ignore-scripts lemmascript@0.6.14
@@ -222,10 +248,7 @@ toolchains:
       file: lemmascript.json
       required: { unread-annotations: error }
     probe:
-      command: lsc
-      args: [version]
-      stream: both
-      pattern: '(\d+\.\d+\.\d+)'
+      package: lemmascript
     prerequisites: [node, dafny]
     licence: MIT. Dafny and Z3 are MIT. Annotations are comments, so nothing ships at runtime.
     upstream:
@@ -244,6 +267,7 @@ toolchains:
       - "Out of model: regex, async, I/O, randomness, DOM. Pull a pure core out of real helpers first."
       - "`lsc check src/` fails with EISDIR in 0.6.14; use LemmaScript-files.txt batches."
       - "`lsc claimcheck` sends contract text to a hosted model unless --claims-only is set."
+      - "`lsc` is also the LiveScript compiler's command, so a lookup on PATH can find another program. LemmaScript installs only from npm, so the probe reads node_modules/lemmascript/package.json and runs nothing."
 
   - id: dafny
     name: Dafny
@@ -252,6 +276,8 @@ toolchains:
     version: "4.11.0"
     provides: [dafny]
     purpose: Reference models with proofs for non-TypeScript code or as differential-test oracles; LemmaScript's backend.
+    not_for:
+      - "Shipping generated JavaScript: it has no exports or typings, uses BigNumber for integers, and its collections scale quadratically."
     install:
       - channel: github-release
         url: https://github.com/dafny-lang/dafny/releases/tag/v4.11.0
@@ -285,6 +311,7 @@ toolchains:
       - "`lemma {:axiom} ... ensures false` verifies with exit 0. Run `dafny audit --compare-report` over every .dfy file, and `dafny verify --analyze-proofs` to flag proofs that rest on a contradiction."
       - "`dafny audit --compare-report` is an exact-text snapshot: it also fails when a finding is removed. Wrap it to fail only on added rows."
       - 4.11.0 verifies some false lemmas (open soundness issues, and an auto-induction fix only on master). Pair every proof with a test against the real code.
+      - "The next release makes a new type system the default (dafny-lang/dafny#6432). 4.11.0 already accepts it: set type-system-refresh = true, general-traits = \"datatype\" and general-newtypes = true in dfyconfig.toml now, so specs survive the upgrade. Keep models first-order: with those options a datatype that extends a trait with a function-typed field can prove false (dafny-lang/dafny#6547)."
       - "Exit codes: 0 ok, 1 CLI error, 2 parse, resolution or warnings (also an audit mismatch), 3 compile, 4 verification failure, 5 format --check failure."
       - Homebrew's formula is deprecated (2026-11-10) and runs Homebrew's newer Z3 found on PATH, not the bundled 4.12.1. Avoid it.
       - "`--json-output` errorId is null on verifier diagnostics; key on source, severity and location, not message text, which changes in the next release."
@@ -298,6 +325,9 @@ toolchains:
     version: "10.6.9"
     provides: [storybook]
     purpose: "Component contracts for React and Vite: every state a story, a play function per interaction, axe at error, run as Vitest browser tests."
+    not_for:
+      - Backend or protocol semantics.
+      - WebGL canvas content.
     install:
       - channel: npm
         command: npm install --save-dev --save-exact storybook@10.6.9 @storybook/react-vite@10.6.9 @storybook/addon-vitest@10.6.9 @storybook/addon-a11y@10.6.9
@@ -311,10 +341,7 @@ toolchains:
         command: npx playwright install chromium
         note: The Vitest addon runs stories in Playwright's Chromium (about 600 MB). Set PLAYWRIGHT_BROWSERS_PATH to a shared cache.
     probe:
-      command: storybook
-      args: ["--version"]
-      stream: both
-      pattern: '(\d+\.\d+\.\d+)'
+      package: storybook
     environment:
       - name: STORYBOOK_DISABLE_TELEMETRY
         value: "1"
@@ -331,6 +358,9 @@ toolchains:
           licence: MIT
           note: The same SKILL.md text as storybookjs/skills, which has no licence file. Take it from the MIT monorepo at a pinned tag.
     traps:
+      - "Never go below 10.6.2. Earlier releases, and @storybook/addon-vitest in the same range, carry GHSA-f2ph-cmg5-wxc8 (critical) and GHSA-px85-f4q5-jh77 (high); on older lines the fixes are 9.1.21 and 8.6.19. The second advisory also sets floors for Vite (6.4.2, 7.3.2 or 8.0.5) and Vitest (3.2.7 or 4.1.10): keep both at or above them."
+      - "The storybook bin in 10.6.9 does not answer `storybook --version` itself: it runs `pnpm dlx @storybook/cli@10.6.9 --version` (or npx), which installs about 200 packages from the registry once the dlx cache has expired and usually takes longer than the 5-second probe timeout. The probe reads node_modules/storybook/package.json instead and runs nothing."
+      - Keep `storybook dev` and its /mcp endpoint on loopback. To share a Storybook, publish a built one.
       - Telemetry is sent at boot unless STORYBOOK_DISABLE_TELEMETRY=1.
       - Init adds @chromatic-com/storybook (the Chromatic cloud client) and unpinned latest ranges for vitest, @vitest/browser-playwright, @vitest/coverage-v8 and playwright.
       - Init detects an AI agent, switches to an agentic flow and writes a debug-storybook.log into the project.
@@ -346,6 +376,8 @@ toolchains:
     version: "0.8.0"
     provides: [bombadil]
     purpose: "Temporal properties of DOM web UIs against stubbed APIs: no secrets in URLs, no telemetry after opt-out, no success without a success event."
+    not_for:
+      - "Tauri on macOS, Capacitor iOS, WebXR or canvas content: it drives Chromium only."
     install:
       - channel: npm
         command: npm install --save-dev --save-exact @antithesishq/bombadil@0.8.0
@@ -392,6 +424,8 @@ toolchains:
     version: "0.0.13"
     provides: []
     purpose: Nothing yet. An alpha Effect syntax layer, not a specification language. Revisit at a human-reviewed beta.
+    not_for:
+      - "Specifications or proofs: its documented prove feature is not in the published binary."
     install: []
     licence: MIT and Apache-2.0
     upstream:

@@ -162,6 +162,11 @@ export function runCommand(command: string, args: string[] = [], options: Comman
   }
 }
 
+// How long to wait for the rest of a child's output after it exits. A descendant can keep
+// stdout or stderr open after the child exits (a background job in its process group, or a
+// daemon in a group of its own), and then "close" never comes.
+const OUTPUT_GRACE_MS = 1_000;
+
 /**
  * Run a child without blocking the Node event loop.
  *
@@ -169,6 +174,10 @@ export function runCommand(command: string, args: string[] = [], options: Comman
  * POSIX so a timed-out command and its descendants are terminated together;
  * otherwise a misbehaving MCP or desktop CLI can keep the wizard stuck even
  * after the parent process has been killed.
+ *
+ * The result never waits on a descendant that holds the output open: a second
+ * after the child exits, or after a timeout has killed it, the rest of its
+ * process group is stopped, the pipes are closed and the result is returned.
  */
 export function runCommandAsync(command: string, args: string[] = [], options: CommandOptions = {}): Promise<CommandResult> {
   const timeoutMs = Math.max(1, options.timeoutMs || 30_000);
@@ -183,6 +192,9 @@ export function runCommandAsync(command: string, args: string[] = [], options: C
     let outputTruncated = false;
     let errorCode: string | undefined;
     let forceTimer: NodeJS.Timeout | undefined;
+    let graceTimer: NodeJS.Timeout | undefined;
+    let deadlineTimer: NodeJS.Timeout | undefined;
+    let exited: { code: number | null; signal: NodeJS.Signals | null } | undefined;
 
     const child = spawn(command, args, {
       cwd: options.cwd || ROOT,
@@ -229,7 +241,7 @@ export function runCommandAsync(command: string, args: string[] = [], options: C
       if (settled) return;
       settled = true;
       clearTimeout(timeoutTimer);
-      if (forceTimer) clearTimeout(forceTimer);
+      for (const timer of [forceTimer, graceTimer, deadlineTimer]) if (timer) clearTimeout(timer);
       resolveResult({
         stdout,
         stderr,
@@ -242,11 +254,28 @@ export function runCommandAsync(command: string, args: string[] = [], options: C
       });
     };
 
+    // Stop whatever in the process group still holds the output, stop reading, and settle
+    // with the child's own exit status.
+    const abandon = (): void => {
+      if (settled) return;
+      terminate("SIGTERM");
+      setTimeout(() => terminate("SIGKILL"), 250).unref();
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+      finish(exited?.code ?? null, exited?.signal ?? null);
+    };
+
     const timeoutTimer = setTimeout(() => {
       timedOut = true;
       errorCode ||= "ETIMEDOUT";
       terminate("SIGTERM");
-      forceTimer = setTimeout(() => terminate("SIGKILL"), 250);
+      forceTimer = setTimeout(() => {
+        terminate("SIGKILL");
+        // The killed child normally reports its exit, which starts the grace period.
+        // Settle even if it never does.
+        deadlineTimer = setTimeout(abandon, 2 * OUTPUT_GRACE_MS);
+        deadlineTimer.unref();
+      }, 250);
       forceTimer.unref();
     }, timeoutMs);
     timeoutTimer.unref();
@@ -258,6 +287,11 @@ export function runCommandAsync(command: string, args: string[] = [], options: C
       if (!stderr) stderr = error.message;
       finish(null, null);
     });
+    child.once("exit", (code, signal) => {
+      exited = { code, signal };
+      graceTimer = setTimeout(abandon, OUTPUT_GRACE_MS);
+      graceTimer.unref();
+    });
     child.once("close", (exitCode, signal) => finish(exitCode, signal));
   });
 }
@@ -267,13 +301,45 @@ export function runInteractive(command: string, args: string[] = [], cwd = ROOT)
   return result.status ?? 1;
 }
 
+const REDACTED = "[REDACTED]";
+
+/** Does `value` decode from base64 to printable text with a colon, as user:password does? */
+function isBasicCredential(value: string): boolean {
+  if (value.length % 4 !== 0) return false;
+  const text = Buffer.from(value, "base64").toString("utf8");
+  return text.includes(":") && !/[\u0000-\u001f\u007f\ufffd]/u.test(text);
+}
+
+/**
+ * Replace each credential that has a recognisable shape with [REDACTED] and keep the text
+ * around it: the password in a URL's userinfo, Bearer and Basic authorization values,
+ * GitHub and Slack tokens, OpenAI- and Anthropic-style keys, AWS access key ids and JSON
+ * Web Tokens. A secret without such a shape passes through, so this is best effort.
+ */
+export function redactCredentials(text: string): string {
+  return text
+    // scheme://user:password@host keeps the scheme, the user and the host.
+    .replace(/(?<![A-Za-z0-9+.-])([A-Za-z][A-Za-z0-9+.-]{0,31}:\/\/[^\s:/?#@]*:)[^\s/?#]+(?=@)/gu, `$1${REDACTED}`)
+    .replace(/(Bearer\s+)[A-Za-z0-9._~+\/-]+=*/giu, `$1${REDACTED}`)
+    .replace(/((?:proxy-)?authorization["']?\s*[:=]\s*["']?Basic\s+)[^\s"',;]+/giu, `$1${REDACTED}`)
+    .replace(/\b(Basic\s+)([A-Za-z0-9+/]+={0,2})(?![A-Za-z0-9+/=])/giu, (match: string, scheme: string, value: string) => (isBasicCredential(value) ? `${scheme}${REDACTED}` : match))
+    .replace(/\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})/gu, REDACTED)
+    .replace(/\bxox[abprs]-[A-Za-z0-9-]{10,}/gu, REDACTED)
+    .replace(/\bsk-[A-Za-z0-9_-]{8,}/gu, REDACTED)
+    .replace(/\bAKIA[0-9A-Z]{16}\b/gu, REDACTED)
+    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*/gu, REDACTED);
+}
+
+/**
+ * Command output for a report: escape codes removed, credentials redacted, and the last 20
+ * non-empty lines kept, at most `maxLength` characters.
+ */
 export function safeDetail(value: unknown, maxLength = 5_000): string {
-  let cleaned = String(value ?? "").replace(/\u001b\[[0-?]*[ -\/]*[@-~]/g, "");
+  let cleaned = redactCredentials(String(value ?? "").replace(/\u001b\[[0-?]*[ -\/]*[@-~]/g, ""));
+  // The value after a secret-named key, unless a credential shape above has replaced it.
   cleaned = cleaned
-    .replace(/(Bearer\s+)[A-Za-z0-9._~+\/-]+/gi, "$1[REDACTED]")
-    .replace(/(sk-[A-Za-z0-9_-]{8,})/g, "[REDACTED]")
-    .replace(/((?:api[_-]?key|token|secret|password|credential|authorization|cookie)\s*[:=]\s*)[^\s,}\"]+/gi, "$1[REDACTED]")
-    .replace(/((?:["']?)(?:api[_-]?key|token|secret|password|credential|authorization|cookie)(?:["']?\s*[:=]\s*))(["'][^"']*["']|[^,}\s]+)/gi, "$1[REDACTED]");
+    .replace(/((?:api[_-]?key|token|secret|password|credential|authorization|cookie)\s*[:=]\s*)(?!(?:(?:Basic|Bearer)\s+)?\[REDACTED\])[^\s,}\"]+/gi, "$1[REDACTED]")
+    .replace(/((?:["']?)(?:api[_-]?key|token|secret|password|credential|authorization|cookie)(?:["']?\s*[:=]\s*))(?!["']?(?:(?:Basic|Bearer)\s+)?\[REDACTED\])(["'][^"']*["']|[^,}\s]+)/gi, "$1[REDACTED]");
   return cleaned.split(/\r?\n/).filter(Boolean).slice(-20).join("\n").slice(0, maxLength);
 }
 
@@ -285,11 +351,7 @@ export function redactSecrets(value: unknown): unknown {
   if (value && typeof value === "object") {
     return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, SENSITIVE_KEY.test(key) ? "<redacted>" : redactSecrets(child)]));
   }
-  if (typeof value === "string") {
-    return value
-      .replace(/(Bearer\s+)[A-Za-z0-9._~+\/-]+/gi, "$1[REDACTED]")
-      .replace(/(sk-[A-Za-z0-9_-]{8,})/g, "[REDACTED]");
-  }
+  if (typeof value === "string") return redactCredentials(value);
   return value;
 }
 

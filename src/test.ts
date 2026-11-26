@@ -1,14 +1,16 @@
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { createRequire, syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { parse as parseYaml } from "yaml";
 import { ROOT, fileExists, readText, redactSecrets, runCommand, runCommandAsync, safeDetail } from "./core.ts";
 import { ACTION_TAKEN, ItfError, NONDET_PICKS, decodeItfValue, itfAction, itfPicks, parseItfTrace, type ItfValue } from "./itf.ts";
 import { classifyNanoKvmMcp, classifyProduct, envName, loadKvmTargets, mcpSnippet, nanoKvmKeyEnv, rowStatus } from "./kvm.ts";
 import { summarizeTailscaleStatus } from "./platform.ts";
-import { SCHEMA_FILE, SPEC_GATES, SPEC_KINDS, SPEC_STATUSES, SPEC_TOOLS, parseRegistry, renderRegistryJsonSchema } from "./spec-registry.ts";
+import { SPEC_GATES, SPEC_KINDS, SPEC_STATUSES, SPEC_TOOLS, parseRegistry, type SpecEntry } from "./spec-registry.ts";
+import { entry, specRegistryChecks } from "./spec-registry.test.ts";
 import { POLICY_FILE, TOOLCHAINS_FILE, displayPath, hideHome, probeToolchain, readProbeVersion, type Toolchain } from "./toolchains.ts";
 import { verificationChecks } from "./validate.ts";
 import {
@@ -21,9 +23,10 @@ import {
   initRegistry,
   matchesPattern,
   parseSpecArgs,
+  probeDirs,
   renderSpecBlock,
   resolveInsideRepo,
-  schemaChecks,
+  validateChecks,
 } from "./verification.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -120,72 +123,6 @@ function writeRepoFile(repo: string, path: string, text: string): void {
   writeFileSync(join(repo, path), text);
 }
 
-const entry = (fields: Record<string, string | number | string[]>): string =>
-  ["[[spec]]", ...Object.entries(fields).map(([key, value]) => `${key} = ${JSON.stringify(value)}`), ""].join("\n");
-
-function registryDecodeChecks(): void {
-  const minimal = 'version = 1\nrepo = "Some-Repo"\n';
-  assert(parseRegistry(minimal).ok, "an empty registry must decode");
-  const valid = minimal + entry({ id: "ledger", title: "Ledger", kind: "state-machine", tool: "quint", status: "checked", gate: "required", artefacts: ["spec/quint/ledger.qnt"], covers: ["scripts/**"], docs: ["docs/a.md", "Other-Repo:docs/b.md#c"], requires: ["node", "quint"], check: ["npm", "run", "spec:ledger"], timeout_seconds: 120, target: "AS-LEDGER-1" });
-  const decoded = parseRegistry(valid);
-  assert(decoded.ok && decoded.registry.spec?.[0].id === "ledger" && decoded.registry.spec[0].timeout_seconds === 120, `a valid registry did not decode: ${JSON.stringify(decoded.issues)}`);
-  assert(parseRegistry(readText("integrations/verification/specs.toml.example")).ok, "the shipped template does not decode");
-  assert(parseRegistry(readText(".agent-configs/specs.toml")).ok, "this repository's registry does not decode");
-
-  // Every problem in one pass, each at its exact path: field errors in one entry do not hide
-  // a duplicate id or a cross-field rule in another.
-  const invalid = 'version = 2\nrepo = "bad repo"\nextra = true\n\n'
-    + entry({ id: "Bad_Id", title: "x", kind: "nope", tool: "other", status: "checkd", artifacts: ["a"] })
-    + entry({ id: "dup", title: "first", kind: "protocol", tool: "quint", status: "draft", gate: "required" })
-    + entry({ id: "dup", title: "second", kind: "protocol", tool: "property", status: "checked", artefacts: ["/abs/path", "a/../b"], docs: ["https://example.invalid/x"], check: [], timeout_seconds: 0 });
-  const result = parseRegistry(invalid);
-  const issues = result.issues.map((issue) => `${issue.path}: ${issue.message}`);
-  const paths = result.issues.map((issue) => issue.path);
-  const expectedPaths = [
-    "version", "repo", "spec[0].id", "spec[0].kind", "spec[0].status", "spec[0].notes", "spec[0].artifacts",
-    "spec[1].gate", "spec[1].artefacts", "spec[1].check",
-    "spec[2].id", "spec[2].artefacts[0]", "spec[2].artefacts[1]", "spec[2].docs[0]", "spec[2].check", "spec[2].timeout_seconds",
-    "extra",
-  ];
-  assert(!result.ok && isDeepStrictEqual(paths, expectedPaths), `registry error paths drifted:\n${issues.join("\n")}`);
-  for (const expected of [
-    "version: Expected 1, got 2",
-    'spec[0].id: Expected a kebab-case id such as action-ledger, got "Bad_Id"',
-    'spec[0].notes: notes are required when tool is "other"',
-    'spec[0].artifacts: unknown key "artifacts" (did you mean "artefacts"?)',
-    'spec[1].gate: gate "required" needs status "checked" or "conformance", not "draft"',
-    'spec[1].artefacts: at least one artefact is required unless status is "planned"',
-    'spec[1].check: check is required unless status is "planned"',
-    'spec[2].id: duplicate id "dup": spec[1] already uses it',
-    'spec[2].artefacts[0]: "/abs/path" must be relative to the repository root',
-    `spec[2].artefacts[1]: "a/../b" must not contain a '..' segment`,
-    "spec[2].check: check needs at least the program to run",
-    'extra: unknown key "extra"',
-  ]) assert(issues.includes(expected), `missing registry error: ${expected}\ngot:\n${issues.join("\n")}`);
-  const syntax = parseRegistry("version = [");
-  assert(!syntax.ok && syntax.issues.length === 1 && syntax.issues[0].path === "" && syntax.issues[0].message.startsWith("TOML syntax error at line 1"), "a TOML syntax error was not one root issue");
-}
-
-function registrySchemaChecks(): void {
-  const generated = renderRegistryJsonSchema();
-  assert(generated === readText(SCHEMA_FILE), `${SCHEMA_FILE} drifted from src/spec-registry.ts; run agentctl spec schema --write`);
-  const schema = JSON.parse(generated);
-  const entrySchema = schema.properties.spec.items;
-  // Effect drops a pattern that lacks the u flag, so a missing pattern means a regression.
-  assert(entrySchema.properties.id.pattern === "^[a-z0-9]+(?:-[a-z0-9]+)*$" && schema.properties.repo.pattern, "the JSON Schema lost a pattern");
-  assert(schema.additionalProperties === false && entrySchema.additionalProperties === false, "the JSON Schema accepts unknown keys");
-  assert(isDeepStrictEqual(entrySchema.required, ["id", "title", "kind", "tool", "status"]) && entrySchema.allOf?.length === 3, "the JSON Schema lost a required field or a cross-field rule");
-  const drifted = join(tmpdir(), `agent-sync-schema-${process.pid}.json`);
-  try {
-    writeFileSync(drifted, generated.replace('"Spec registry"', '"Stale title"'));
-    assert(schemaChecks("check", drifted).checks[0].status === "error", "schema --check accepted a stale file");
-    writeFileSync(drifted, generated);
-    assert(schemaChecks("check", drifted).checks[0].status === "ok", "schema --check rejected a current file");
-  } finally {
-    rmSync(drifted, { force: true });
-  }
-}
-
 const javaPattern = 'version "(\\d+(?:\\.\\d+)*)';
 const fakeToolchain = (fields: Partial<Toolchain> & Pick<Toolchain, "id">): Toolchain => ({ name: fields.id, kind: "tool", ring: "trial", provides: [], prerequisites: [], environment: [], ...fields });
 const nodeToolchain = fakeToolchain({ id: "node", kind: "runtime", ring: "adopt", minimum: "22.6.0", probe: { kind: "command", commands: [process.execPath], args: ["--version"], stream: "stdout", pattern: "^v(\\d+\\.\\d+\\.\\d+)" } });
@@ -217,6 +154,101 @@ async function probeChecks(): Promise<void> {
     const other = await probeToolchain(fakeToolchain({ id: "fake-lib", kind: "library", version: "1.2.4", probe: { kind: "package", package: "fake-lib" } }), { repo });
     assert(pinned.status === "ok" && other.status === "warn" && other.usable, "a package probe misjudged the pinned version");
   });
+  await withTempDir("probe-pnp", async (repo) => {
+    writeRepoFile(repo, ".pnp.cjs", "// Yarn Plug'n'Play loader\n");
+    const pnp = await probeToolchain(fakeToolchain({ id: "fake-lib", kind: "library", version: "1.2.3", probe: { kind: "package", package: "fake-lib" } }), { repo });
+    assert(pnp.status === "not-installed" && !pnp.usable && pnp.detail.includes("Plug'n'Play"), `a Plug'n'Play repository was not named as the reason: ${pnp.detail}`);
+  });
+}
+
+/**
+ * Run `task` and count the child processes it starts. The node:child_process exports are
+ * wrapped and synced into the ESM bindings, so the spawn that core.ts imports is counted.
+ */
+async function countChildProcesses<T>(task: () => Promise<T>): Promise<{ result: T; started: number }> {
+  const childProcess = createRequire(import.meta.url)("node:child_process");
+  const originals = new Map(["spawn", "spawnSync", "exec", "execSync", "execFile", "execFileSync", "fork"].map((name) => [name, childProcess[name]]));
+  let started = 0;
+  for (const [name, original] of originals) {
+    childProcess[name] = (...args: unknown[]) => {
+      started += 1;
+      return original(...args);
+    };
+  }
+  syncBuiltinESMExports();
+  try {
+    const result = await task();
+    return { result, started };
+  } finally {
+    for (const [name, original] of originals) childProcess[name] = original;
+    syncBuiltinESMExports();
+  }
+}
+
+// A monorepo keeps a tool in a workspace package, so probes look in node_modules from the
+// entry's own directories up to the repository root, and never above it or through a
+// symlink out of it. A package probe runs nothing.
+async function workspaceProbeChecks(): Promise<void> {
+  await withTempDir("probe-workspace", async (dir) => {
+    const repo = join(dir, "repo");
+    writeRepoFile(repo, "apps/web/node_modules/fake-ui/package.json", JSON.stringify({ name: "fake-ui", version: "2.0.0", bin: { "fake-ui": "cli.js" } }));
+    writeRepoFile(repo, "apps/web/node_modules/fake-ui/cli.js", "require('node:fs').writeFileSync(__dirname + '/ran', '');\n");
+    writeRepoFile(repo, "apps/web/src/Button.stories.tsx", "export {};\n");
+    writeRepoFile(repo, "packages/ui/src/index.ts", "export {};\n");
+    writeRepoFile(repo, "spec/a.txt", "x\n");
+    // The same package outside the repository: above its root, and behind a symlink in it.
+    writeRepoFile(dir, "node_modules/fake-ui/package.json", JSON.stringify({ name: "fake-ui", version: "2.0.0" }));
+    writeRepoFile(dir, "elsewhere/node_modules/fake-ui/package.json", JSON.stringify({ name: "fake-ui", version: "2.0.0" }));
+    writeRepoFile(dir, "elsewhere/src/x.ts", "export {};\n");
+    symlinkSync(join(dir, "elsewhere"), join(repo, "apps", "linked"));
+    const root = realpathSync(repo);
+    const names = (dirs: string[]) => dirs.map((path) => relative(root, path).split(sep).join("/"));
+
+    const fromArtefact = probeDirs(repo, { artefacts: ["apps/web/src/Button.stories.tsx"] });
+    assert(isDeepStrictEqual(names(fromArtefact), ["apps/web/src", "apps/web", "apps", ""]), `an artefact's directories were wrong: ${names(fromArtefact).join(", ")}`);
+    const ordered = probeDirs(repo, { workdir: "apps/web", artefacts: ["spec/a.txt"], covers: ["packages/ui/src/**", "**/*.ts", "missing/dir/x.ts"] });
+    assert(isDeepStrictEqual(names(ordered), ["apps/web", "apps", "spec", "packages/ui/src", "packages/ui", "packages", ""]), `the workdir, artefact and covers directories were wrong: ${names(ordered).join(", ")}`);
+    const linked = probeDirs(repo, { artefacts: ["apps/linked/src/x.ts"], covers: ["apps/linked/**"] });
+    assert(isDeepStrictEqual(names(linked), ["apps", ""]), `a symlink out of the repository was searched: ${names(linked).join(", ")}`);
+
+    const fakeUi = fakeToolchain({ id: "fake-ui", version: "2.0.0", provides: ["storybook"], probe: { kind: "package", package: "fake-ui" } });
+    const found = await countChildProcesses(() => probeToolchain(fakeUi, { repo, dirs: fromArtefact }));
+    assert(found.result.status === "ok" && found.result.usable && found.result.detail.includes("apps/web/node_modules/fake-ui"), `a package in a workspace was not found from an artefact path: ${found.result.detail}`);
+    assert(found.started === 0 && !existsSync(join(repo, "apps/web/node_modules/fake-ui/ran")), `a package probe ran something (${found.started} child processes)`);
+    const control = await countChildProcesses(() => probeToolchain(nodeToolchain, { repo }));
+    assert(control.result.usable && control.started > 0, "the child process count missed a command probe, so it proves nothing");
+    const atRoot = await probeToolchain(fakeUi, { repo });
+    assert(atRoot.status === "not-installed" && !atRoot.usable && atRoot.detail.includes("no node_modules/fake-ui in the repository root"), `a package above the repository root was found: ${atRoot.detail}`);
+
+    const common = { kind: "component", tool: "storybook", status: "checked", gate: "required", requires: ["fake-ui"], check: [process.execPath, "-e", "0"] };
+    writeRepoFile(repo, ".agent-configs/specs.toml", 'version = 1\nrepo = "workspace-test"\n\n'
+      + entry({ id: "web", title: "Web", ...common, artefacts: ["apps/web/src/Button.stories.tsx"] })
+      + entry({ id: "root", title: "Root", ...common, artefacts: ["spec/a.txt"] })
+      + entry({ id: "linked", title: "Linked", ...common, artefacts: ["apps/linked/src/x.ts"], covers: ["apps/linked/**"] }));
+    const { checks } = await checkEntries({ repo, toolchains: [fakeUi] });
+    const byId = new Map(checks.map((check) => [check.id, check]));
+    assert(byId.get("spec.web")?.status === "ok", `an entry did not find its tool in its workspace package: ${byId.get("spec.web")?.detail}`);
+    assert(byId.get("spec.root")?.status === "error" && String(byId.get("spec.root")?.detail).includes("no node_modules/fake-ui in spec or the repository root"), `a tool outside the repository was found: ${byId.get("spec.root")?.detail}`);
+    assert(byId.get("spec.linked")?.status === "error" && String(byId.get("spec.linked")?.detail).includes("no node_modules/fake-ui in apps or the repository root"), `a tool behind a symlink out of the repository was found: ${byId.get("spec.linked")?.detail}`);
+
+    // The node_modules/.bin lookup follows the same directories, and entries that find a
+    // command in the same place share one probe.
+    if (process.platform !== "win32") {
+      writeRepoFile(repo, "apps/web/node_modules/.bin/agent-sync-fake-cli", "#!/bin/sh\necho 'agent-sync-fake-cli 3.1.4'\n");
+      chmodSync(join(repo, "apps/web/node_modules/.bin/agent-sync-fake-cli"), 0o755);
+      const fakeCli = fakeToolchain({ id: "fake-cli", version: "3.1.4", probe: { kind: "command", commands: ["agent-sync-fake-cli"], args: ["--version"], stream: "stdout", pattern: "(\\d+\\.\\d+\\.\\d+)" } });
+      const fromWeb = await probeToolchain(fakeCli, { repo, dirs: fromArtefact });
+      const fromRoot = await probeToolchain(fakeCli, { repo });
+      assert(fromWeb.status === "ok" && fromWeb.version === "3.1.4" && fromRoot.status === "not-installed", `a command in a workspace's node_modules/.bin was resolved wrongly: ${fromWeb.detail}; ${fromRoot.detail}`);
+      const cli = { ...common, tool: "property", kind: "invariant", requires: ["fake-cli"] };
+      writeRepoFile(repo, ".agent-configs/specs.toml", 'version = 1\nrepo = "workspace-test"\n\n'
+        + entry({ id: "cli-a", title: "A", ...cli, artefacts: ["apps/web/src/Button.stories.tsx"] })
+        + entry({ id: "cli-b", title: "B", ...cli, workdir: "apps/web", artefacts: ["apps/web/src/Button.stories.tsx"] }));
+      const shared = await countChildProcesses(() => checkEntries({ repo, toolchains: [fakeCli] }));
+      const passed = shared.result.checks.filter((check) => check.status === "ok").map((check) => check.id);
+      assert(isDeepStrictEqual(passed, ["spec.cli-a", "spec.cli-b"]) && shared.started === 3, `two entries did not share one probe of the same command (${shared.started} child processes; ok: ${passed.join(", ")})`);
+    }
+  });
 }
 
 function storeVerificationChecks(): void {
@@ -229,11 +261,15 @@ function storeVerificationChecks(): void {
   assert(clean.some((check) => check.id === "verification.toolchain.vibelang") && toolchains.toolchains.find((item: any) => item.id === "vibelang").ring === "hold", "vibelang must stay listed on hold");
   const duplicated = structuredClone(toolchains);
   duplicated.toolchains.push(structuredClone(duplicated.toolchains.find((item: any) => item.id === "quint")));
+  delete duplicated.toolchains.find((item: any) => item.id === "bombadil").not_for;
+  Object.assign(duplicated.toolchains.find((item: any) => item.id === "storybook").probe, { command: "storybook", args: ["--version"] });
   const broken = structuredClone(policy);
   broken.change_classes[0].tools.push("tla-plus");
   const failing = verificationChecks({ toolchains: duplicated, policy: broken, registries: [{ id: "bad", file: "x", text: 'version = 1\nrepo = "x"\n' + entry({ id: "a", title: "A", kind: "protocol", tool: "quint", status: "planned", requires: ["no-such-toolchain"] }) }], decode: parseRegistry, vocabulary });
   const errors = failing.filter((check) => check.status === "error").map((check) => `${check.id}: ${check.detail}`);
   assert(errors.some((error) => error.startsWith("verification.toolchain.quint: duplicate id")), `a duplicate toolchain id was not caught: ${errors.join("; ")}`);
+  assert(errors.some((error) => error.startsWith("verification.toolchain.bombadil: not_for")), `a tool without not_for was not caught: ${errors.join("; ")}`);
+  assert(errors.some((error) => error === "verification.toolchain.storybook: a package probe runs nothing, so it takes no command, args"), `a package probe with command fields was not caught: ${errors.join("; ")}`);
   assert(errors.some((error) => error.includes('unknown or held tool "tla-plus"')), "a policy naming an unknown tool was not caught");
   assert(errors.some((error) => error.includes('"no-such-toolchain" is not a toolchain id')), "a registry requiring an unknown toolchain was not caught");
 }
@@ -293,6 +329,69 @@ async function checkRunnerChecks(): Promise<void> {
     const touched = entriesTouchedBy([{ id: "a", title: "A", kind: "protocol", tool: "quint", status: "planned", covers: ["lib/**"] }], ["lib/x.ts"]);
     assert(touched.length === 1, "entriesTouchedBy missed a covered file");
   });
+
+  // A registry edit can change any entry's check, bound, gate or status, and the package
+  // manifest or a lockfile can change what a check runs, so both select entries too.
+  const withCheck = { title: "T", kind: "protocol", tool: "quint", status: "checked", artefacts: ["spec/a.qnt"], check: ["npm", "test"] } as const;
+  const sample: SpecEntry[] = [
+    { id: "root", ...withCheck, covers: ["lib/**"] },
+    { id: "app", ...withCheck, workdir: "./app/", covers: ["app/src/**"] },
+    { id: "later", title: "L", kind: "protocol", tool: "quint", status: "planned", covers: ["lib/**"] },
+  ];
+  const touchedIds = (files: string[]) => entriesTouchedBy(sample, files).map((item) => item.id);
+  assert(isDeepStrictEqual(touchedIds(["package.json"]), ["root", "app"]), "a root package.json change did not select every entry with a check");
+  assert(isDeepStrictEqual(touchedIds(["app/pnpm-lock.yaml"]), ["app"]), "a lockfile in a workdir did not select its entry alone");
+  assert(isDeepStrictEqual(touchedIds([".agent-configs/specs.toml"]), ["root", "app", "later"]), "a registry change did not select every entry");
+  assert(isDeepStrictEqual(touchedIds(["docs/x.md", "app/package.json.bak"]), []), "an unrelated change selected an entry");
+
+  // An entry's tool fixes its environment (telemetry opt-outs) even when `requires` leaves
+  // its toolchain out, and both validate and check say that the tool is not probed.
+  await withTempDir("check-tool", async (repo) => {
+    writeRepoFile(repo, "spec/a.txt", "x\n");
+    const optOut = fakeToolchain({ id: "fake-ui", provides: ["storybook"], environment: [{ name: "AGENT_SYNC_TEST_OPT_OUT", value: "1" }], probe: { kind: "command", commands: ["agent-sync-no-such-tool"], args: ["--version"], stream: "both", pattern: "(\\d+)" } });
+    writeRepoFile(repo, ".agent-configs/specs.toml", 'version = 1\nrepo = "tool-test"\n\n'
+      + entry({ id: "stories", title: "Stories", kind: "component", tool: "storybook", status: "checked", artefacts: ["spec/a.txt"], requires: ["node"], check: [process.execPath, "-e", "process.exit(process.env.AGENT_SYNC_TEST_OPT_OUT === '1' ? 0 : 7)"] })
+      + entry({ id: "later", title: "Later", kind: "component", tool: "storybook", status: "planned" }));
+    const ran = await checkEntries({ repo, toolchains: [nodeToolchain, optOut] });
+    const run = ran.checks.find((check) => check.id === "spec.stories");
+    assert(run?.status === "ok", `the tool's environment was not set for its check: ${run?.detail}`);
+    assert(ran.checks.some((check) => check.id === "spec.stories.requires" && check.status === "warn" && check.detail.includes('"fake-ui"')), "check did not warn that requires leaves out the tool's toolchain");
+    const validated = validateChecks(repo, { toolchains: [nodeToolchain, optOut] });
+    assert(validated.some((check) => check.id === "spec.stories.requires" && check.status === "warn"), "validate did not warn that requires leaves out the tool's toolchain");
+    assert(!validated.some((check) => check.id === "spec.later.requires"), "validate warned about requires on a planned entry, which has nothing to probe");
+  });
+}
+
+// A descendant that leaves the process group and keeps stdout open must not hold up the
+// result, after a normal exit or after a timeout.
+async function heldOutputChecks(): Promise<void> {
+  const holder = (wait: boolean) => ["-e", [
+    'const { spawn } = require("node:child_process");',
+    'const held = spawn(process.execPath, ["-e", "setTimeout(() => {}, 15000)"], { detached: true, stdio: ["ignore", "inherit", "inherit"] });',
+    "held.unref();",
+    'console.log("holder " + held.pid);',
+    wait ? "setTimeout(() => {}, 15000);" : "",
+  ].join("\n")];
+  const holders: number[] = [];
+  const holderStarted = (stdout: string): boolean => {
+    const match = /holder (\d+)/u.exec(stdout);
+    if (match) holders.push(Number(match[1]));
+    return match !== null;
+  };
+  try {
+    const started = Date.now();
+    const done = await runCommandAsync(process.execPath, holder(false), { cwd: ROOT, timeoutMs: 10_000 });
+    const doneMs = Date.now() - started;
+    assert(holderStarted(done.stdout) && done.exitCode === 0 && !done.timedOut && doneMs < 5_000, `a held-open pipe kept a finished command waiting ${doneMs} ms (exit ${done.exitCode})`);
+    const hungStarted = Date.now();
+    const hung = await runCommandAsync(process.execPath, holder(true), { cwd: ROOT, timeoutMs: 1_000 });
+    const hungMs = Date.now() - hungStarted;
+    assert(holderStarted(hung.stdout) && hung.timedOut && hung.exitCode === null && hungMs < 6_000, `a held-open pipe kept a timed-out command waiting ${hungMs} ms`);
+  } finally {
+    for (const pid of holders) {
+      try { process.kill(pid, "SIGKILL"); } catch { /* already gone */ }
+    }
+  }
 }
 
 async function blockAndInitChecks(): Promise<void> {
@@ -317,6 +416,8 @@ async function blockAndInitChecks(): Promise<void> {
     assert(blockChecks(repo, "apply").checks.every((check) => check.detail === "already up to date") && readFileSync(join(repo, "AGENTS.md"), "utf8") === agents, "a second block --apply was not a no-op");
     const decoded = parseRegistry(registryText);
     assert(decoded.ok && renderSpecBlock(decoded.registry, ["step"]) === renderSpecBlock(decoded.registry, ["step"]), "block rendering is not deterministic");
+    const withSkills = renderSpecBlock(decoded.registry, ["step"], { skills: true });
+    assert(!renderSpecBlock(decoded.registry, ["step"]).includes("skills/") && withSkills.includes("npx skills add companionintelligence/CI-Agent-Sync"), "the skills pointer did not follow the skills option");
   });
   await withTempDir("block-new", async (repo) => {
     writeRepoFile(repo, ".agent-configs/specs.toml", registryText);
@@ -350,7 +451,7 @@ async function blockAndInitChecks(): Promise<void> {
     mkdirSync(join(dir, "elsewhere"), { recursive: true });
     mkdirSync(repo, { recursive: true });
     symlinkSync(join(dir, "elsewhere"), join(repo, ".agent-configs"));
-    assert(initRegistry(repo, { apply: true, name: "x" }).checks[0].status === "error" && !existsSync(join(dir, "elsewhere", "specs.toml")), "init --apply wrote through a symlinked .agent-configs");
+    assert(initRegistry(repo, { apply: true, name: "x" }).checks[0].status === "error" && !existsSync(join(dir, "elsewhere", "specs.toml")), "init --apply wrote outside the repository");
   });
 }
 
@@ -361,6 +462,73 @@ function specCliChecks(): void {
   assert(validated.exitCode === 0 && payload.schema_version === 1 && payload.summary?.error === 0 && Array.isArray(payload.checks), `spec validate --json failed: ${validated.stderr || validated.stdout}`);
   assert(cli("schema", "--check").exitCode === 0, "spec schema --check failed on the committed schema");
   assert(cli("bogus").exitCode === 2 && cli("check", "--write").exitCode === 2, "a bad spec command or option did not exit 2");
+}
+
+// Credential shapes in report output become a fixed placeholder, the text around them is
+// kept, and ordinary text passes through unchanged. Every value here is synthetic and is
+// built at run time, so the source holds nothing credential-shaped.
+async function redactionChecks(): Promise<void> {
+  const body = "Q7xT2mK9vR4wZ8nB".repeat(4);
+  const base64url = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  const jwt = `${base64url({ alg: "HS256", typ: "JWT" })}.${base64url({ sub: "someone", iat: 0 })}.${body.slice(0, 43)}`;
+  const shapes: Array<[string, string]> = [
+    ...["p", "o", "u", "s", "r"].map((letter): [string, string] => [`a GitHub gh${letter}_ token`, `gh${letter}_${body.slice(0, 36)}`]),
+    ["a GitHub fine-grained token", `github_pat_${body.slice(0, 22)}_${body.slice(0, 59)}`],
+    ...["a", "b", "p", "r", "s"].map((letter): [string, string] => [`a Slack xox${letter}- token`, `xox${letter}-1234567890-1234567890123-${body.slice(0, 24)}`]),
+    ["an sk- key", `sk-${body.slice(0, 48)}`],
+    ["an sk-proj- key", `sk-proj-${body}`],
+    ["an sk-ant- key", `sk-ant-api03-${body}`],
+    ["an AWS access key id", `AKIA${body.slice(0, 16).toUpperCase()}`],
+    ["a JSON Web Token", jwt],
+    ["an unsigned JSON Web Token", `${base64url({ alg: "none" })}.${base64url({ sub: "someone" })}.`],
+  ];
+  for (const [label, secret] of shapes) {
+    const redacted = safeDetail(`before ${secret} after`);
+    assert(redacted === "before [REDACTED] after", `${label} was not replaced with the text around it kept: ${redacted}`);
+  }
+
+  const password = `not-a-real-${body.slice(0, 12)}`;
+  const basic = Buffer.from(`someone:${password}`).toString("base64");
+  const github = `ghs_${body.slice(0, 36)}`;
+  const inContext: Array<[string, string, string]> = [
+    ["a Bearer value", `Authorization: Bearer ${body}`, "Authorization: Bearer [REDACTED]"],
+    ["a Basic header", `Authorization: Basic ${basic}`, "Authorization: Basic [REDACTED]"],
+    ["a Basic header in JSON", `{"authorization": "Basic ${basic}", "accept": "*/*"}`, '{"authorization": "Basic [REDACTED]", "accept": "*/*"}'],
+    ["a Basic value without a header", `retrying with Basic ${basic} now`, "retrying with Basic [REDACTED] now"],
+    ["a URL password", `cloning https://someone:${password}@example.invalid/repo.git failed`, "cloning https://someone:[REDACTED]@example.invalid/repo.git failed"],
+    ["a URL password with an @ in it", `redis://:p@ss${password}@cache.example.invalid:6379/0`, "redis://:[REDACTED]@cache.example.invalid:6379/0"],
+    ["a token as a URL password", `https://x-access-token:${github}@github.com/o/r.git`, "https://x-access-token:[REDACTED]@github.com/o/r.git"],
+    ["a token as a URL user", `https://${github}@github.com/o/r.git`, "https://[REDACTED]@github.com/o/r.git"],
+    ["a token after a key", `export GITHUB_TOKEN=${github}; npm test`, "export GITHUB_TOKEN=[REDACTED]; npm test"],
+  ];
+  for (const [label, text, expected] of inContext) {
+    const redacted = safeDetail(text);
+    assert(redacted === expected, `${label} was redacted wrongly: ${redacted}`);
+  }
+
+  const ordinary = [
+    "commit a5324b2f8bb45e9638fb6aec6c18dc63818432bc (HEAD -> fix/verification-review), parent 7094152",
+    "Basic functionality works; Basic data and Basic auth checks passed",
+    "task-runner-for-everything and disk-cleanup-scheduled-nightly finished in 1.2 s",
+    "see https://example.invalid/docs#section and http://localhost:3000/path?x=1",
+    "ssh://deploy@127.0.0.1:2222/srv/repo and http://[::1]:8080/health",
+    "AKIA is a prefix, eyJ starts base64 JSON, and 4 of 4 checks passed",
+  ];
+  for (const line of ordinary) assert(safeDetail(line) === line, `ordinary text was changed: ${safeDetail(line)}`);
+
+  const payload = redactSecrets({ note: `pushed with ${github}`, nested: [`session ${jwt}`] }) as { note: string; nested: string[] };
+  assert(payload.note === "pushed with [REDACTED]" && payload.nested[0] === "session [REDACTED]", "payload strings were not redacted with the same shapes");
+
+  // A failing check's detail in `agentctl spec check` goes through the same redaction.
+  await withTempDir("check-redaction", async (repo) => {
+    writeRepoFile(repo, "spec/a.txt", "x\n");
+    const leak = "console.error('pushing with gh' + 'p_' + 'Q7xT2mK9'.repeat(5) + ' to https://someone:' + 'pw'.repeat(8) + '@example.invalid/x'); process.exit(1)";
+    writeRepoFile(repo, ".agent-configs/specs.toml", 'version = 1\nrepo = "redaction-test"\n\n'
+      + entry({ id: "leaky", title: "Leaky", kind: "invariant", tool: "property", status: "checked", artefacts: ["spec/a.txt"], check: [process.execPath, "-e", leak] }));
+    const { checks } = await checkEntries({ repo, toolchains: [] });
+    const leaky = checks.find((check) => check.id === "spec.leaky");
+    assert(leaky?.status === "warn" && leaky.detail === "failed with exit 1\npushing with [REDACTED] to https://someone:[REDACTED]@example.invalid/x", `a failing check's output was not redacted: ${leaky?.detail}`);
+  });
 }
 
 function encodingChecks(): void {
@@ -380,17 +548,19 @@ async function main(): Promise<void> {
   assert(timeoutProbe.timedOut && timeoutProbe.exitCode === null && timeoutProbe.errorCode === "ETIMEDOUT", "async command timeout did not fail closed");
   const outputProbe = await runCommandAsync(process.execPath, ["-e", "process.stdout.write('x'.repeat(70000))"], { cwd: ROOT, timeoutMs: 2_000, maxBuffer: 1_024 });
   assert(outputProbe.outputTruncated && outputProbe.exitCode === null && outputProbe.errorCode === "MAX_BUFFER", "async command output cap did not fail closed");
+  if (process.platform !== "win32") await heldOutputChecks();
   kvmChecks();
   itfChecks();
-  registryDecodeChecks();
-  registrySchemaChecks();
+  specRegistryChecks();
   storeVerificationChecks();
   argumentAndPathChecks();
   await probeChecks();
+  await workspaceProbeChecks();
   await checkRunnerChecks();
   await blockAndInitChecks();
   specCliChecks();
   encodingChecks();
+  await redactionChecks();
   assert(!safeDetail('{"apiKey":"not-for-output"}').includes("not-for-output"), "structured secret detail was not redacted");
   assert((redactSecrets({ apiKey: "not-for-output", status: "ok" }) as any).apiKey === "<redacted>", "structured payload secret was not redacted");
   const tailnet = summarizeTailscaleStatus({

@@ -52,7 +52,8 @@ packs:
     profile: engineering
     bundle: development
     sequence: [read-registry-entry, change-spec, spec-check, change-code, spec-check, update-docs, verification-block]
-    command: ./bin/agentctl spec check --repo . --changed-from origin/main
+    # origin/HEAD is the remote's default branch, which is dev in some repositories.
+    command: ./bin/agentctl spec check --repo . --changed-from origin/HEAD
     writes: false_until_confirmed
     output: verified-change
   doc-claim-audit:

@@ -36,11 +36,15 @@ kind = "data-contract"
 tool = "effect-schema"
 status = "checked"
 gate = "required"
-artefacts = ["src/spec-registry.ts", "integrations/verification/specs.schema.json"]
+artefacts = ["src/spec-registry.ts", "src/spec-registry.test.ts", "integrations/verification/specs.schema.json"]
 covers = ["src/spec-registry.ts", "integrations/verification/**"]
 requires = ["node", "effect"]
-check = ["npm", "run", "--silent", "spec:schema"]
+check = ["npm", "run", "--silent", "spec:registry"]
+properties = ["everyErrorAtItsPath", "crossFieldRulesInOnePass", "schemaFileMatchesSchema", "jsonSchemaAgreesWithDecoder"]
 ```
+
+An entry claims only what its check runs. Here `spec:registry` runs the
+decoder's tests and the JSON Schema checks, then `agentctl spec schema --check`.
 
 | Field | Rule |
 | --- | --- |
@@ -79,8 +83,10 @@ spec[3].artifacts: unknown key "artifacts" (did you mean "artefacts"?)
 `integrations/verification/specs.schema.json` is generated from the same schema
 (JSON Schema draft 2020-12). The `#:schema` line lets TOML editors such as Taplo
 validate as you type, and tools in other languages can use it. The Effect
-decoder stays the authority: the JSON Schema cannot express unique ids, so it
-accepts a few registries the decoder rejects.
+decoder stays the authority: the JSON Schema cannot express unique ids, and it
+also accepts a drive-letter `docs` path and `notes` made only of spaces, so it
+accepts a few registries the decoder rejects. `src/spec-registry.test.ts` runs
+the committed file in a strict validator (Ajv) against good and bad registries.
 
 ## Commands
 
@@ -89,7 +95,7 @@ accepts a few registries the decoder rejects.
 ./bin/agentctl spec validate --repo ../Some-Repo   # decode the registry and check its paths
 ./bin/agentctl spec list --repo ../Some-Repo
 ./bin/agentctl spec check --repo ../Some-Repo      # run every non-planned entry's check
-./bin/agentctl spec check --repo . --changed-from origin/main
+./bin/agentctl spec check --repo . --changed-from origin/HEAD   # only what this branch touches
 ./bin/agentctl spec init --repo ../Some-Repo        # print the template
 ./bin/agentctl spec init --repo ../Some-Repo --apply
 ./bin/agentctl spec block --repo ../Some-Repo --check
@@ -99,13 +105,18 @@ accepts a few registries the decoder rejects.
 
 | Command | What it does |
 | --- | --- |
-| `toolchains` | Probes each entry in `toolchains.yaml`, from the repository's `node_modules/.bin` and then `PATH`, reading stdout, stderr or both (`java -version` writes to stderr), with a 5-second timeout (`--timeout` changes it). A tool is ok at its pinned version, a warning at another version, and not installed when no candidate is found. `--only` limits the probes. |
+| `toolchains` | Probes each entry in `toolchains.yaml` from the repository root. A package probe reads the version from `node_modules/<package>/package.json` and runs nothing. A command probe runs the tool from `node_modules/.bin` or `PATH` and reads stdout, stderr or both (`java -version` writes to stderr), with a 5-second timeout (`--timeout` changes it). A tool is ok at its pinned version, a warning at another version, and not installed when no candidate is found. `--only` limits the probes. Probes do not read Yarn Plug'n'Play installs yet (see below). |
 | `validate` | Decodes `.agent-configs/specs.toml` under `--repo` (default: the current directory) and checks that artefacts and workdirs exist inside the repository, that `requires` names known toolchains, and that each `covers` pattern matches a tracked file (a warning otherwise). |
 | `list` | Lists the entries with their tool, status, gate and check. |
-| `check` | Runs each selected entry's `check`. `--only IDS`, `--tool NAMES` and `--changed-from REF` select entries; `--changed-from` picks the entries whose `covers` or `artefacts` match `git diff --name-only REF...HEAD`. |
+| `check` | Runs each selected entry's `check`. `--only IDS`, `--tool NAMES` and `--changed-from REF` select entries. `--changed-from` reads `git diff --name-only REF...HEAD` and picks the entries whose `covers` or `artefacts` match a changed file. A change to `package.json` or a lockfile at the root also picks every entry with a check, one in a `workdir` picks the entries that run there, and a change to the registry itself picks every entry. The toolchains an entry requires are probed from the entry's own directories (see [Toolchains](#toolchains)). The check runs with the environment of the toolchains it requires and of the toolchain that provides its `tool`. |
 | `init` | Prints the template with `repo` filled in. With `--apply` it writes `.agent-configs/specs.toml`, and only when that file does not exist. |
-| `block` | Renders the managed section from the registry: the agent loop, a table of the entries that run (id, tool, status, gate), the planned entries, and a pointer to this repository's `integrations/verification/` and `skills/`. It prints the section by default; `--check` exits non-zero when a file is out of date, and `--apply` writes. |
+| `block` | Renders the managed section from the registry: the agent loop, a table of the entries that run (id, tool, status, gate), the planned entries, and a pointer to this repository's `integrations/verification/`, plus `skills/` when the installed CI Agent Sync carries it. It prints the section by default; `--check` exits non-zero when a file is out of date, and `--apply` writes. |
 | `schema` | Prints the JSON Schema generated from `src/spec-registry.ts`. `--write` regenerates the committed file and `--check` fails when it differs. |
+
+`validate` and `check` warn when the `requires` of an entry that is not
+`planned` names no toolchain that provides its `tool` (`tool = "storybook"`
+without `storybook`, say), because then the tool is not probed before the check
+runs.
 
 Every command takes `--json` and prints the standard envelope,
 `{schema_version, summary, checks}`, where each check has an `id`, a `status`
@@ -134,6 +145,9 @@ section when a file has no markers, and changes nothing outside them.
   unrun entry as ok.
 - A timeout, an output over 8 MB, or a program that cannot start counts as a
   failure.
+- A check runs with stdin closed, so it cannot wait for input. A tool that asks
+  a question reads end of file instead, and some tools then exit 0 having
+  checked nothing (see [Exit 0 is not evidence](#exit-0-is-not-evidence)).
 - Pre-push checks stay within about two minutes: typecheck and a bounded
   simulation for Quint, proofs on changed files for LemmaScript and Dafny, the
   stories a change touches. Apalache verification, full story runs and Bombadil
@@ -156,7 +170,8 @@ section when a file has no markers, and changes nothing outside them.
 
 It also sets the evidence rules (a skipped check is not a pass; every run
 records its seed, bound or depth; a counterexample becomes a regression test
-before the fix), the escape hatches an agent's change never adds without the
+before the fix; an exit code alone is not evidence; a check never waits for
+input), the escape hatches an agent's change never adds without the
 owner's review (`assume`, axioms, `havoc`, `{:verify false}`, a deleted
 invariant, a lowered bound, a gate downgrade), the confidentiality rule, and the
 cost rule: no new automatic CI trigger without an owner decision, and local
@@ -181,8 +196,8 @@ or status that the registry and the toolchains do not know.
 Each entry in `toolchains.yaml` gives the install channels with the npm
 integrity or the sha256 of each release asset, the probe, the environment
 (`QUINT_HOME`, `STORYBOOK_DISABLE_TELEMETRY=1`), prerequisites, the licence, the
-upstream AI docs and skills, and the traps found when the tool was tried. Three
-to know first:
+upstream AI docs and skills, what the tool is not for (`not_for`), and the traps
+found when the tool was tried. Three to know first:
 
 - Concurrent `quint verify` runs share Apalache's server on port 8822 and break
   each other. Give every run its own `--server-endpoint=localhost:<port>`.
@@ -190,6 +205,55 @@ to know first:
   checking a checksum. Pre-seed `QUINT_HOME` from the checksummed archives.
 - LemmaScript passes a misspelled annotation silently unless `lemmascript.json`
   sets `unread-annotations` to `error`.
+
+A probe either reads a package or runs a command. A package probe
+(`probe: { package: storybook }`) reads the version from the package's
+`package.json` and runs nothing. It suits an npm tool whose CLI is slow or can
+download to answer `--version`: in 10.6.9, `storybook --version` hands off to
+`pnpm dlx @storybook/cli@10.6.9` (or `npx`), which installs about 200 packages
+once its cache has expired. Storybook, LemmaScript and Effect use package
+probes. The other tools run a command: Quint and Bombadil also install as
+standalone binaries on `PATH` and answer `--version` without downloading, and
+for Bombadil the command shows that its bundled binary runs on the platform.
+
+`check` looks for an entry's toolchains in `node_modules` (in
+`node_modules/.bin` for a command) in the entry's `workdir`, then in the
+directory of each `artefacts` and `covers` path, each walking up to the
+repository root, then at the root. A command not found there is looked up on
+`PATH`. So a tool installed in a workspace package, such as
+`apps/web/node_modules`, is found for the entries whose files live there. A
+path that is a directory counts from itself, and a glob from the part before
+its first wildcard. The lookup never leaves the repository: it stops at the
+root and skips a directory that a symlink takes outside it. `toolchains` has no
+entry, so it looks at the root only.
+
+A repository that uses Yarn Plug'n'Play has no `node_modules`, so its npm tools
+are reported as not installed, with a note, and `check` does not run the
+entries that require them. Run those checks with `yarn` directly until probes
+can read Plug'n'Play installs.
+
+### Exit 0 is not evidence
+
+Some runs exit 0 having checked less than they seem. On Quint 0.34.0:
+
+- `--seed` drops the default `--max-samples` from 10000 to 1, so a seeded
+  `quint run` checks one trace.
+- `quint verify --temporal` on the default Apalache backend stops at a y/N
+  prompt. With stdin closed, as under `agentctl spec check`, it exits 0 having
+  checked nothing, even on a violating spec.
+- Apalache can swallow an exception while it reports a violation, then exit 0
+  with no result line
+  ([quint-co/quint#2074](https://github.com/quint-co/quint/issues/2074)).
+- The TLC route can check a different model after a name collision and report
+  a false pass ([quint-co/quint#2072](https://github.com/quint-co/quint/issues/2072)).
+- Neither model checker reports deadlocks.
+
+So a gate script passes explicit sample counts (`--max-samples` whenever it
+passes `--seed`), checks temporal and action properties with `--backend tlc`,
+requires the tool's result line in the output, keeps a planted-bug variant
+that must fail, and treats any exit code it does not expect as a failure. A
+protocol model also gets a progress test. Bombadil 0.8.0 needs the same care: a
+usage error and a violation both exit 2.
 
 ## Replaying Quint traces
 
@@ -212,6 +276,11 @@ for (const state of trace.states.slice(1)) {
 array; `#unserializable` is an error. Generated traces are gitignored; keep a
 hand-written fixture under `src/fixtures/` when a test needs one.
 
+The npm package ships only the compiled `dist/itf.js`, with no type
+declarations, so it is not an importable library. To replay traces in another
+repository, copy `src/itf.ts` into its test helpers. It has no dependencies and
+uses only erasable TypeScript, so Node's type stripping runs it as it is.
+
 ## Opting a repository in
 
 1. Start a registry: `./bin/agentctl spec init --repo ../Some-Repo --apply`, then
@@ -225,7 +294,9 @@ hand-written fixture under `src/fixtures/` when a test needs one.
    `.agent-configs/sync.yml`, then run `./bin/agentctl sync` and review the plan
    before `--apply`. The files land in `.agent-configs/verification/`. The sync
    never writes the target's own `.agent-configs/specs.toml`.
-5. Install the skills: `npx skills add companionintelligence/CI-Agent-Sync`.
+5. When CI Agent Sync carries `skills/`, install them with
+   `npx skills add companionintelligence/CI-Agent-Sync`. The managed section
+   links to them only then.
 
 This repository keeps its own registry in `.agent-configs/specs.toml`.
 
@@ -235,10 +306,20 @@ This repository keeps its own registry in `.agent-configs/specs.toml`.
   registry, and `block` changes only the text between its markers.
 - Writes stay inside the repository: a path that leaves it through `..` or a
   symlink is refused.
-- Checks run without a shell, in their own process group, with the entry's
-  timeout and an output cap. The detail keeps only a redacted tail of the
-  output, and reports show the home directory as `~`, so a report pasted into
-  a pull request does not carry a local user name.
+- Checks run without a shell and with stdin closed, in their own process
+  group, with the entry's timeout and an output cap. A process that leaves the
+  group and keeps the output open does not hold up the result: a second after
+  the check exits, or after its timeout, the rest of the group is stopped and
+  the result is returned.
+- A failing check's detail keeps the last 20 lines of its output (at most
+  2,000 characters). Credentials with a recognisable shape become `[REDACTED]`
+  and the text around them is kept: the password in a URL
+  (`scheme://user:password@host`), Bearer and Basic authorization values,
+  GitHub and Slack tokens, OpenAI- and Anthropic-style keys, AWS access key
+  ids, JSON Web Tokens, and the value after a key such as `token=` or
+  `password:`. The redaction is best effort, so read the output before you
+  paste it anywhere. Reports show the home directory as `~`, so a report
+  pasted into a pull request does not carry a local user name.
 - Probes have a short timeout, and the git reads behind `--changed-from` and the
   `covers` check run with `GIT_OPTIONAL_LOCKS=0`, so they never contend with
   other agents' checkouts.

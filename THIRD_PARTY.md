@@ -5,11 +5,11 @@ Every direct dependency declared in this repository's manifests — both
 each group. Transitive dependencies are not listed; resolve them with your
 package manager's own `licenses` command.
 
-**7 direct dependencies** across 4 licence groups.
+**8 direct dependencies** across 4 licence groups.
 
 | Licence      | Count |
 | ------------ | ----: |
-| MIT          |     3 |
+| MIT          |     4 |
 | Apache-2.0   |     2 |
 | BSD-3-Clause |     1 |
 | ISC          |     1 |
@@ -17,8 +17,9 @@ package manager's own `licenses` command.
 ## MIT
 
 1. [`@types/node`](https://github.com/DefinitelyTyped/DefinitelyTyped) `26.6.11` — dev
-2. [`effect`](https://github.com/Effect-TS/effect) `4.1.6` — runtime
-3. [`esbuild`](https://github.com/evanw/esbuild) `0.28.2` — dev
+2. [`ajv`](https://github.com/ajv-validator/ajv) `8.20.0` — dev
+3. [`effect`](https://github.com/Effect-TS/effect) `4.1.6` — runtime
+4. [`esbuild`](https://github.com/evanw/esbuild) `0.28.2` — dev
 
 ## Apache-2.0
 

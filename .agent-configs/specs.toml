@@ -11,36 +11,14 @@ kind = "data-contract"
 tool = "effect-schema"
 status = "checked"
 gate = "required"
-artefacts = ["src/spec-registry.ts", "integrations/verification/specs.schema.json"]
+artefacts = ["src/spec-registry.ts", "src/spec-registry.test.ts", "integrations/verification/specs.schema.json"]
 covers = ["src/spec-registry.ts", "integrations/verification/**"]
 docs = ["docs/verification.md"]
 requires = ["node", "effect"]
-check = ["npm", "run", "--silent", "spec:schema"]
+check = ["npm", "run", "--silent", "spec:registry"]
 timeout_seconds = 60
-properties = ["schemaFileMatchesSchema", "everyErrorAtItsPath", "crossFieldRulesInOnePass"]
-conformance = "The decoder in src/spec-registry.ts is the code agentctl runs, and src/test.ts decodes valid and invalid registries with it."
-
-[[spec]]
-id = "action-ledger"
-title = "Action ledger: plan, approve, complete, cancel and expire"
-kind = "state-machine"
-tool = "quint"
-status = "planned"
-covers = ["scripts/action-ledger.rb"]
-docs = ["integrations/operator-contract.yaml"]
-requires = ["node", "quint"]
-target = "AS-LEDGER-1"
-
-[[spec]]
-id = "path-containment"
-title = "Path containment for sync destinations"
-kind = "invariant"
-tool = "lemmascript"
-status = "planned"
-covers = ["scripts/sync.rb"]
-docs = ["sync/README.md"]
-requires = ["node", "lemmascript", "dafny"]
-target = "AS-SYNC-1"
+properties = ["everyErrorAtItsPath", "crossFieldRulesInOnePass", "schemaFileMatchesSchema", "jsonSchemaAgreesWithDecoder"]
+conformance = "The decoder in src/spec-registry.ts is the code agentctl runs. src/spec-registry.test.ts decodes valid and invalid registries with it, then runs the committed JSON Schema in a strict validator against the same kinds of registry."
 
 [[spec]]
 id = "sync-plan-model"

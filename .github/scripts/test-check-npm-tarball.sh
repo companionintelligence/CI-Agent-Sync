@@ -131,7 +131,7 @@ env local.env prod.env secrets.env onepassword.env
 credentials credentials.json credentials.yaml service-account.json service_account.json
 token.txt api-key.txt apikey.json password.txt secrets.yaml secret.txt auth.json .credentials.json oauth-token.json client-secret.json
 config.json settings.json claude.json current.json current.yaml config.toml opencode.jsonc state.db cache.sqlite agent.log notes.bak .DS_Store"
-shipped_roots="bin scripts web agents context docs integrations profiles providers repos sync workflows .agent-configs"
+shipped_roots="bin scripts web agents context docs integrations profiles providers repos sync workflows skills .agent-configs"
 {
   # shellcheck disable=SC2086 # the roots are a list of plain words
   (cd "${tree}" && git ls-files -- ${shipped_roots} | while IFS= read -r file; do dirname "${file}"; done)

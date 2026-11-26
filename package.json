@@ -42,6 +42,7 @@
     "repos/",
     "sync/",
     "workflows/",
+    "skills/",
     ".agent-configs/",
     "!agents/**/*.redacted.*",
     "!agents/vscode/extensions.txt",
@@ -118,6 +119,7 @@
     "game-engine:cleanup": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/cleanup-game-engine-tests.ps1",
     "prepack": "npm run build:cli",
     "prepublishOnly": "node .github/scripts/refuse-local-publish.mjs",
+    "spec:registry": "node --experimental-strip-types --no-warnings src/spec-registry.test.ts && npm run --silent spec:schema",
     "spec:schema": "node --experimental-strip-types --no-warnings src/cli.ts spec schema --check",
     "test": "node --experimental-strip-types --no-warnings src/test.ts"
   },
@@ -128,6 +130,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "ajv": "8.20.0",
     "esbuild": "^0.25.0",
     "typescript": "^5.9.3"
   }

@@ -2,7 +2,7 @@ import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { ROOT, fileExists, readJson, readText, readYaml } from "./core.ts";
 import type { DecodeResult } from "./spec-registry.ts";
-import { POLICY_FILE, TOOLCHAINS_FILE, activeTools, policyProblems, readToolchains } from "./toolchains.ts";
+import { POLICY_FILE, TOOLCHAINS_FILE, activeTools, compareVersions, hideHome, policyProblems, readToolchains } from "./toolchains.ts";
 
 type Check = { id: string; status: "ok" | "error"; detail: string };
 
@@ -53,6 +53,17 @@ export function verificationChecks(input: {
     if (unknown.length > 0) add(checks, `verification.registry.${registry.id}.requires`, "error", unknown.join("; "));
   }
   return checks;
+}
+
+/**
+ * Why the registry decoder did not load. Effect 4 states support for Node.js 22.19 or
+ * later, so an older Node.js is named as the likely cause.
+ */
+export function decoderLoadProblem(error: unknown): string {
+  const message = hideHome((error instanceof Error ? error.message : String(error)).split("\n", 1)[0].replace(/\.$/u, ""));
+  const node = process.versions.node;
+  const old = compareVersions(node, "22.19.0") < 0 ? ` Effect 4 states support for Node.js 22.19 or later, and this is Node.js ${node}.` : "";
+  return `could not load the spec registry decoder (Effect): ${message}.${old}`;
 }
 
 function filesUnder(relativeRoot: string, extension: string): string[] {
@@ -130,19 +141,28 @@ export async function validateStore(options: { json?: boolean } = {}): Promise<{
     add(checks, "sync.manifest", "error", String(error));
   }
 
+  // The registry decoder loads Effect, so `validate`, `check` and verify.sh need it too. It is
+  // imported here rather than at the top so that a failure to load it is one clear check
+  // instead of a crash before any other check runs.
+  let registry: typeof import("./spec-registry.ts") | undefined;
   try {
-    // Loaded on demand: the registry schema pulls in Effect, which no other check needs.
-    const registry = await import("./spec-registry.ts");
-    const registries = VERIFICATION_REGISTRIES.filter((item) => fileExists(item.file)).map((item) => ({ ...item, text: readText(item.file) }));
-    checks.push(...verificationChecks({
-      toolchains: readYaml(TOOLCHAINS_FILE),
-      policy: readYaml(POLICY_FILE),
-      registries,
-      decode: registry.parseRegistry,
-      vocabulary: { tools: registry.SPEC_TOOLS, kinds: registry.SPEC_KINDS, gates: registry.SPEC_GATES, statuses: registry.SPEC_STATUSES },
-    }));
+    registry = await import("./spec-registry.ts");
   } catch (error) {
-    add(checks, "verification", "error", String(error));
+    add(checks, "verification", "error", decoderLoadProblem(error));
+  }
+  if (registry !== undefined) {
+    try {
+      const registries = VERIFICATION_REGISTRIES.filter((item) => fileExists(item.file)).map((item) => ({ ...item, text: readText(item.file) }));
+      checks.push(...verificationChecks({
+        toolchains: readYaml(TOOLCHAINS_FILE),
+        policy: readYaml(POLICY_FILE),
+        registries,
+        decode: registry.parseRegistry,
+        vocabulary: { tools: registry.SPEC_TOOLS, kinds: registry.SPEC_KINDS, gates: registry.SPEC_GATES, statuses: registry.SPEC_STATUSES },
+      }));
+    } catch (error) {
+      add(checks, "verification", "error", String(error));
+    }
   }
   const summary = { ok: checks.filter((check) => check.status === "ok").length, error: checks.filter((check) => check.status === "error").length };
   const result = { schema_version: 1, summary, checks };
