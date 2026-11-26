@@ -162,6 +162,11 @@ export function runCommand(command: string, args: string[] = [], options: Comman
   }
 }
 
+// How long to wait for the rest of a child's output after it exits. A descendant can keep
+// stdout or stderr open after the child exits (a background job in its process group, or a
+// daemon in a group of its own), and then "close" never comes.
+const OUTPUT_GRACE_MS = 1_000;
+
 /**
  * Run a child without blocking the Node event loop.
  *
@@ -169,6 +174,10 @@ export function runCommand(command: string, args: string[] = [], options: Comman
  * POSIX so a timed-out command and its descendants are terminated together;
  * otherwise a misbehaving MCP or desktop CLI can keep the wizard stuck even
  * after the parent process has been killed.
+ *
+ * The result never waits on a descendant that holds the output open: a second
+ * after the child exits, or after a timeout has killed it, the rest of its
+ * process group is stopped, the pipes are closed and the result is returned.
  */
 export function runCommandAsync(command: string, args: string[] = [], options: CommandOptions = {}): Promise<CommandResult> {
   const timeoutMs = Math.max(1, options.timeoutMs || 30_000);
@@ -183,6 +192,9 @@ export function runCommandAsync(command: string, args: string[] = [], options: C
     let outputTruncated = false;
     let errorCode: string | undefined;
     let forceTimer: NodeJS.Timeout | undefined;
+    let graceTimer: NodeJS.Timeout | undefined;
+    let deadlineTimer: NodeJS.Timeout | undefined;
+    let exited: { code: number | null; signal: NodeJS.Signals | null } | undefined;
 
     const child = spawn(command, args, {
       cwd: options.cwd || ROOT,
@@ -229,7 +241,7 @@ export function runCommandAsync(command: string, args: string[] = [], options: C
       if (settled) return;
       settled = true;
       clearTimeout(timeoutTimer);
-      if (forceTimer) clearTimeout(forceTimer);
+      for (const timer of [forceTimer, graceTimer, deadlineTimer]) if (timer) clearTimeout(timer);
       resolveResult({
         stdout,
         stderr,
@@ -242,11 +254,28 @@ export function runCommandAsync(command: string, args: string[] = [], options: C
       });
     };
 
+    // Stop whatever in the process group still holds the output, stop reading, and settle
+    // with the child's own exit status.
+    const abandon = (): void => {
+      if (settled) return;
+      terminate("SIGTERM");
+      setTimeout(() => terminate("SIGKILL"), 250).unref();
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+      finish(exited?.code ?? null, exited?.signal ?? null);
+    };
+
     const timeoutTimer = setTimeout(() => {
       timedOut = true;
       errorCode ||= "ETIMEDOUT";
       terminate("SIGTERM");
-      forceTimer = setTimeout(() => terminate("SIGKILL"), 250);
+      forceTimer = setTimeout(() => {
+        terminate("SIGKILL");
+        // The killed child normally reports its exit, which starts the grace period.
+        // Settle even if it never does.
+        deadlineTimer = setTimeout(abandon, 2 * OUTPUT_GRACE_MS);
+        deadlineTimer.unref();
+      }, 250);
       forceTimer.unref();
     }, timeoutMs);
     timeoutTimer.unref();
@@ -257,6 +286,11 @@ export function runCommandAsync(command: string, args: string[] = [], options: C
       errorCode ||= error.code || "SPAWN_ERROR";
       if (!stderr) stderr = error.message;
       finish(null, null);
+    });
+    child.once("exit", (code, signal) => {
+      exited = { code, signal };
+      graceTimer = setTimeout(abandon, OUTPUT_GRACE_MS);
+      graceTimer.unref();
     });
     child.once("close", (exitCode, signal) => finish(exitCode, signal));
   });

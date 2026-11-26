@@ -1,9 +1,10 @@
 // Verification toolchains: reading integrations/verification/toolchains.yaml, checking it,
 // and probing each tool for its version.
 //
-// This module stays free of Effect so that `agentctl validate` and the other commands can
-// load it cheaply. Probes run with a short timeout, read stdout, stderr or both (`java
-// -version` writes to stderr), and never go through a shell.
+// This module stays free of Effect, so validate.ts can import it up front and load the
+// Effect-based registry decoder only where it can report a failure to load. Probes run
+// with a short timeout, read stdout, stderr or both (`java -version` writes to stderr),
+// and never go through a shell.
 
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -312,13 +313,23 @@ function judge(toolchain: Toolchain, version: string, path: string): { status: P
   return { status: "ok", detail: `${version} at ${where}${toolchain.minimum !== undefined ? ` (needs ${toolchain.minimum} or later)` : ""}` };
 }
 
+/**
+ * Why a tool may look missing in `repo` although it is installed: Yarn Plug'n'Play keeps
+ * packages in zip archives instead of node_modules, and probes do not read those yet.
+ */
+function plugAndPlayNote(repo: string): string {
+  return existsSync(join(repo, ".pnp.cjs")) || existsSync(join(repo, ".pnp.js"))
+    ? "; the repository uses Yarn Plug'n'Play, which probes cannot read, so run its checks with yarn"
+    : "";
+}
+
 /** Probe one toolchain from `repo`. It never throws; a failure is a status. */
 export async function probeToolchain(toolchain: Toolchain, options: { repo: string; timeoutMs?: number; env?: NodeJS.ProcessEnv }): Promise<ProbeResult> {
   const probe = toolchain.probe;
   if (toolchain.ring === "hold" || probe === undefined) return { id: toolchain.id, status: "info", detail: `ring ${toolchain.ring}: not probed`, usable: false };
   if (probe.kind === "package") {
     const manifest = join(options.repo, "node_modules", ...probe.package.split("/"), "package.json");
-    if (!existsSync(manifest)) return { id: toolchain.id, status: "not-installed", detail: `${probe.package} is not installed in ${displayPath(options.repo)}`, usable: false };
+    if (!existsSync(manifest)) return { id: toolchain.id, status: "not-installed", detail: `${probe.package} is not installed in ${displayPath(options.repo)}${plugAndPlayNote(options.repo)}`, usable: false };
     try {
       const version = String(JSON.parse(readFileSync(manifest, "utf8")).version || "");
       if (!version) return { id: toolchain.id, status: "warn", detail: `${probe.package} has no version in its package.json`, usable: false };
@@ -329,7 +340,7 @@ export async function probeToolchain(toolchain: Toolchain, options: { repo: stri
   }
   const env = { ...process.env, ...options.env };
   const command = resolveProbeCommand(probe.commands, options.repo, env);
-  if (!command) return { id: toolchain.id, status: "not-installed", detail: `none of ${probe.commands.join(", ")} was found`, usable: false };
+  if (!command) return { id: toolchain.id, status: "not-installed", detail: `none of ${probe.commands.join(", ")} was found${plugAndPlayNote(options.repo)}`, usable: false };
   const timeoutMs = options.timeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS;
   const result = await runCommandAsync(command, probe.args, { cwd: options.repo, timeoutMs, maxBuffer: 64 * 1024, env: { ...options.env, ...toolchainEnvironment([toolchain]) } });
   if (result.timedOut) return { id: toolchain.id, status: "warn", detail: `${displayPath(command)} ${probe.args.join(" ")} timed out after ${timeoutMs / 1000} s`, usable: false, command: displayPath(command) };

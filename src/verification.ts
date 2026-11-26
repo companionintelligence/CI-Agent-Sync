@@ -222,9 +222,28 @@ export function matchesPattern(file: string, pattern: string): boolean {
   return file === path || file.startsWith(`${path}/`);
 }
 
-/** The entries whose covers or artefacts match any of the changed files. */
+// Files that can change what a check runs without touching its covers or artefacts: the
+// package manifest names the script, and a lockfile pins the tool.
+const PACKAGE_FILES = ["package.json", "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml", "bun.lock", "bun.lockb"];
+
+/** A repo-relative directory without `.` segments or a trailing slash; "" for the root. */
+function normalDir(path: string): string {
+  return path.split("/").filter((segment) => segment !== "" && segment !== ".").join("/");
+}
+
+/**
+ * The entries a change touches. A change to the registry touches every entry, since it may
+ * edit a check, a bound, a gate or a status. Otherwise an entry is touched when a changed
+ * file matches its covers or artefacts, or, for an entry with a check, the package manifest
+ * or a lockfile at the root or in its workdir.
+ */
 export function entriesTouchedBy(entries: ReadonlyArray<SpecEntry>, files: ReadonlyArray<string>): SpecEntry[] {
-  return entries.filter((entry) => [...(entry.covers ?? []), ...(entry.artefacts ?? [])].some((pattern) => files.some((file) => matchesPattern(file, pattern))));
+  if (files.includes(REGISTRY_FILE)) return [...entries];
+  return entries.filter((entry) => {
+    const dirs = entry.check === undefined ? [] : [...new Set(["", normalDir(entry.workdir ?? "")])];
+    const packageFiles = dirs.flatMap((dir) => PACKAGE_FILES.map((name) => (dir === "" ? name : `${dir}/${name}`)));
+    return [...(entry.covers ?? []), ...(entry.artefacts ?? []), ...packageFiles].some((pattern) => files.some((file) => matchesPattern(file, pattern)));
+  });
 }
 
 /** `git diff --name-only REF...HEAD` in `repo`, without taking optional locks. */
@@ -236,6 +255,17 @@ export function changedFiles(repo: string, ref: string): { files: string[] } | {
 }
 
 // ── toolchains ──────────────────────────────────────────────────────────────────────
+
+/**
+ * The toolchains outside hold that provide an entry's tool, and a warning when `requires`
+ * names none of them: then the tool is not probed before the check runs.
+ */
+function toolProviders(entry: SpecEntry, toolchains: ReadonlyArray<Toolchain>): { providers: Toolchain[]; warning?: Check } {
+  const providers = toolchains.filter((toolchain) => toolchain.ring !== "hold" && toolchain.provides.includes(entry.tool));
+  if (providers.length === 0 || providers.some((toolchain) => (entry.requires ?? []).includes(toolchain.id))) return { providers };
+  const names = providers.map((toolchain) => `"${toolchain.id}"`).join(" or ");
+  return { providers, warning: { id: `spec.${entry.id}.requires`, status: "warn", detail: `names no toolchain that provides ${entry.tool}, so it is not probed before the check runs; add ${names}` } };
+}
 
 async function mapLimited<T, R>(items: ReadonlyArray<T>, limit: number, task: (item: T) => Promise<R>): Promise<R[]> {
   const results: R[] = new Array(items.length);
@@ -289,6 +319,8 @@ export function validateChecks(repo: string, options: { toolchains?: ReadonlyArr
     for (const id of entry.requires ?? []) {
       if (!known.has(id)) checks.push({ id: `spec.${entry.id}.requires.${id}`, status: "error", detail: `"${id}" is not a toolchain in CI-Agent-Sync's ${TOOLCHAINS_FILE}` });
     }
+    const { warning } = toolProviders(entry, loaded.toolchains);
+    if (warning) checks.push(warning);
     for (const artefact of entry.artefacts ?? []) {
       const where = resolveInsideRepo(repo, artefact);
       if ("error" in where) checks.push({ id: `spec.${entry.id}.artefact.${artefact}`, status: "error", detail: where.error });
@@ -367,7 +399,7 @@ export async function checkEntries(options: CheckOptions): Promise<{ checks: Che
       return { checks, selection: { ...selection, changed_from: options.changedFrom } };
     }
     selected = entriesTouchedBy(selected, changed.files);
-    Object.assign(selection, { changed_from: options.changedFrom, changed_files: changed.files.length });
+    Object.assign(selection, { changed_from: options.changedFrom, changed_files: changed.files.length, ...(changed.files.includes(REGISTRY_FILE) ? { registry_changed: true } : {}) });
   }
   if (selected.length === 0) checks.push({ id: "selection", status: "info", detail: entries.length === 0 ? "the registry has no entries" : "no entry matches the selection" });
   selection.selected = selected.map((entry) => entry.id);
@@ -392,6 +424,8 @@ export async function checkEntries(options: CheckOptions): Promise<{ checks: Che
       continue;
     }
     const required = (entry.requires ?? []).map((id) => toolchainsById.get(id)!);
+    const { providers, warning } = toolProviders(entry, loaded.toolchains);
+    if (warning) checks.push(warning);
     const results = await Promise.all(required.map((toolchain) => probe(toolchain)));
     for (const result of results) {
       if (result.usable && result.status === "warn" && !reportedToolchains.has(result.id)) {
@@ -415,7 +449,9 @@ export async function checkEntries(options: CheckOptions): Promise<{ checks: Che
       cwd: cwd.real,
       timeoutMs: timeoutSeconds * 1000,
       maxBuffer: CHECK_OUTPUT_LIMIT,
-      env: toolchainEnvironment(required),
+      // The tool's own toolchains fix their environment (telemetry opt-outs) even when
+      // `requires` leaves them out.
+      env: toolchainEnvironment([...new Set([...required, ...providers])]),
     });
     const run = { ...base, command: entry.check, duration_ms: result.durationMs ?? 0, exit_code: result.exitCode };
     if (result.exitCode === 0) {
@@ -470,8 +506,12 @@ export function loadAgentLoop(): string[] {
   return steps.map((step: any) => String(step.text || "")).filter(Boolean);
 }
 
-/** The managed section, markers included, rendered from the registry and the agent loop. */
-export function renderSpecBlock(registry: SpecRegistry, loop: ReadonlyArray<string>): string {
+/**
+ * The managed section, markers included, rendered from the registry and the agent loop.
+ * `skills` adds the pointer to CI-Agent-Sync's skills; blockChecks sets it when this
+ * release carries a skills/ folder, so the block never links to one that does not exist.
+ */
+export function renderSpecBlock(registry: SpecRegistry, loop: ReadonlyArray<string>, options: { skills?: boolean } = {}): string {
   const entries = registry.spec ?? [];
   const active = entries.filter((entry) => entry.status !== "planned");
   const planned = entries.filter((entry) => entry.status === "planned");
@@ -495,10 +535,9 @@ export function renderSpecBlock(registry: SpecRegistry, loop: ReadonlyArray<stri
   if (planned.length > 0) {
     lines.push(`Planned: ${planned.map((entry) => `\`${entry.id}\` (${[entry.tool, entry.target].filter(Boolean).join(", ")})`).join(", ")}.`, "");
   }
-  lines.push(
-    `The registry format, the verification policy and the toolchain recipes are in CI-Agent-Sync's [integrations/verification/](${REPO_URL}/tree/main/integrations/verification). Its skills are in [skills/](${REPO_URL}/tree/main/skills): \`npx skills add companionintelligence/CI-Agent-Sync\`.`,
-    BLOCK_END,
-  );
+  const pointer = `The registry format, the verification policy and the toolchain recipes are in CI-Agent-Sync's [integrations/verification/](${REPO_URL}/tree/main/integrations/verification).`;
+  const skills = ` Its skills are in [skills/](${REPO_URL}/tree/main/skills): \`npx skills add companionintelligence/CI-Agent-Sync\`.`;
+  lines.push(`${pointer}${options.skills ? skills : ""}`, BLOCK_END);
   return lines.join("\n");
 }
 
@@ -549,7 +588,7 @@ function blockTargets(repo: string): BlockTarget[] {
 export function blockChecks(repo: string, mode: "print" | "check" | "apply"): { checks: Check[]; block?: string } {
   const { checks, registry } = registryChecks(loadRegistry(repo));
   if (!registry) return { checks };
-  const block = renderSpecBlock(registry, loadAgentLoop());
+  const block = renderSpecBlock(registry, loadAgentLoop(), { skills: existsSync(join(ROOT, "skills")) });
   const out: Check[] = [];
   for (const target of blockTargets(repo)) {
     const id = `block.${target.names.join("+")}`;

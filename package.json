@@ -42,6 +42,7 @@
     "repos/",
     "sync/",
     "workflows/",
+    "skills/",
     ".agent-configs/",
     "!agents/**/*.redacted.*",
     "!agents/vscode/extensions.txt",

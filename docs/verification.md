@@ -95,7 +95,7 @@ the committed file in a strict validator (Ajv) against good and bad registries.
 ./bin/agentctl spec validate --repo ../Some-Repo   # decode the registry and check its paths
 ./bin/agentctl spec list --repo ../Some-Repo
 ./bin/agentctl spec check --repo ../Some-Repo      # run every non-planned entry's check
-./bin/agentctl spec check --repo . --changed-from origin/main
+./bin/agentctl spec check --repo . --changed-from origin/HEAD   # only what this branch touches
 ./bin/agentctl spec init --repo ../Some-Repo        # print the template
 ./bin/agentctl spec init --repo ../Some-Repo --apply
 ./bin/agentctl spec block --repo ../Some-Repo --check
@@ -105,13 +105,17 @@ the committed file in a strict validator (Ajv) against good and bad registries.
 
 | Command | What it does |
 | --- | --- |
-| `toolchains` | Probes each entry in `toolchains.yaml`, from the repository's `node_modules/.bin` and then `PATH`, reading stdout, stderr or both (`java -version` writes to stderr), with a 5-second timeout (`--timeout` changes it). A tool is ok at its pinned version, a warning at another version, and not installed when no candidate is found. `--only` limits the probes. |
+| `toolchains` | Probes each entry in `toolchains.yaml`, from the repository's `node_modules/.bin` and then `PATH`, reading stdout, stderr or both (`java -version` writes to stderr), with a 5-second timeout (`--timeout` changes it). A tool is ok at its pinned version, a warning at another version, and not installed when no candidate is found. `--only` limits the probes. Probes do not read Yarn Plug'n'Play installs yet (see below). |
 | `validate` | Decodes `.agent-configs/specs.toml` under `--repo` (default: the current directory) and checks that artefacts and workdirs exist inside the repository, that `requires` names known toolchains, and that each `covers` pattern matches a tracked file (a warning otherwise). |
 | `list` | Lists the entries with their tool, status, gate and check. |
-| `check` | Runs each selected entry's `check`. `--only IDS`, `--tool NAMES` and `--changed-from REF` select entries; `--changed-from` picks the entries whose `covers` or `artefacts` match `git diff --name-only REF...HEAD`. |
+| `check` | Runs each selected entry's `check`. `--only IDS`, `--tool NAMES` and `--changed-from REF` select entries. `--changed-from` reads `git diff --name-only REF...HEAD` and picks the entries whose `covers` or `artefacts` match a changed file. A change to `package.json` or a lockfile at the root also picks every entry with a check, one in a `workdir` picks the entries that run there, and a change to the registry itself picks every entry. The check runs with the environment of the toolchains it requires and of the toolchain that provides its `tool`. |
 | `init` | Prints the template with `repo` filled in. With `--apply` it writes `.agent-configs/specs.toml`, and only when that file does not exist. |
-| `block` | Renders the managed section from the registry: the agent loop, a table of the entries that run (id, tool, status, gate), the planned entries, and a pointer to this repository's `integrations/verification/` and `skills/`. It prints the section by default; `--check` exits non-zero when a file is out of date, and `--apply` writes. |
+| `block` | Renders the managed section from the registry: the agent loop, a table of the entries that run (id, tool, status, gate), the planned entries, and a pointer to this repository's `integrations/verification/`, plus `skills/` when the installed CI Agent Sync carries it. It prints the section by default; `--check` exits non-zero when a file is out of date, and `--apply` writes. |
 | `schema` | Prints the JSON Schema generated from `src/spec-registry.ts`. `--write` regenerates the committed file and `--check` fails when it differs. |
+
+`validate` and `check` warn when an entry's `requires` names no toolchain that
+provides its `tool` (`tool = "storybook"` without `storybook`, say), because
+then the tool is not probed before the check runs.
 
 Every command takes `--json` and prints the standard envelope,
 `{schema_version, summary, checks}`, where each check has an `id`, a `status`
@@ -201,6 +205,12 @@ found when the tool was tried. Three to know first:
 - LemmaScript passes a misspelled annotation silently unless `lemmascript.json`
   sets `unread-annotations` to `error`.
 
+Probes look for npm-installed tools in the repository's `node_modules`. A
+repository that uses Yarn Plug'n'Play has none, so its npm tools are reported
+as not installed, with a note, and `check` does not run the entries that
+require them. Run those checks with `yarn` directly until probes can read
+Plug'n'Play installs.
+
 ### Exit 0 is not evidence
 
 Some runs exit 0 having checked less than they seem. On Quint 0.34.0:
@@ -245,6 +255,11 @@ for (const state of trace.states.slice(1)) {
 array; `#unserializable` is an error. Generated traces are gitignored; keep a
 hand-written fixture under `src/fixtures/` when a test needs one.
 
+The npm package ships only the compiled `dist/itf.js`, with no type
+declarations, so it is not an importable library. To replay traces in another
+repository, copy `src/itf.ts` into its test helpers: it has no dependencies and
+uses only erasable TypeScript, so Node's type stripping and `tsc` both run it.
+
 ## Opting a repository in
 
 1. Start a registry: `./bin/agentctl spec init --repo ../Some-Repo --apply`, then
@@ -258,7 +273,9 @@ hand-written fixture under `src/fixtures/` when a test needs one.
    `.agent-configs/sync.yml`, then run `./bin/agentctl sync` and review the plan
    before `--apply`. The files land in `.agent-configs/verification/`. The sync
    never writes the target's own `.agent-configs/specs.toml`.
-5. Install the skills: `npx skills add companionintelligence/CI-Agent-Sync`.
+5. When CI Agent Sync carries `skills/`, install them with
+   `npx skills add companionintelligence/CI-Agent-Sync`. The managed section
+   links to them only then.
 
 This repository keeps its own registry in `.agent-configs/specs.toml`.
 
@@ -268,10 +285,15 @@ This repository keeps its own registry in `.agent-configs/specs.toml`.
   registry, and `block` changes only the text between its markers.
 - Writes stay inside the repository: a path that leaves it through `..` or a
   symlink is refused.
-- Checks run without a shell, in their own process group, with the entry's
-  timeout and an output cap. The detail keeps only a redacted tail of the
-  output, and reports show the home directory as `~`, so a report pasted into
-  a pull request does not carry a local user name.
+- Checks run without a shell and with stdin closed, in their own process
+  group, with the entry's timeout and an output cap. A process that leaves the
+  group and keeps the output open does not hold up the result: a second after
+  the check exits, or after its timeout, the rest of the group is stopped and
+  the result is returned.
+- A failing check's detail keeps the last 20 lines of its output, with common
+  credential patterns redacted. The redaction is best effort, so read the
+  output before you paste it anywhere. Reports show the home directory as `~`,
+  so a report pasted into a pull request does not carry a local user name.
 - Probes have a short timeout, and the git reads behind `--changed-from` and the
   `covers` check run with `GIT_OPTIONAL_LOCKS=0`, so they never contend with
   other agents' checkouts.

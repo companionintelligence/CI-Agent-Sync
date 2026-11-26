@@ -11,7 +11,7 @@ import { doctor } from "./doctor.ts";
 import { kvmCommand } from "./kvm.ts";
 import { profileCommand } from "./profile.ts";
 import { platformCommand } from "./platform.ts";
-import { validateStore } from "./validate.ts";
+import { decoderLoadProblem, validateStore } from "./validate.ts";
 
 function usage(): void {
   console.log(`CI Agent Sync — portable Companion Intelligence control plane
@@ -97,8 +97,18 @@ async function agentctlCommand(args: string[]): Promise<number> {
     case "tui": return companionCommand(["tui", ...args]);
     case "backup": return parseBackup(args);
     case "render": return parseRender(args);
-    // Loaded on demand: the spec commands pull in Effect, which no other command needs.
-    case "spec": return (await import("./verification.ts")).specCommand(args);
+    // Loaded on demand. The spec commands load Effect through the registry decoder, as
+    // `validate` and `check` do; the other commands never load it.
+    case "spec": {
+      let verification: typeof import("./verification.ts");
+      try {
+        verification = await import("./verification.ts");
+      } catch (error) {
+        console.error(decoderLoadProblem(error));
+        return 1;
+      }
+      return verification.specCommand(args);
+    }
     case "inventory": return outputResult(legacyStore(["inventory", ...args]));
     case "credentials":
     case "audit":

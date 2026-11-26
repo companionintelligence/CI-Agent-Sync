@@ -8,7 +8,7 @@ import { ROOT, fileExists, readText, redactSecrets, runCommand, runCommandAsync,
 import { ACTION_TAKEN, ItfError, NONDET_PICKS, decodeItfValue, itfAction, itfPicks, parseItfTrace, type ItfValue } from "./itf.ts";
 import { classifyNanoKvmMcp, classifyProduct, envName, loadKvmTargets, mcpSnippet, nanoKvmKeyEnv, rowStatus } from "./kvm.ts";
 import { summarizeTailscaleStatus } from "./platform.ts";
-import { SPEC_GATES, SPEC_KINDS, SPEC_STATUSES, SPEC_TOOLS, parseRegistry } from "./spec-registry.ts";
+import { SPEC_GATES, SPEC_KINDS, SPEC_STATUSES, SPEC_TOOLS, parseRegistry, type SpecEntry } from "./spec-registry.ts";
 import { entry, specRegistryChecks } from "./spec-registry.test.ts";
 import { POLICY_FILE, TOOLCHAINS_FILE, displayPath, hideHome, probeToolchain, readProbeVersion, type Toolchain } from "./toolchains.ts";
 import { verificationChecks } from "./validate.ts";
@@ -24,6 +24,7 @@ import {
   parseSpecArgs,
   renderSpecBlock,
   resolveInsideRepo,
+  validateChecks,
 } from "./verification.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -151,6 +152,11 @@ async function probeChecks(): Promise<void> {
     const other = await probeToolchain(fakeToolchain({ id: "fake-lib", kind: "library", version: "1.2.4", probe: { kind: "package", package: "fake-lib" } }), { repo });
     assert(pinned.status === "ok" && other.status === "warn" && other.usable, "a package probe misjudged the pinned version");
   });
+  await withTempDir("probe-pnp", async (repo) => {
+    writeRepoFile(repo, ".pnp.cjs", "// Yarn Plug'n'Play loader\n");
+    const pnp = await probeToolchain(fakeToolchain({ id: "fake-lib", kind: "library", version: "1.2.3", probe: { kind: "package", package: "fake-lib" } }), { repo });
+    assert(pnp.status === "not-installed" && !pnp.usable && pnp.detail.includes("Plug'n'Play"), `a Plug'n'Play repository was not named as the reason: ${pnp.detail}`);
+  });
 }
 
 function storeVerificationChecks(): void {
@@ -229,6 +235,66 @@ async function checkRunnerChecks(): Promise<void> {
     const touched = entriesTouchedBy([{ id: "a", title: "A", kind: "protocol", tool: "quint", status: "planned", covers: ["lib/**"] }], ["lib/x.ts"]);
     assert(touched.length === 1, "entriesTouchedBy missed a covered file");
   });
+
+  // A registry edit can change any entry's check, bound, gate or status, and the package
+  // manifest or a lockfile can change what a check runs, so both select entries too.
+  const withCheck = { title: "T", kind: "protocol", tool: "quint", status: "checked", artefacts: ["spec/a.qnt"], check: ["npm", "test"] } as const;
+  const sample: SpecEntry[] = [
+    { id: "root", ...withCheck, covers: ["lib/**"] },
+    { id: "app", ...withCheck, workdir: "./app/", covers: ["app/src/**"] },
+    { id: "later", title: "L", kind: "protocol", tool: "quint", status: "planned", covers: ["lib/**"] },
+  ];
+  const touchedIds = (files: string[]) => entriesTouchedBy(sample, files).map((item) => item.id);
+  assert(isDeepStrictEqual(touchedIds(["package.json"]), ["root", "app"]), "a root package.json change did not select every entry with a check");
+  assert(isDeepStrictEqual(touchedIds(["app/pnpm-lock.yaml"]), ["app"]), "a lockfile in a workdir did not select its entry alone");
+  assert(isDeepStrictEqual(touchedIds([".agent-configs/specs.toml"]), ["root", "app", "later"]), "a registry change did not select every entry");
+  assert(isDeepStrictEqual(touchedIds(["docs/x.md", "app/package.json.bak"]), []), "an unrelated change selected an entry");
+
+  // An entry's tool fixes its environment (telemetry opt-outs) even when `requires` leaves
+  // its toolchain out, and both validate and check say that the tool is not probed.
+  await withTempDir("check-tool", async (repo) => {
+    writeRepoFile(repo, "spec/a.txt", "x\n");
+    const optOut = fakeToolchain({ id: "fake-ui", provides: ["storybook"], environment: [{ name: "AGENT_SYNC_TEST_OPT_OUT", value: "1" }], probe: { kind: "command", commands: ["agent-sync-no-such-tool"], args: ["--version"], stream: "both", pattern: "(\\d+)" } });
+    writeRepoFile(repo, ".agent-configs/specs.toml", 'version = 1\nrepo = "tool-test"\n\n'
+      + entry({ id: "stories", title: "Stories", kind: "component", tool: "storybook", status: "checked", artefacts: ["spec/a.txt"], requires: ["node"], check: [process.execPath, "-e", "process.exit(process.env.AGENT_SYNC_TEST_OPT_OUT === '1' ? 0 : 7)"] }));
+    const ran = await checkEntries({ repo, toolchains: [nodeToolchain, optOut] });
+    const run = ran.checks.find((check) => check.id === "spec.stories");
+    assert(run?.status === "ok", `the tool's environment was not set for its check: ${run?.detail}`);
+    assert(ran.checks.some((check) => check.id === "spec.stories.requires" && check.status === "warn" && check.detail.includes('"fake-ui"')), "check did not warn that requires leaves out the tool's toolchain");
+    assert(validateChecks(repo, { toolchains: [nodeToolchain, optOut] }).some((check) => check.id === "spec.stories.requires" && check.status === "warn"), "validate did not warn that requires leaves out the tool's toolchain");
+  });
+}
+
+// A descendant that leaves the process group and keeps stdout open must not hold up the
+// result, after a normal exit or after a timeout.
+async function heldOutputChecks(): Promise<void> {
+  const holder = (wait: boolean) => ["-e", [
+    'const { spawn } = require("node:child_process");',
+    'const held = spawn(process.execPath, ["-e", "setTimeout(() => {}, 15000)"], { detached: true, stdio: ["ignore", "inherit", "inherit"] });',
+    "held.unref();",
+    'console.log("holder " + held.pid);',
+    wait ? "setTimeout(() => {}, 15000);" : "",
+  ].join("\n")];
+  const holders: number[] = [];
+  const holderStarted = (stdout: string): boolean => {
+    const match = /holder (\d+)/u.exec(stdout);
+    if (match) holders.push(Number(match[1]));
+    return match !== null;
+  };
+  try {
+    const started = Date.now();
+    const done = await runCommandAsync(process.execPath, holder(false), { cwd: ROOT, timeoutMs: 10_000 });
+    const doneMs = Date.now() - started;
+    assert(holderStarted(done.stdout) && done.exitCode === 0 && !done.timedOut && doneMs < 5_000, `a held-open pipe kept a finished command waiting ${doneMs} ms (exit ${done.exitCode})`);
+    const hungStarted = Date.now();
+    const hung = await runCommandAsync(process.execPath, holder(true), { cwd: ROOT, timeoutMs: 1_000 });
+    const hungMs = Date.now() - hungStarted;
+    assert(holderStarted(hung.stdout) && hung.timedOut && hung.exitCode === null && hungMs < 6_000, `a held-open pipe kept a timed-out command waiting ${hungMs} ms`);
+  } finally {
+    for (const pid of holders) {
+      try { process.kill(pid, "SIGKILL"); } catch { /* already gone */ }
+    }
+  }
 }
 
 async function blockAndInitChecks(): Promise<void> {
@@ -253,6 +319,8 @@ async function blockAndInitChecks(): Promise<void> {
     assert(blockChecks(repo, "apply").checks.every((check) => check.detail === "already up to date") && readFileSync(join(repo, "AGENTS.md"), "utf8") === agents, "a second block --apply was not a no-op");
     const decoded = parseRegistry(registryText);
     assert(decoded.ok && renderSpecBlock(decoded.registry, ["step"]) === renderSpecBlock(decoded.registry, ["step"]), "block rendering is not deterministic");
+    const withSkills = renderSpecBlock(decoded.registry, ["step"], { skills: true });
+    assert(!renderSpecBlock(decoded.registry, ["step"]).includes("skills/") && withSkills.includes("npx skills add companionintelligence/CI-Agent-Sync"), "the skills pointer did not follow the skills option");
   });
   await withTempDir("block-new", async (repo) => {
     writeRepoFile(repo, ".agent-configs/specs.toml", registryText);
@@ -316,6 +384,7 @@ async function main(): Promise<void> {
   assert(timeoutProbe.timedOut && timeoutProbe.exitCode === null && timeoutProbe.errorCode === "ETIMEDOUT", "async command timeout did not fail closed");
   const outputProbe = await runCommandAsync(process.execPath, ["-e", "process.stdout.write('x'.repeat(70000))"], { cwd: ROOT, timeoutMs: 2_000, maxBuffer: 1_024 });
   assert(outputProbe.outputTruncated && outputProbe.exitCode === null && outputProbe.errorCode === "MAX_BUFFER", "async command output cap did not fail closed");
+  if (process.platform !== "win32") await heldOutputChecks();
   kvmChecks();
   itfChecks();
   specRegistryChecks();
