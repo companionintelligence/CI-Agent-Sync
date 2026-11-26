@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
 import { join } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { ROOT, fileExists, readText, redactSecrets, runCommand, runCommandAsync, safeDetail } from "./core.ts";
+import { ACTION_TAKEN, ItfError, NONDET_PICKS, decodeItfValue, itfAction, itfPicks, parseItfTrace, type ItfValue } from "./itf.ts";
 import { classifyNanoKvmMcp, classifyProduct, envName, loadKvmTargets, mcpSnippet, nanoKvmKeyEnv, rowStatus } from "./kvm.ts";
 import { summarizeTailscaleStatus } from "./platform.ts";
 
@@ -44,6 +46,45 @@ function kvmChecks(): void {
   assert(!/^\s{2}ci-core:/m.test(fleetTargets), "removed fleet target must stay removed");
 }
 
+function itfChecks(): void {
+  // A hand-written trace shaped like `quint run --mbt --out-itf` output, vars listed twice included.
+  const text = readText("src/fixtures/itf/traffic-light.itf.json");
+  const trace = parseItfTrace(text);
+  assert(isDeepStrictEqual(trace.vars, ["light", "ticks", "seen", "visits", "last", ACTION_TAKEN, NONDET_PICKS]), "ITF vars were not deduplicated in order");
+  assert(trace.states.length === 3 && trace.meta.format === "ITF", "ITF states or #meta were lost");
+  const [first, second, third] = trace.states;
+  assert(second.ticks === 2n && third.ticks === 9007199254740993n, "#bigint did not decode to an exact bigint");
+  assert(third.seen instanceof Set && isDeepStrictEqual(third.seen, new Set(["Green", "Red", "Yellow"])), "#set did not decode to a Set");
+  assert(third.visits instanceof Map && (third.visits as Map<ItfValue, ItfValue>).get("Green") === 1n && isDeepStrictEqual(first.visits, new Map()), "#map did not decode to a Map");
+  assert(isDeepStrictEqual(second.last, [1n, "step"]), "#tup did not decode to an array");
+  assert(isDeepStrictEqual(second.light, { tag: "Green", value: [] }), "a variant did not stay a { tag, value } record");
+  assert(itfAction(first) === "init" && itfAction(second) === "step", "itfAction did not read mbt::actionTaken");
+  assert(isDeepStrictEqual(itfPicks(second), { next: "Green", wait: 2n }), "itfPicks did not unwrap Some");
+  assert(isDeepStrictEqual(itfPicks(third), { next: "Yellow", wait: undefined }), "itfPicks did not turn None into undefined");
+  assert(isDeepStrictEqual(parseItfTrace(JSON.parse(text)), trace), "a parsed object and its JSON text decode differently");
+  const rejects = (input: unknown, fragment: string): boolean => {
+    try {
+      decodeItfValue(input);
+      return false;
+    } catch (error) {
+      return error instanceof ItfError && error.message.includes(fragment);
+    }
+  };
+  assert(rejects({ "#unserializable": "fn" }, "unserializable"), "#unserializable was not an error");
+  assert(rejects({ a: { "#set": [1, { "#unserializable": "x" }] } }, "$.a.#set[1]"), "an ITF error lost its path");
+  assert(rejects({ "#bigint": "12x" }, "#bigint"), "a malformed #bigint was accepted");
+  assert(rejects({ "#weird": 1 }, "unknown ITF key"), "an unknown # key was accepted");
+  assert(rejects(1.5, "not an integer"), "a fraction was accepted as an ITF value");
+  assert(rejects(null, "null"), "null was accepted as an ITF value");
+  let missingVar = false;
+  try {
+    parseItfTrace({ vars: ["x"], states: [{}] });
+  } catch (error) {
+    missingVar = error instanceof ItfError && error.message.includes("missing variable x");
+  }
+  assert(missingVar, "a state without a declared variable was accepted");
+}
+
 function encodingChecks(): void {
   // Ruby must read the store's UTF-8 files as UTF-8 even when the caller has no UTF-8 locale.
   const probe = runCommand("ruby", ["-e", "print Encoding.default_external.name"], { env: { LANG: "", LC_ALL: "", LC_CTYPE: "" } });
@@ -62,6 +103,7 @@ async function main(): Promise<void> {
   const outputProbe = await runCommandAsync(process.execPath, ["-e", "process.stdout.write('x'.repeat(70000))"], { cwd: ROOT, timeoutMs: 2_000, maxBuffer: 1_024 });
   assert(outputProbe.outputTruncated && outputProbe.exitCode === null && outputProbe.errorCode === "MAX_BUFFER", "async command output cap did not fail closed");
   kvmChecks();
+  itfChecks();
   encodingChecks();
   assert(!safeDetail('{"apiKey":"not-for-output"}').includes("not-for-output"), "structured secret detail was not redacted");
   assert((redactSecrets({ apiKey: "not-for-output", status: "ok" }) as any).apiKey === "<redacted>", "structured payload secret was not redacted");
