@@ -10,18 +10,16 @@ description: >-
 
 # Quint specs
 
-Quint is an executable specification language on the logic of TLA+. Use it to model a design,
-simulate it in seconds, model-check it with Apalache or TLC, and replay its traces against the code.
-It checks the design, not the code: tie the code to it with trace replay.
+Quint is an executable specification language on the logic of TLA+. Model a design, simulate it in
+seconds, model-check it with Apalache or TLC, and tie the code to it by replaying its traces.
 
 ## When to use
 
 Use it for protocols, state machines and races: sign-in and consent steps, lifecycles with expiry,
-retries, leases, outboxes, anything where two actors or two steps can interleave.
-
-Do not use it for a single pure function (use `lemmascript-proof`), data validation
-(`effect-schema-contract`), UI (`storybook-contract`, `bombadil-property`) or string processing:
-Quint has no string operations, no recursion and no symmetry sets.
+retries, leases, outboxes, anything where two actors or two steps can interleave. Not for a single
+pure function (`lemmascript-proof`), data validation (`effect-schema-contract`), UI
+(`storybook-contract`, `bombadil-property`) or string processing: Quint has no string operations,
+no recursion and no symmetry sets.
 
 ## Install (pinned)
 
@@ -31,15 +29,11 @@ export QUINT_HOME="$HOME/.cache/quint-0.34.0"   # shared backend cache, keyed on
 npx quint --version                             # 0.34.0
 ```
 
-Node 18 or newer. `quint verify` needs Java 21 or newer (Apalache 0.62.x). Homebrew ships 0.34.0;
-nixpkgs lags.
-
-First use downloads two backends with no checksum check: the Rust evaluator (on the first `run` or
-`test`, through the unauthenticated GitHub API, 60 requests an hour per address) and the 192 MB
-Apalache archive (on the first `verify`). Pre-seed `QUINT_HOME` from checked release assets instead
-(macOS arm64 shown; the digests for every platform are in CI-Agent-Sync's
-`integrations/verification/toolchains.yaml`, and `agentctl spec toolchains` reports what is
-installed):
+Node 18 or newer; `quint verify` needs Java 21 or newer. First use downloads two backends with no
+checksum check: the Rust evaluator (first `run` or `test`, through the unauthenticated GitHub API,
+60 requests an hour per address) and the 192 MB Apalache archive (first `verify`). Pre-seed
+`QUINT_HOME` from checked release assets instead (macOS arm64 shown; every platform's digest is in
+CI-Agent-Sync's `integrations/verification/toolchains.yaml`):
 
 ```sh
 gh release download v0.62.4 -R apalache-mc/apalache -p apalache.tgz -p sha256sum.txt
@@ -47,10 +41,8 @@ grep ' apalache.tgz$' sha256sum.txt | shasum -a 256 -c -
 mkdir -p "$QUINT_HOME/apalache-dist-0.62.4" && tar -xzf apalache.tgz -C "$QUINT_HOME/apalache-dist-0.62.4"
 
 gh release download evaluator/v0.8.0 -R quint-co/quint -p quint_evaluator-aarch64-apple-darwin.tar.gz
-shasum -a 256 quint_evaluator-aarch64-apple-darwin.tar.gz   # compare with the digest below
-gh release view evaluator/v0.8.0 -R quint-co/quint --json assets --jq '.assets[] | "\(.digest) \(.name)"'
-mkdir -p "$QUINT_HOME/rust-evaluator-v0.8.0"
-tar -xzf quint_evaluator-aarch64-apple-darwin.tar.gz -C "$QUINT_HOME/rust-evaluator-v0.8.0"
+echo "cc016a73031f8717f7c7b9f2a54eb21b15d58b2a1f1ee7f1750a225e00a76672  quint_evaluator-aarch64-apple-darwin.tar.gz" | shasum -a 256 -c -
+mkdir -p "$QUINT_HOME/rust-evaluator-v0.8.0" && tar -xzf quint_evaluator-aarch64-apple-darwin.tar.gz -C "$QUINT_HOME/rust-evaluator-v0.8.0"
 ```
 
 Git-ignore `_apalache-out/` (Apalache writes it to the working directory) and trace folders.
@@ -112,16 +104,13 @@ module retryQueueTest {
 }
 ```
 
-Rules that save turns:
-
 - Every action assigns every state variable. A missing assignment is reported at the enclosing
-  `any`, not at the action that forgot it.
+  `any`, not at the action that forgot it. Type and effect errors are a generic QNT000.
 - Built-in names cannot be reused (QNT101): `fail` and `item` are taken.
-- `invariant` and `observation` definitions (new in 0.34.0) are collected by `run` and `verify`.
-  `--invariant` or `--invariants` replaces them; `--witnesses` is deprecated.
+- `invariant` and `observation` definitions (new in 0.34.0) are collected by `run` and `verify`;
+  `--invariant` or `--invariants` replaces them, and `--witnesses` is deprecated.
 - `quint test` runs definitions whose names end in `Test` (or `--match`) and fails when none match.
 - Record spread differs from JavaScript: explicit fields win whatever their order.
-- Type and effect errors are a generic QNT000 with unifier text; read the location, then the action.
 
 ## Fast gate (seconds, pre-push)
 
@@ -147,23 +136,22 @@ quint verify spec/quint/retryQueue.qnt --max-steps 10 --observation someDropped 
 quint verify spec/quint/retryQueue.qnt --backend tlc --server-endpoint localhost:18823 < /dev/null
 ```
 
-- Give every concurrent run its own `--server-endpoint` port. Runs on the default `localhost:8822`
-  share one Apalache server and the second fails when the first exits. The TLC backend also
-  transpiles through that server, so it needs the port too.
+- Give every concurrent run its own `--server-endpoint` port, TLC runs included (they transpile
+  through the same server). Runs on the default `localhost:8822` share one Apalache server, and the
+  second fails when the first exits.
 - Apalache is bounded by `--max-steps` (default 10) and slows sharply with depth; growing lists and
   maps cost far more than fixed-domain maps and sets.
-- Check temporal and action properties only with `--backend tlc`. On Apalache, `--temporal` stops at
-  a y/N prompt and, with stdin closed, exits 0 having checked nothing, even on a violating spec.
+- Check temporal and action properties only with `--backend tlc`. On Apalache `--temporal` waits at
+  a y/N prompt and, with stdin closed, exits 0 having checked nothing.
 
 ## Exit 0 is not evidence
 
 - `--seed` lowers the default `--max-samples` to 1, so a seeded run checks one trace. Always pass
   `--max-samples` with `--seed`. Seeds are tied to the backend and the Quint version: keep failing
   traces as fixtures, not only their seeds.
-- `quint run` ends a stuck trace silently and TLC runs with deadlock checking off. Keep a `reps` test.
-  In the trial, a variant whose `nack` never dropped a job passed `quint run` with exit 0 and only a
-  warning that no trace reached `someDropped`; the `reps` test (QNT513) and the
-  `--observation someDropped` run both failed it.
+- `quint run` ends a stuck trace silently and TLC runs with deadlock checking off. In the trial, a
+  variant whose `nack` never dropped a job passed `quint run` (exit 0, one warning); the `reps` test
+  (QNT513) and `--observation someDropped` both failed it.
 - `--search-observations` prints `was not observed` and still exits 0. Gate on `--observation`.
 - Open issues that give a false pass on 0.34.0: Apalache can drop an exception while reporting a
   violation and exit 0 with no result line (quint-co/quint#2074); TLC can check a different model
@@ -182,30 +170,61 @@ quint run spec/quint/retryQueue.qnt --mbt --n-traces 20 --max-samples 100 --max-
 ```
 
 Each state carries `mbt::actionTaken` (`"send"`) and `mbt::nondetPicks`
-(`{"job": {"tag": "Some", "value": "c"}}`; a pick the action did not use is tagged `None`). Values use the ITF
-encodings `{"#bigint": "1"}`, `{"#map": [[k, v]]}`, `{"#set": []}`, `{"#tup": []}` and variants
-`{"tag": "Queued", "value": {"#tup": []}}`. There is no official TypeScript connector. CI-Agent-Sync's
-`src/itf.ts` exports `parseItfTrace`, `decodeItfValue`, `itfAction` and `itfPicks`; read its types
-before you write the driver. The driver's shape:
+(`{"job": {"tag": "Some", "value": "c"}}`) beside the model's variables, in ITF encodings such as
+`{"#bigint": "1"}`, `{"#map": [[k, v]]}` and `{"tag": "Queued", "value": {"#tup": []}}`. There is no
+official TypeScript connector; CI-Agent-Sync's `src/itf.ts` is a small strict decoder.
+`parseItfTrace(text)` returns `{ vars, states, meta }` with every state decoded (`bigint`, `Map`,
+`Set`, arrays, variants as `{ tag, value }`), `itfAction(state)` gives the action, `itfPicks(state)`
+the picks (`Some(x)` as `x`, `None` as `undefined`), and `decodeItfValue` decodes one value. Copy it
+at a pinned commit:
 
 ```ts
-// test/retryQueue.replay.test.ts (sketch: check the signatures in src/itf.ts)
-for (const file of traceFiles) {
-  const trace = parseItfTrace(readFileSync(file, "utf8"));
-  const queue = new RetryQueue(["a", "b", "c"], 3);           // the implementation under test
-  for (const [i, state] of trace.states.entries()) {
-    const action = itfAction(state);                           // init, send, ack, nack, idle
-    const { job } = itfPicks(state);
-    if (action !== "init" && action !== "idle") assert.ok(queue[action](job), `${file}#${i} ${action}(${job}) refused`);
-    assert.deepEqual(queue.snapshot(), { status: decodeItfValue(state.status), tries: decodeItfValue(state.tries) });
+// test/retryQueue.replay.test.ts: drive the implementation through every model trace.
+import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+import { test } from "node:test";
+import { itfAction, itfPicks, parseItfTrace } from "./itf.ts";   // CI-Agent-Sync src/itf.ts
+import { RetryQueue } from "../src/queue/retryQueue.ts";
+
+test("the queue follows every model trace", () => {
+  for (const file of readdirSync("traces").filter((f) => f.endsWith(".itf.json"))) {
+    const trace = parseItfTrace(readFileSync(`traces/${file}`, "utf8"));
+    const queue = new RetryQueue(["a", "b", "c"], 3);
+    trace.states.forEach((state, i) => {
+      const action = itfAction(state);                  // init, send, ack, nack or idle
+      const job = itfPicks(state).job as string;
+      if (action === "send" || action === "ack" || action === "nack") {
+        assert.ok(queue[action](job), `${file} state ${i}: ${action}(${job}) refused`);
+      }
+      const status = state.status as Map<string, { tag: string }>;
+      const tries = state.tries as Map<string, bigint>;
+      for (const j of ["a", "b", "c"]) {
+        assert.equal(queue.statusOf(j), status.get(j)?.tag, `${file} state ${i}: status of ${j}`);
+        assert.equal(BigInt(queue.triesOf(j)), tries.get(j), `${file} state ${i}: tries of ${j}`);
+      }
+    });
   }
-}
+});
 ```
 
-Commit the generating command (seed, sample count, steps; it reproduces only on the pinned version
-and backend), not the traces. When replay passes, the
-entry can move to `status = "conformance"` with `conformance = "test/retryQueue.replay.test.ts
-replays quint run --mbt traces"`.
+In the trial, an implementation that dropped a job one try early failed at the first diverging state.
+Commit the generating command (seed, sample count, steps), not the traces; it reproduces only on the
+pinned version and backend. When replay passes, the registry entry moves to `conformance`:
+
+```toml
+[[spec]]
+id = "retry-queue"
+title = "Retry queue: send, acknowledge, refuse and drop after the last try"
+kind = "state-machine"
+tool = "quint"
+status = "conformance"
+artefacts = ["spec/quint/retryQueue.qnt", "spec/quint/retryQueueTest.qnt", "test/retryQueue.replay.test.ts"]
+covers = ["src/queue/**"]
+requires = ["node", "quint"]
+check = ["npm", "run", "--silent", "spec:retry-queue"]
+properties = ["triesBounded", "droppedOnlyAfterLastTry"]
+conformance = "test/retryQueue.replay.test.ts replays quint run --mbt traces against src/queue/retryQueue.ts"
+```
 
 ## PR verification block
 
@@ -217,10 +236,8 @@ replays quint run --mbt traces"`.
 
 ## References
 
-- AI docs: https://quint.sh/llms.txt (there is no llms-full.txt). Manual: https://quint.sh/docs/quint,
-  model-based testing: https://quint.sh/docs/model-based-testing
-- Upstream skills (Apache-2.0): `quint-lang` and `quint-modeling` in quint-co/quint `skills/`, read at
-  95141d4691cce7e60104bdfcbc1d1b074f1cb789. Parts predate 0.34.0: they teach `--witnesses` and
-  say piped REPL input needs the TypeScript backend. Do not also install the LLM kit's older skills
-  of the same names.
-- Registry and loop: `spec-first`.
+- AI docs: https://quint.sh/llms.txt (no llms-full.txt). Manual: https://quint.sh/docs/quint and
+  https://quint.sh/docs/model-based-testing. Registry and loop: `spec-first`.
+- Upstream skills (Apache-2.0): `quint-lang` and `quint-modeling` in quint-co/quint `skills/` at
+  95141d4691cce7e60104bdfcbc1d1b074f1cb789. They predate 0.34.0 (`--witnesses`, piped-REPL advice).
+  The LLM kit ships older skills with the same names: do not install both.

@@ -116,17 +116,19 @@ real code.
 
 | Command | What it does |
 |---|---|
-| `agentctl spec toolchains` | Probes the pinned toolchains this machine has. |
-| `agentctl spec validate` | Validates `.agent-configs/specs.toml` against the schema and its rules. |
-| `agentctl spec list` | Lists the entries, their status and what they cover. |
-| `agentctl spec check` | Runs each entry's `check` in a bounded child process. |
-| `agentctl spec init` | Writes a registry template. Writes only with `--apply`. |
-| `agentctl spec block` | Writes the managed agent-loop block into AGENTS.md and CLAUDE.md. Writes only with `--apply`. |
-| `agentctl spec schema` | Prints the registry JSON Schema. |
+| `agentctl spec toolchains [--only IDS]` | Probes the pinned toolchains from `toolchains.yaml`. |
+| `agentctl spec validate` | Decodes `.agent-configs/specs.toml` and checks its paths. |
+| `agentctl spec list` | Shows the entries. |
+| `agentctl spec check [--only IDS] [--tool NAMES] [--changed-from REF]` | Runs each selected entry's `check` without a shell, in a bounded child process. `--changed-from` keeps the entries whose `covers` match files changed in `REF...HEAD`. |
+| `agentctl spec init [--apply]` | Prints the registry template; writes it with `--apply` when there is none. |
+| `agentctl spec block [--check \| --apply]` | Renders the managed agent-loop section of AGENTS.md and CLAUDE.md; `--check` reports drift, `--apply` writes. |
+| `agentctl spec schema [--check \| --write]` | Prints, checks or writes `specs.schema.json`. |
 
-Reports use the standard `{schema_version, summary, checks}` envelope. Flags are in
-`docs/verification.md`. Where `agentctl` is not installed, run each entry's `check` argv from the
-repository root and read its exit code and output yourself.
+Every subcommand takes `--repo DIR` (default: the current directory) and `--json`, which prints the
+standard `{schema_version, summary, checks}` envelope. Nothing is written without `--apply` or
+`--write`. A `planned` entry is reported as skipped, and an entry whose toolchain is missing as not
+run; neither counts as a pass. The full reference is `docs/verification.md`. Where `agentctl` is
+not installed, run each entry's `check` argv from the repository root and read its output yourself.
 
 ## Evidence rules
 
