@@ -9,6 +9,7 @@ import { ROOT, fileExists, readText, redactSecrets, runCommand, runCommandAsync,
 import { ACTION_TAKEN, ItfError, NONDET_PICKS, decodeItfValue, itfAction, itfPicks, parseItfTrace, type ItfValue } from "./itf.ts";
 import { classifyNanoKvmMcp, classifyProduct, envName, loadKvmTargets, mcpSnippet, nanoKvmKeyEnv, rowStatus } from "./kvm.ts";
 import { summarizeTailscaleStatus } from "./platform.ts";
+import { credentialScanChecks } from "./credential-scan.test.ts";
 import { SPEC_GATES, SPEC_KINDS, SPEC_STATUSES, SPEC_TOOLS, parseRegistry, type SpecEntry } from "./spec-registry.ts";
 import { entry, specRegistryChecks } from "./spec-registry.test.ts";
 import { POLICY_FILE, TOOLCHAINS_FILE, displayPath, hideHome, probeToolchain, readProbeVersion, type Toolchain } from "./toolchains.ts";
@@ -645,6 +646,7 @@ async function main(): Promise<void> {
   specCliChecks();
   encodingChecks();
   await redactionChecks();
+  credentialScanChecks();
   assert(!safeDetail('{"apiKey":"not-for-output"}').includes("not-for-output"), "structured secret detail was not redacted");
   assert((redactSecrets({ apiKey: "not-for-output", status: "ok" }) as any).apiKey === "<redacted>", "structured payload secret was not redacted");
   const tailnet = summarizeTailscaleStatus({

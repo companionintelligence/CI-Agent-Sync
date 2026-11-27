@@ -150,18 +150,8 @@ else
   print -u2 -- 'verify.sh: warning: pwsh is not installed; the PowerShell syntax check was skipped on this machine'
 fi
 
-# Only file names are printed. Printing matching lines would echo a secret into the log.
-# ripgrep exits 2 on any unreadable file, even when it found a match, so read the status.
-credential_pattern='(sk-[A-Za-z0-9]{16,}|ghp_[A-Za-z0-9]{20,}|xox[baprs]-|Bearer[[:space:]]+[A-Za-z0-9._-]{12,}|-----BEGIN (OPENSSH|RSA|EC) PRIVATE KEY-----)'
-credential_status=0
-rg -l --hidden -g '!work/**' -g '!.git/**' "$credential_pattern" . || credential_status=$?
-if (( credential_status == 0 )); then
-  print -u2 -- 'credential-like material found in the store (file names above; contents not printed)'
-  exit 1
-elif (( credential_status > 1 )); then
-  print -u2 -- "credential scan did not finish (ripgrep exit ${credential_status}); fix unreadable files and rerun"
-  exit 1
-fi
+# A credential-shaped string anywhere in the checkout fails the gate; see the script.
+scripts/scan-credentials.sh .
 
 if (( powershell_skipped )); then
   print 'agent-config store verification passed (PowerShell syntax check skipped: pwsh not installed)'
