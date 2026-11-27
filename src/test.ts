@@ -464,6 +464,82 @@ function specCliChecks(): void {
   assert(cli("bogus").exitCode === 2 && cli("check", "--write").exitCode === 2, "a bad spec command or option did not exit 2");
 }
 
+// Fake credential values, built at run time in every format the redactors know, in the
+// places they turn up. No redactor may let one through. Seeded, so a failure repeats.
+function generatedRedactionChecks(): void {
+  const seed = 0x5ec2e7;
+  let state = seed;
+  const draw = (alphabet: string, length: number): string => Array.from({ length }, () => {
+    state = (state * 48_271) % 2_147_483_647;
+    return alphabet[state % alphabet.length];
+  }).join("");
+  const mixed = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const digits = "0123456789";
+  const hex = "0123456789abcdef";
+  const shapes: Array<[string, () => string]> = [
+    ["an OpenAI key", () => `sk-${draw(mixed, 48)}`],
+    ["an OpenAI project key", () => `sk-proj-${draw(mixed, 48)}`],
+    ["an Anthropic key", () => `sk-ant-api03-${draw(mixed, 40)}`],
+    ["an OpenRouter key", () => `sk-or-v1-${draw(hex, 40)}`],
+    ["a Stripe key", () => `sk_live_${draw(mixed, 24)}`],
+    ["a Google API key", () => `AIza${draw(mixed, 35)}`],
+    ["a Hugging Face token", () => `hf_${draw(mixed, 34)}`],
+    ["an npm token", () => `npm_${draw(mixed, 36)}`],
+    ["a GitLab token", () => `glpat-${draw(mixed, 20)}`],
+    ["a GitHub token", () => `ghp_${draw(mixed, 36)}`],
+    ["a GitHub app token", () => `ghs_${draw(mixed, 36)}`],
+    ["a GitHub fine-grained token", () => `github_pat_${draw(mixed, 22)}_${draw(mixed, 59)}`],
+    ["a Slack bot token", () => ["xo", `xb-${draw(digits, 12)}-${draw(mixed, 24)}`].join("")],
+    ["a Slack app token", () => `xapp-1-${draw(upper, 11)}-${draw(digits, 13)}-${draw(hex, 64)}`],
+    ["an AWS access key id", () => `AKIA${draw(upper, 16)}`],
+    ["a temporary AWS access key id", () => `ASIA${draw(upper, 16)}`],
+    ["a JSON Web Token", () => `eyJ${draw(mixed, 20)}.eyJ${draw(mixed, 30)}.${draw(mixed, 43)}`],
+  ];
+  // Where a value sits says it is secret, whether or not it has a shape of its own.
+  const places: Array<[string, (value: string) => string]> = [
+    ["a Bearer header", (value) => `Authorization: Bearer ${value}`],
+    ["a token authorization header", (value) => `Authorization: token ${value}`],
+    ["an x-api-key header", (value) => `x-api-key: ${value}`],
+    ["a token variable", (value) => `export GITHUB_TOKEN=${value}`],
+    ["an AWS secret variable", (value) => `AWS_SECRET_ACCESS_KEY=${value}`],
+    ["a --token flag", (value) => `gh auth login --token ${value}`],
+    ["a --password= flag", (value) => `tool --password=${value} --verbose`],
+    ["a URL password", (value) => `https://x-access-token:${value}@example.invalid/o/r`],
+    ["a URL user", (value) => `https://${value}@example.invalid/o/r.git`],
+    ["a query token", (value) => `GET /callback?access_token=${value}&state=1`],
+    ["a JSON field", (value) => JSON.stringify({ apiKey: value, other: "kept" })],
+    ["a Cookie header", (value) => `Cookie: theme=dark; session=${value}`],
+  ];
+  const survivor = (text: string, value: string): string | null => {
+    if (safeDetail(text).includes(value)) return "safeDetail";
+    if (String(redactSecrets(text)).includes(value)) return "redactSecrets";
+    if (text.startsWith("{") && JSON.stringify(redactSecrets(JSON.parse(text))).includes(value)) return "redactSecrets on the object";
+    return null;
+  };
+  const check = (what: string, text: string, value: string, round: number): void => {
+    const found = survivor(text, value);
+    assert(found === null, `${found} let ${what} through (seed ${seed}, round ${round})`);
+  };
+  for (let round = 0; round < 25; round += 1) {
+    for (const [label, make] of shapes) {
+      const value = make();
+      check(`${label} in plain text`, `request failed for ${value} today`, value, round);
+      for (const [place, wrap] of places) check(`${label} in ${place}`, wrap(value), value, round);
+    }
+    for (const [place, wrap] of places) {
+      const value = `q1${draw(mixed, 30)}`;
+      check(`a value in ${place}`, wrap(value), value, round);
+    }
+  }
+  // A private key, whole or cut off, also when only the last 20 lines are kept.
+  const lines = [draw(mixed, 64), draw(mixed, 64)];
+  const kind = ["PRIVATE", "KEY"].join(" ");
+  const later = Array(19).fill("next line").join("\n");
+  check("a private key", `-----BEGIN ${kind}-----\n${lines.join("\n")}\n-----END ${kind}-----\n${later}`, lines[1], 0);
+  check("a cut-off private key", `-----BEGIN RSA ${kind}-----\n${lines.join("\n")}\n${later}`, lines[1], 0);
+}
+
 // Credential shapes in report output become a fixed placeholder, the text around them is
 // kept, and ordinary text passes through unchanged. Every value here is synthetic and is
 // built at run time, so the source holds nothing credential-shaped.
@@ -513,8 +589,16 @@ async function redactionChecks(): Promise<void> {
     "see https://example.invalid/docs#section and http://localhost:3000/path?x=1",
     "ssh://deploy@127.0.0.1:2222/srv/repo and http://[::1]:8080/health",
     "AKIA is a prefix, eyJ starts base64 JSON, and 4 of 4 checks passed",
+    "MAX_TOKENS=4096 TOKENIZERS_PARALLELISM=false TOKEN_URL=https://example.invalid/oauth",
+    "usage: tool --token <TOKEN> --password PASSWORD or --token-file ./token.txt",
+    "npm_config_cache=/tmp/cache npm_package_version=0.2.0, git@example.invalid:o/r.git",
   ];
-  for (const line of ordinary) assert(safeDetail(line) === line, `ordinary text was changed: ${safeDetail(line)}`);
+  for (const line of ordinary) {
+    assert(safeDetail(line) === line, `ordinary text was changed: ${safeDetail(line)}`);
+    assert(redactSecrets(line) === line, `ordinary payload text was changed: ${redactSecrets(line)}`);
+  }
+
+  generatedRedactionChecks();
 
   const payload = redactSecrets({ note: `pushed with ${github}`, nested: [`session ${jwt}`] }) as { note: string; nested: string[] };
   assert(payload.note === "pushed with [REDACTED]" && payload.nested[0] === "session [REDACTED]", "payload strings were not redacted with the same shapes");

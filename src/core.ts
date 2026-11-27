@@ -312,22 +312,49 @@ function isBasicCredential(value: string): boolean {
 
 /**
  * Replace each credential that has a recognisable shape with [REDACTED] and keep the text
- * around it: the password in a URL's userinfo, Bearer and Basic authorization values,
- * GitHub and Slack tokens, OpenAI- and Anthropic-style keys, AWS access key ids and JSON
- * Web Tokens. A secret without such a shape passes through, so this is best effort.
+ * around it: private key blocks, the password or a long token in a URL's userinfo, Bearer,
+ * Basic and other authorization values, GitHub, GitLab, Slack, Hugging Face and npm tokens,
+ * OpenAI-, Anthropic-, Google- and Stripe-style keys, AWS access key ids and JSON Web
+ * Tokens. A secret without such a shape passes through, so this is best effort.
  */
 export function redactCredentials(text: string): string {
   return text
+    // A private key block as a whole; one cut off before its END line goes to the end.
+    .replace(/-----BEGIN [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----[\s\S]*?(?:-----END [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----|$)/gu, REDACTED)
     // scheme://user:password@host keeps the scheme, the user and the host.
     .replace(/(?<![A-Za-z0-9+.-])([A-Za-z][A-Za-z0-9+.-]{0,31}:\/\/[^\s:/?#@]*:)[^\s/?#]+(?=@)/gu, `$1${REDACTED}`)
+    // A token alone in userinfo: long, with letters and digits, so git or deploy stay.
+    .replace(/(?<![A-Za-z0-9+.-])([A-Za-z][A-Za-z0-9+.-]{0,31}:\/\/)(?=[^\s:/?#@]*[0-9])(?=[^\s:/?#@]*[A-Za-z])[^\s:/?#@]{20,}(?=@)/gu, `$1${REDACTED}`)
     .replace(/(Bearer\s+)[A-Za-z0-9._~+\/-]+=*/giu, `$1${REDACTED}`)
-    .replace(/((?:proxy-)?authorization["']?\s*[:=]\s*["']?Basic\s+)[^\s"',;]+/giu, `$1${REDACTED}`)
+    .replace(/((?:proxy-)?authorization["']?\s*[:=]\s*["']?(?:Basic|token|apikey|api-key|oauth)\s+)(?!\[REDACTED\])[^\s"',;]+/giu, `$1${REDACTED}`)
     .replace(/\b(Basic\s+)([A-Za-z0-9+/]+={0,2})(?![A-Za-z0-9+/=])/giu, (match: string, scheme: string, value: string) => (isBasicCredential(value) ? `${scheme}${REDACTED}` : match))
-    .replace(/\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})/gu, REDACTED)
-    .replace(/\bxox[abprs]-[A-Za-z0-9-]{10,}/gu, REDACTED)
+    .replace(/\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|glpat-[A-Za-z0-9_-]{20,})/gu, REDACTED)
+    .replace(/\b(?:xox[abeoprs]|xapp)-[A-Za-z0-9-]{10,}/gu, REDACTED)
     .replace(/\bsk-[A-Za-z0-9_-]{8,}/gu, REDACTED)
-    .replace(/\bAKIA[0-9A-Z]{16}\b/gu, REDACTED)
+    .replace(/\b(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{16,}/gu, REDACTED)
+    .replace(/\bAIza[0-9A-Za-z_-]{35}/gu, REDACTED)
+    .replace(/\b(?:hf|npm)_[A-Za-z0-9]{30,}/gu, REDACTED)
+    .replace(/\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/gu, REDACTED)
     .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*/gu, REDACTED);
+}
+
+/**
+ * Redact a value that has no shape of its own, by where it sits: a Cookie or API-key
+ * header, an environment variable whose name ends in a secret word, a command-line flag,
+ * a URL query token or a secret field in embedded JSON. $VARIABLES and <placeholders>
+ * stay readable.
+ */
+function redactNamedValues(text: string): string {
+  return text
+    // A cookie header whole: later pairs carry values too.
+    .replace(/(\b(?:set-)?cookie[ \t]*:[ \t]*)(?!\[REDACTED\])[^\s"][^\r\n"]*/giu, `$1${REDACTED}`)
+    .replace(/((?:x-api-key|x-auth-token|api-key)[ \t]*:[ \t]*)(?!\[REDACTED\]|[$<])[^\s,;}"']+/giu, `$1${REDACTED}`)
+    // GITHUB_TOKEN=, AWS_SECRET_ACCESS_KEY=, but not MAX_TOKENS= or TOKEN_URL=.
+    .replace(/\b([A-Z0-9_]*(?:SECRET|TOKEN|PASSWORD|PASSWD|CREDENTIALS?|API_?KEYS?|ACCESS_KEY|PRIVATE_KEY)(?:_(?:KEY|ID|VALUE|JSON|B64|BASE64))?=)(?!["']?(?:\[REDACTED\]|[$<])|(?:\d+|true|false)(?![^\s;,&}"']))("[^"]*"|'[^']*'|[^\s;,&}"']+)/gu, `$1${REDACTED}`)
+    // --token X, --api-key=X, --client-secret X.
+    .replace(/((?<![A-Za-z0-9-])--?(?:[a-z0-9]+-)*(?:token|api-?key|secret|password|passwd|credential)(?:=|[ \t]+))(?![-<\[$]|["']?\[REDACTED\]|[A-Z][A-Z_]*(?![A-Za-z0-9]))("[^"]*"|'[^']*'|[^\s;]+)/gu, `$1${REDACTED}`)
+    .replace(/([?&](?:access_token|refresh_token|id_token|token|api_key|apikey|client_secret)=)(?!\[REDACTED\])[^&#\s"']+/giu, `$1${REDACTED}`)
+    .replace(/("(?:api_?key|access_?token|refresh_?token|id_?token|auth_?token|client_?secret|password|secret|token)"\s*:\s*")(?!\[REDACTED\]|[$<])[^"]+(?=")/giu, `$1${REDACTED}`);
 }
 
 /**
@@ -335,11 +362,11 @@ export function redactCredentials(text: string): string {
  * non-empty lines kept, at most `maxLength` characters.
  */
 export function safeDetail(value: unknown, maxLength = 5_000): string {
-  let cleaned = redactCredentials(String(value ?? "").replace(/\u001b\[[0-?]*[ -\/]*[@-~]/g, ""));
-  // The value after a secret-named key, unless a credential shape above has replaced it.
+  let cleaned = redactNamedValues(redactCredentials(String(value ?? "").replace(/\u001b\[[0-?]*[ -\/]*[@-~]/g, "")));
+  // Command output also loses the value after any secret-named key.
   cleaned = cleaned
-    .replace(/((?:api[_-]?key|token|secret|password|credential|authorization|cookie)\s*[:=]\s*)(?!(?:(?:Basic|Bearer)\s+)?\[REDACTED\])[^\s,}\"]+/gi, "$1[REDACTED]")
-    .replace(/((?:["']?)(?:api[_-]?key|token|secret|password|credential|authorization|cookie)(?:["']?\s*[:=]\s*))(?!["']?(?:(?:Basic|Bearer)\s+)?\[REDACTED\])(["'][^"']*["']|[^,}\s]+)/gi, "$1[REDACTED]");
+    .replace(/((?:api[_-]?key|token|secret|password|credential|authorization|cookie)\s*[:=]\s*)(?!(?:(?:Basic|Bearer|token|apikey|api-key|oauth)\s+)?\[REDACTED\])[^\s,}\"]+/gi, "$1[REDACTED]")
+    .replace(/((?:["']?)(?:api[_-]?key|token|secret|password|credential|authorization|cookie)(?:["']?\s*[:=]\s*))(?!["']?(?:(?:Basic|Bearer|token|apikey|api-key|oauth)\s+)?\[REDACTED\])(["'][^"']*["']|[^,}\s]+)/gi, "$1[REDACTED]");
   return cleaned.split(/\r?\n/).filter(Boolean).slice(-20).join("\n").slice(0, maxLength);
 }
 
@@ -351,7 +378,7 @@ export function redactSecrets(value: unknown): unknown {
   if (value && typeof value === "object") {
     return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, SENSITIVE_KEY.test(key) ? "<redacted>" : redactSecrets(child)]));
   }
-  if (typeof value === "string") return redactCredentials(value);
+  if (typeof value === "string") return redactNamedValues(redactCredentials(value));
   return value;
 }
 
