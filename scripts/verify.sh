@@ -80,8 +80,6 @@ quiet ruby -c scripts/marketplace-audit.rb
 quiet ruby -c scripts/test_marketplace_audit.rb
 quiet ruby -c scripts/atlas-web.rb
 quiet ruby -c scripts/test_atlas_web.rb
-quiet ruby -c scripts/companion-cli.rb
-quiet ruby -c scripts/test_companion_cli.rb
 quiet npm run build
 
 # web/app.js is committed, so a bundle built from an older web/app.ts would ship unnoticed.
@@ -123,7 +121,7 @@ ruby -ryaml -e '
 ' integrations/providers/fallbacks.yaml
 
 # scripts/test.rb runs the fixtures for sync, process helpers, the Hub and Memory control
-# rooms, the marketplace audit, the web bundle and the companion CLI. The gate used to
+# rooms, the marketplace audit and the web bundle. The gate used to
 # syntax-check most of those files without running them, so run the aggregate itself.
 quiet ruby scripts/test.rb
 quiet ruby scripts/test_action_ledger.rb
