@@ -49,6 +49,7 @@
     "!scripts/test.rb",
     "!scripts/test_*.rb",
     "!scripts/verify.sh",
+    "!scripts/scan-credentials.sh",
     "!web/app.ts",
     "!profiles/machines/local.yaml",
     "!sync/targets.yaml",
