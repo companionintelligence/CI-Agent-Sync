@@ -128,6 +128,7 @@ export function storeCommandChecks(): void {
     renderChecks(folder);
     auditCheck();
     if (process.platform === "darwin" && commandPath("rg")) openclawInstallerChecks(folder);
+    else console.log("store command checks: skipped the OpenClaw installer, which needs macOS and ripgrep");
   } finally {
     rmSync(folder, { recursive: true, force: true });
   }
