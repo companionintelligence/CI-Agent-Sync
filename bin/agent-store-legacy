@@ -226,6 +226,8 @@ inventory() {
     "openclaw|openclaw|$HOME/.openclaw/openclaw.json"
     "claude|claude|$HOME/.claude"
     "codex|codex|$HOME/.codex"
+    "gemini|gemini|$HOME/.gemini/settings.json"
+    "copilot|copilot|$HOME/.copilot"
     "antigravity|/Applications/Antigravity.app|$HOME/.gemini/antigravity"
     "opencode|opencode|$HOME/.config/opencode/opencode.jsonc"
     "ollama|ollama|$HOME/.ollama"

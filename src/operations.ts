@@ -220,6 +220,8 @@ export function renderArtifacts(options: { agent?: string; machine?: string; out
       openclaw: ["~/.openclaw/openclaw.json", "./bin/agent-store with companion-hub -- openclaw"],
       claude: ["~/.claude", "./bin/agent-store with anthropic -- claude"],
       codex: ["~/.codex", "./bin/agent-store with openai -- codex"],
+      gemini: ["~/.gemini/settings.json", "sign in with Google in the CLI"],
+      copilot: ["~/.copilot", "sign in with GitHub in the CLI"],
       opencode: ["~/.config/opencode/opencode.jsonc", "./bin/agent-store with omniroute -- opencode"],
       "aider-desk": ["~/Library/Application Support/aider-desk", "configure provider in the desktop UI"],
       antigravity: ["~/.gemini/antigravity", "configure provider in the desktop UI"],

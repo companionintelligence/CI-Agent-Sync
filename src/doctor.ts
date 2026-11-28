@@ -125,6 +125,8 @@ function configPaths(): Record<string, string> {
     claude: join(HOME, ".claude"),
     chatgpt: join(HOME, "Library", "Application Support", "com.openai.chat"),
     codex: join(HOME, ".codex"),
+    gemini: join(HOME, ".gemini"),
+    copilot: join(HOME, ".copilot"),
     opencode: join(HOME, ".config", "opencode"),
     ollama: join(HOME, ".ollama"),
     "aider-desk": join(HOME, "Library", "Application Support", "aider-desk"),
@@ -172,7 +174,7 @@ export async function doctor(options: { json?: boolean; strict?: boolean } = {})
   const compatibility = commandPath("ruby");
   add(checks, "command.ruby-legacy", compatibility ? "info" : "warn", compatibility ? "available for legacy compatibility scripts" : "not installed; specialized legacy commands unavailable");
 
-  const optional = ["code", "hermes", "openclaw", "claude", "codex", "opencode", "ollama", "wrangler", "cihub", "tailscale", "npx", "pnpm", "yarn", "docker"];
+  const optional = ["code", "hermes", "openclaw", "claude", "codex", "gemini", "copilot", "opencode", "ollama", "wrangler", "cihub", "tailscale", "npx", "pnpm", "yarn", "docker"];
   for (const command of optional) {
     const path = commandPath(command);
     add(checks, `command.${command}`, path ? "ok" : "warn", path ? `${commandVersionText(command) || "installed"} — ${path}` : "not installed on this machine");

@@ -7,6 +7,8 @@ type DefaultSkill = { id: string; pinned_commit: string; installs?: Record<strin
 const SKILL_DIRS: Record<string, string[]> = {
   claude: [join(HOME, ".claude", "skills"), join(HOME, ".claude", "plugins")],
   codex: [join(HOME, ".codex", "skills"), join(HOME, ".agents", "skills")],
+  gemini: [join(HOME, ".gemini", "skills")],
+  copilot: [join(HOME, ".copilot", "skills")],
   opencode: [join(HOME, ".config", "opencode", "skills")],
   hermes: [join(HOME, ".hermes", "skills")],
   openclaw: [join(HOME, ".openclaw", "skills")],
