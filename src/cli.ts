@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
 import { skillsCommand } from "./skills.ts";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { companionCommand } from "./companion.ts";
-import { ROOT, commandPath, legacyScript, legacyStore, outputResult, parseArgs, runCommand, runInteractive } from "./core.ts";
+import { ROOT, commandPath, legacyScript, legacyStore, outputResult, parseArgs, redactText, runCommand, runInteractive, writeText } from "./core.ts";
+import { configKind, redactConfigText } from "./redact-config.ts";
 import { conformanceCommand, harnessSmokeCommand } from "./diagnostics.ts";
 import { startAtlas } from "./atlas-web.ts";
 import { createBackup, renderArtifacts } from "./operations.ts";
@@ -27,6 +29,7 @@ Usage:
   agentctl harness-smoke [--json] [--live-local] [--agent NAME] [--timeout SECONDS]
   agentctl platform preflight|evidence [--json] [--strict] [--output PATH]
   agentctl backup [--dry-run] [--output PATH]
+  agentctl redact < TEXT | redact-config INPUT OUTPUT
   agentctl render [--agent NAME] [--machine NAME] [--output PATH] [--force]
   agentctl spec toolchains|validate|list|check|init|block|schema [options]
   agentctl <compatibility command> [...]
@@ -68,6 +71,25 @@ function parseBackup(args: string[]): number {
   }
 }
 
+// `agentctl audit` pipes native tool output through this, and snapshots use redact-config,
+// so both share the redaction that backups use.
+function redactStream(): number {
+  process.stdout.write(redactText(readFileSync(0, "utf8")));
+  return 0;
+}
+
+function redactConfigFile(args: string[]): number {
+  const [input, output] = args;
+  if (!input || !output) { console.error("usage: agentctl redact-config INPUT OUTPUT"); return 2; }
+  try {
+    writeText(resolve(output), redactConfigText(readFileSync(input, "utf8"), configKind(input)));
+    return 0;
+  } catch (error) {
+    console.error(`${input}: ${error instanceof Error ? error.message : "could not be redacted"}`);
+    return 1;
+  }
+}
+
 function legacy(script: string, args: string[]): number {
   return outputResult(legacyScript(script, args));
 }
@@ -97,6 +119,8 @@ async function agentctlCommand(args: string[]): Promise<number> {
     case "tui": return companionCommand(["tui", ...args]);
     case "backup": return parseBackup(args);
     case "render": return parseRender(args);
+    case "redact": return redactStream();
+    case "redact-config": return redactConfigFile(args);
     // Loaded on demand. The spec commands load Effect through the registry decoder, as
     // `validate` and `check` do; the other commands never load it.
     case "spec": {

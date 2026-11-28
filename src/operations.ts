@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, type Stats } from "node:fs";
 import { join, dirname, basename, resolve } from "node:path";
-import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
+import { redactConfigText, type ConfigKind } from "./redact-config.ts";
 import {
   HOME,
   ROOT,
@@ -240,29 +240,39 @@ export function renderArtifacts(options: { agent?: string; machine?: string; out
   return { output: outputRoot, outputs, machine: context.name };
 }
 
-type BackupSource = { relative: string; source: string; kind: "json" | "yaml" | "text" };
+type BackupSource = { relative: string; source: string; kind: ConfigKind; select?: (document: any) => unknown };
 
 function hermesConfigPath(): string {
   const hermes = runCommand("hermes", ["config", "path"], { timeoutMs: 5_000 });
   return hermes.exitCode === 0 && hermes.stdout.trim() ? hermes.stdout.trim() : join(HOME, ".hermes", "config.yaml");
 }
 
+// For files that hold app state beside the MCP servers, only the servers are copied.
+const mcpServersOnly = (document: any): unknown => ({ mcpServers: document?.mcpServers ?? {} });
+
 export function backupSources(): BackupSource[] {
-  return [
+  const support = join(HOME, "Library", "Application Support");
+  const sources: Array<[string, string, ConfigKind, BackupSource["select"]?]> = [
     ["hermes/config.yaml", hermesConfigPath(), "yaml"],
     ["openclaw/openclaw.json", join(HOME, ".openclaw", "openclaw.json"), "json"],
     ["claude/settings.json", join(HOME, ".claude", "settings.json"), "json"],
     ["claude/claude.json", join(HOME, ".claude", ".claude.json"), "json"],
-    ["codex/config.toml", join(HOME, ".codex", "config.toml"), "text"],
-    ["opencode/opencode.jsonc", join(HOME, ".config", "opencode", "opencode.jsonc"), "text"],
-    ["aider-desk/config.json", join(HOME, "Library", "Application Support", "aider-desk", "config.json"), "json"],
-    ["aider-desk/mcp-servers.json", join(HOME, "Library", "Application Support", "aider-desk", "mcp-servers.json"), "json"],
-    ["antigravity/mcp_config.jsonc", join(HOME, ".gemini", "antigravity-ide", "mcp_config.json"), "text"],
+    // Claude Code keeps user-scope MCP servers in ~/.claude.json, beside per-project history.
+    ["claude/mcp-servers.json", join(HOME, ".claude.json"), "json", mcpServersOnly],
+    ["claude-desktop/mcp-servers.json", join(support, "Claude", "claude_desktop_config.json"), "json", mcpServersOnly],
+    ["codex/config.toml", join(HOME, ".codex", "config.toml"), "toml"],
+    ["gemini/settings.json", join(HOME, ".gemini", "settings.json"), "json"],
+    ["copilot/mcp-config.json", join(HOME, ".copilot", "mcp-config.json"), "json"],
+    ["opencode/opencode.jsonc", join(HOME, ".config", "opencode", "opencode.jsonc"), "json"],
+    ["aider-desk/config.json", join(support, "aider-desk", "config.json"), "json"],
+    ["aider-desk/mcp-servers.json", join(support, "aider-desk", "mcp-servers.json"), "json"],
+    ["antigravity/mcp_config.jsonc", join(HOME, ".gemini", "antigravity-ide", "mcp_config.json"), "json"],
     ["pi/models.json", join(HOME, ".pi", "agent", "models.json"), "json"],
     ["pi/models-store.json", join(HOME, ".pi", "agent", "models-store.json"), "json"],
-    ["vscode/settings.json", join(HOME, "Library", "Application Support", "Code", "User", "settings.json"), "json"],
-    ["vscode/mcp.json", join(HOME, "Library", "Application Support", "Code", "User", "mcp.json"), "json"],
-  ].map(([relative, source, kind]) => ({ relative, source, kind: kind as BackupSource["kind"] }));
+    ["vscode/settings.json", join(support, "Code", "User", "settings.json"), "json"],
+    ["vscode/mcp.json", join(support, "Code", "User", "mcp.json"), "json"],
+  ];
+  return sources.map(([relative, source, kind, select]) => ({ relative, source, kind, ...(select ? { select } : {}) }));
 }
 
 export function backupPlan(): { output: string; sources: Array<{ path: string; status: string }> } {
@@ -270,40 +280,9 @@ export function backupPlan(): { output: string; sources: Array<{ path: string; s
   return { output, sources: backupSources().map(({ relative, source }) => ({ path: relative, status: fileExists(source) ? "copy" : "skip" })) };
 }
 
-const SENSITIVE_KEY = /api[._-]?key|(?:access|refresh|auth|gateway|remote)?[._-]?token$|(?:^|[._-])token(?:$|[._-])|secret|password|credential|cookie|session[._-]?key|private[._-]?key|authorization|oauth|auth$/i;
-
-function scrub(value: any, key?: string): any {
-  if (key && SENSITIVE_KEY.test(key)) return "<redacted>";
-  if (Array.isArray(value)) return value.map((child) => scrub(child, key));
-  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([childKey, child]) => [childKey, scrub(child, childKey)]));
-  if (typeof value === "string" && value.length > 300) return `<long string ${value.length} chars>`;
-  return value;
-}
-
-function redactSource(source: BackupSource, destination: string): void {
-  const raw = readFileSync(source.source, "utf8");
-  if (source.kind === "json") {
-    writeJson(destination, scrub(JSON.parse(raw)));
-    return;
-  }
-  if (source.kind === "yaml") {
-    writeText(destination, stringifyYaml(scrub(parseYamlSafe(raw))));
-    return;
-  }
-  const pattern = /((?:api[_-]?key|token|secret|password|credential|authorization|cookie|session[_-]?key|private[_-]?key|oauth|auth)\s*[:=]\s*)([^,;\s}]+|"[^"]*"|'[^']*')/gi;
-  writeText(destination, `${raw.split(/\r?\n/).map((line) => line.replace(pattern, "$1<redacted>")).join("\n").replace(/\n*$/, "\n")}`);
-}
-
-function parseYamlSafe(raw: string): any {
-  try {
-    return readYamlFromString(raw);
-  } catch {
-    return { redaction_error: "YAML could not be parsed", content: raw.slice(0, 300) };
-  }
-}
-
-function readYamlFromString(raw: string): any {
-  return parseYaml(raw);
+// Nothing is written unless the whole file parsed and was redacted.
+export function redactSource(source: BackupSource, destination: string): void {
+  writeText(destination, redactConfigText(readFileSync(source.source, "utf8"), source.kind, { select: source.select }));
 }
 
 export function createBackup(options: { output?: string; dryRun?: boolean } = {}): { output: string; records: any[] } {
@@ -323,7 +302,7 @@ export function createBackup(options: { output?: string; dryRun?: boolean } = {}
       redactSource(source, destination);
       records.push({ path: source.relative, status: "copied-redacted", sha256: createHash("sha256").update(readFileSync(destination)).digest("hex") });
     } catch (error) {
-      records.push({ path: source.relative, status: "redaction-error", detail: String(error) });
+      records.push({ path: source.relative, status: "redaction-error", detail: error instanceof Error ? error.message : "could not be redacted" });
     }
   }
   // Keep backups on the TypeScript control-plane path. The old Ruby doctor

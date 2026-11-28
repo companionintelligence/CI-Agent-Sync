@@ -12,6 +12,14 @@ busted:
 Backups are redacted and stored below `local/backups/`. They do not contain
 OAuth sessions, native app databases, device identities, or provider keys.
 
+Backups, `agent-store snapshot` and `agentctl audit` share one redactor. It
+replaces values under secret-named keys, everything in `env` and `headers`
+blocks, the argument after options such as `--token`, and recognised token
+formats. `${VARIABLE}` and `op://` references stay readable. For Claude Code and
+Claude Desktop only the MCP servers are copied. A file that cannot be parsed is
+not copied and is reported as `redaction-error`. Redaction is best effort, so
+read a snapshot before you commit or share it.
+
 For a service that is reachable but unauthenticated, set the credential through
 1Password and retry the health check. Do not paste it into a config file:
 

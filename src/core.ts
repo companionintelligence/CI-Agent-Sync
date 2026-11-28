@@ -359,19 +359,25 @@ function redactNamedValues(text: string): string {
 }
 
 /**
+ * Text with its credentials redacted: shapes, known positions, and the value after any
+ * secret-named key.
+ */
+export function redactText(text: string): string {
+  return redactNamedValues(redactCredentials(text))
+    .replace(/((?:api[_-]?key|token|secret|password|credential|authorization|cookie)\s*[:=]\s*)(?!(?:(?:Basic|Bearer|token|apikey|api-key|oauth)\s+)?\[REDACTED\])[^\s,}\"]+/gi, "$1[REDACTED]")
+    .replace(/((?:["']?)(?:api[_-]?key|token|secret|password|credential|authorization|cookie)(?:["']?\s*[:=]\s*))(?!["']?(?:(?:Basic|Bearer|token|apikey|api-key|oauth)\s+)?\[REDACTED\])(["'][^"']*["']|[^,}\s]+)/gi, "$1[REDACTED]");
+}
+
+/**
  * Command output for a report: escape codes removed, credentials redacted, and the last 20
  * non-empty lines kept, at most `maxLength` characters.
  */
 export function safeDetail(value: unknown, maxLength = 5_000): string {
-  let cleaned = redactNamedValues(redactCredentials(String(value ?? "").replace(/\u001b\[[0-?]*[ -\/]*[@-~]/g, "")));
-  // Command output also loses the value after any secret-named key.
-  cleaned = cleaned
-    .replace(/((?:api[_-]?key|token|secret|password|credential|authorization|cookie)\s*[:=]\s*)(?!(?:(?:Basic|Bearer|token|apikey|api-key|oauth)\s+)?\[REDACTED\])[^\s,}\"]+/gi, "$1[REDACTED]")
-    .replace(/((?:["']?)(?:api[_-]?key|token|secret|password|credential|authorization|cookie)(?:["']?\s*[:=]\s*))(?!["']?(?:(?:Basic|Bearer|token|apikey|api-key|oauth)\s+)?\[REDACTED\])(["'][^"']*["']|[^,}\s]+)/gi, "$1[REDACTED]");
+  const cleaned = redactText(String(value ?? "").replace(/\u001b\[[0-?]*[ -\/]*[@-~]/g, ""));
   return cleaned.split(/\r?\n/).filter(Boolean).slice(-20).join("\n").slice(0, maxLength);
 }
 
-const SENSITIVE_KEY = /api[._-]?key|(?:access|refresh|auth|gateway|remote)?[._-]?token$|(?:^|[._-])token(?:$|[._-])|secret|password|credential|cookie|session[._-]?key|private[._-]?key|authorization|oauth|auth$/i;
+export const SENSITIVE_KEY =/api[._-]?key|(?:access|refresh|auth|gateway|remote)?[._-]?token$|(?:^|[._-])token(?:$|[._-])|secret|password|credential|cookie|session[._-]?key|private[._-]?key|authorization|oauth|auth$/i;
 
 /** Redact secret-bearing object fields before returning probe payloads. */
 export function redactSecrets(value: unknown): unknown {
