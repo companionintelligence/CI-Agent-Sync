@@ -76,6 +76,8 @@ client_defaults:
   codex: [core]
   hermes: []
   openclaw: [core]
+  gemini: []
+  copilot: []
   opencode: [core]
   vscode: [development]
   aider-desk: []

@@ -15,7 +15,10 @@ fi
   exit 2
 }
 
-if ! "$STORE_ROOT/bin/agent-store" credentials status | rg -q '^  ✓ omlx '; then
+# Read the whole report first: rg -q stops at the match, and the rest of the report
+# would then hit a closed pipe and fail the check.
+credential_status="$("$STORE_ROOT/bin/agent-store" credentials status)"
+if ! print -r -- "$credential_status" | rg -q '^  ✓ omlx '; then
   print -u2 "Set the local oMLX credential first: ./bin/agent-store credentials set omlx"
   exit 2
 fi
@@ -41,16 +44,19 @@ EOF
 chmod 755 "$tmp_wrapper"
 mv "$tmp_wrapper" "$wrapper"
 
-# Let OpenClaw create or refresh its native LaunchAgent, preserving its
-# generated gateway-auth environment. Then replace only the executable with
-# the credential-injecting wrapper.
+# Let OpenClaw create or refresh its native LaunchAgent. Then put the credential
+# wrapper where the OpenClaw executable was, keeping what runs before it (newer
+# releases load the gateway token and PATH through a service-env wrapper) and the
+# gateway arguments after it.
 "$OPENCLAW_BIN" gateway install >/dev/null
-/usr/libexec/PlistBuddy -c 'Delete :ProgramArguments' "$plist"
-/usr/libexec/PlistBuddy -c 'Add :ProgramArguments array' "$plist"
-/usr/libexec/PlistBuddy -c "Add :ProgramArguments:0 string $wrapper" "$plist"
-/usr/libexec/PlistBuddy -c 'Add :ProgramArguments:1 string gateway' "$plist"
-/usr/libexec/PlistBuddy -c 'Add :ProgramArguments:2 string --port' "$plist"
-/usr/libexec/PlistBuddy -c 'Add :ProgramArguments:3 string 18789' "$plist"
+program_arguments="$(plutil -extract ProgramArguments json -o - "$plist" | WRAPPER="$wrapper" node -e '
+  const args = JSON.parse(require("fs").readFileSync(0, "utf8"));
+  const verb = args.indexOf("gateway");
+  const kept = /env-wrapper\.sh$/.test(args[1] || "") ? 3 : 0;
+  if (verb <= kept) process.exit(3);
+  process.stdout.write(JSON.stringify([...args.slice(0, kept), process.env.WRAPPER, ...args.slice(verb)]));
+')" || { print -u2 "The LaunchAgent OpenClaw wrote has no recognisable gateway command; left unchanged: $plist"; exit 2; }
+plutil -replace ProgramArguments -json "$program_arguments" "$plist"
 
 uid="$(id -u)"
 launchctl bootout "gui/$uid" "$plist" 2>/dev/null || true

@@ -50,6 +50,22 @@ harnesses:
       windows: "${USERPROFILE}/.codex"
     capabilities: [chat, coding, mcp, skills]
     smoke: version
+  gemini:
+    command: gemini
+    config_paths:
+      macos: "${HOME}/.gemini"
+      linux: "${HOME}/.gemini"
+      windows: "${USERPROFILE}/.gemini"
+    capabilities: [chat, coding, mcp, skills]
+    smoke: version
+  copilot:
+    command: copilot
+    config_paths:
+      macos: "${HOME}/.copilot"
+      linux: "${HOME}/.copilot"
+      windows: "${USERPROFILE}/.copilot"
+    capabilities: [chat, coding, mcp, skills]
+    smoke: version
   opencode:
     command: opencode
     app_paths: ["/Applications/OpenCode.app", "${HOME}/Applications/OpenCode.app"]

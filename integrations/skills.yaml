@@ -23,6 +23,8 @@ default_skills:
       opencode: copy SKILL.md to ~/.config/opencode/skills/humanizer/SKILL.md
       hermes: copy SKILL.md to ~/.hermes/skills/humanizer/SKILL.md
       openclaw: copy SKILL.md to ~/.openclaw/skills/humanizer/SKILL.md
+      gemini: npx skills add blader/humanizer --global --agent gemini-cli
+      copilot: npx skills add blader/humanizer --global --agent github-copilot
       vscode: npx skills add blader/humanizer --global --agent github-copilot
       antigravity: npx skills add blader/humanizer --global --agent '*'
       pi: copy SKILL.md to ~/.pi/skills/humanizer/SKILL.md
@@ -48,6 +50,8 @@ first_party_skills:
     opencode: copy skills/{id}/SKILL.md to ~/.config/opencode/skills/{id}/SKILL.md
     hermes: copy skills/{id}/SKILL.md to ~/.hermes/skills/{id}/SKILL.md
     openclaw: copy skills/{id}/SKILL.md to ~/.openclaw/skills/{id}/SKILL.md
+    gemini: DISABLE_TELEMETRY=1 npx skills@1.9.0 add companionintelligence/CI-Agent-Sync@{commit} --skill {id} --global --agent gemini-cli
+    copilot: DISABLE_TELEMETRY=1 npx skills@1.9.0 add companionintelligence/CI-Agent-Sync@{commit} --skill {id} --global --agent github-copilot
     vscode: DISABLE_TELEMETRY=1 npx skills@1.9.0 add companionintelligence/CI-Agent-Sync@{commit} --skill {id} --global --agent github-copilot
     antigravity: DISABLE_TELEMETRY=1 npx skills@1.9.0 add companionintelligence/CI-Agent-Sync@{commit} --skill {id} --global --agent antigravity
     pi: copy skills/{id}/SKILL.md to ~/.pi/skills/{id}/SKILL.md

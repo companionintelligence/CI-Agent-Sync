@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync, cpSync, statSync } from "node:fs";
 import { homedir, platform } from "node:os";
-import { delimiter, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, delimiter, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
@@ -299,7 +299,35 @@ export function runCommandAsync(command: string, args: string[] = [], options: C
 
 export function runInteractive(command: string, args: string[] = [], cwd = ROOT): number {
   const result = spawnSync(command, args, { cwd, env: childEnv(), stdio: "inherit" });
+  if (result.error) console.error(`Could not run ${command}: ${result.error.message}`);
   return result.status ?? 1;
+}
+
+/**
+ * A command that reads Hermes' version from package metadata without starting Hermes, or
+ * null when its launcher offers no safe way. Hermes loads the desktop secret store as it
+ * starts, and its `-c` means "continue a session", so the launcher itself is never run.
+ */
+export function hermesMetadataCommand(executable: string | null): [string, string[]] | null {
+  if (!executable) return null;
+  const read = (path: string): string => readFileSync(path, "utf8").slice(0, 16_384);
+  const query = ["-I", "-c", "import importlib.metadata as m; print(m.version('hermes-agent'))"];
+  try {
+    let script = executable;
+    // Launchers hand over through one or two shell scripts before Python.
+    for (let hop = 0; hop < 3; hop += 1) {
+      const match = /^\s*exec\s+(?:"([^"]+)"|'([^']+)'|(\S+))\s/mu.exec(read(script));
+      const target = match?.[1] || match?.[2] || match?.[3];
+      if (!target || !existsSync(target)) return null;
+      if (/^python[0-9.]*$/u.test(basename(target))) return [target, query];
+      const sibling = join(dirname(target), "python3");
+      if (existsSync(sibling) && read(target).includes("hermes_cli")) return [sibling, query];
+      script = target;
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 const REDACTED = "[REDACTED]";
@@ -359,19 +387,25 @@ function redactNamedValues(text: string): string {
 }
 
 /**
+ * Text with its credentials redacted: shapes, known positions, and the value after any
+ * secret-named key.
+ */
+export function redactText(text: string): string {
+  return redactNamedValues(redactCredentials(text))
+    .replace(/((?:api[_-]?key|token|secret|password|credential|authorization|cookie)\s*[:=]\s*)(?!(?:(?:Basic|Bearer|token|apikey|api-key|oauth)\s+)?\[REDACTED\])[^\s,}\"]+/gi, "$1[REDACTED]")
+    .replace(/((?:["']?)(?:api[_-]?key|token|secret|password|credential|authorization|cookie)(?:["']?\s*[:=]\s*))(?!["']?(?:(?:Basic|Bearer|token|apikey|api-key|oauth)\s+)?\[REDACTED\])(["'][^"']*["']|[^,}\s]+)/gi, "$1[REDACTED]");
+}
+
+/**
  * Command output for a report: escape codes removed, credentials redacted, and the last 20
  * non-empty lines kept, at most `maxLength` characters.
  */
 export function safeDetail(value: unknown, maxLength = 5_000): string {
-  let cleaned = redactNamedValues(redactCredentials(String(value ?? "").replace(/\u001b\[[0-?]*[ -\/]*[@-~]/g, "")));
-  // Command output also loses the value after any secret-named key.
-  cleaned = cleaned
-    .replace(/((?:api[_-]?key|token|secret|password|credential|authorization|cookie)\s*[:=]\s*)(?!(?:(?:Basic|Bearer|token|apikey|api-key|oauth)\s+)?\[REDACTED\])[^\s,}\"]+/gi, "$1[REDACTED]")
-    .replace(/((?:["']?)(?:api[_-]?key|token|secret|password|credential|authorization|cookie)(?:["']?\s*[:=]\s*))(?!["']?(?:(?:Basic|Bearer|token|apikey|api-key|oauth)\s+)?\[REDACTED\])(["'][^"']*["']|[^,}\s]+)/gi, "$1[REDACTED]");
+  const cleaned = redactText(String(value ?? "").replace(/\u001b\[[0-?]*[ -\/]*[@-~]/g, ""));
   return cleaned.split(/\r?\n/).filter(Boolean).slice(-20).join("\n").slice(0, maxLength);
 }
 
-const SENSITIVE_KEY = /api[._-]?key|(?:access|refresh|auth|gateway|remote)?[._-]?token$|(?:^|[._-])token(?:$|[._-])|secret|password|credential|cookie|session[._-]?key|private[._-]?key|authorization|oauth|auth$/i;
+export const SENSITIVE_KEY =/api[._-]?key|(?:access|refresh|auth|gateway|remote)?[._-]?token$|(?:^|[._-])token(?:$|[._-])|secret|password|credential|cookie|session[._-]?key|private[._-]?key|authorization|oauth|auth$/i;
 
 /** Redact secret-bearing object fields before returning probe payloads. */
 export function redactSecrets(value: unknown): unknown {
@@ -447,10 +481,6 @@ export function legacyScript(script: string, args: string[] = [], timeoutMs = 60
 export function legacyScriptAsync(script: string, args: string[] = [], timeoutMs = 60_000): Promise<CommandResult> {
   const ruby = commandPath("ruby") || "ruby";
   return runCommandAsync(ruby, [join(ROOT, "scripts", script), ...args], { timeoutMs });
-}
-
-export function legacyStore(args: string[] = [], timeoutMs = 60_000): CommandResult {
-  return runCommand(join(ROOT, "bin", "agent-store-legacy"), args, { timeoutMs });
 }
 
 // Arguments for `node` that run this control plane again. A checkout and the Homebrew

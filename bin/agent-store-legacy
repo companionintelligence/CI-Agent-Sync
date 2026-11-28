@@ -226,6 +226,8 @@ inventory() {
     "openclaw|openclaw|$HOME/.openclaw/openclaw.json"
     "claude|claude|$HOME/.claude"
     "codex|codex|$HOME/.codex"
+    "gemini|gemini|$HOME/.gemini/settings.json"
+    "copilot|copilot|$HOME/.copilot"
     "antigravity|/Applications/Antigravity.app|$HOME/.gemini/antigravity"
     "opencode|opencode|$HOME/.config/opencode/opencode.jsonc"
     "ollama|ollama|$HOME/.ollama"
@@ -438,9 +440,9 @@ repos_inventory() {
         _out, _err, status = Open3.capture3("git", "-C", root, "status", "--porcelain")
         branch, _branch_err, _branch_status = Open3.capture3("git", "-C", root, "branch", "--show-current")
         dirty = status.success? && !_out.empty? ? "dirty" : "clean"
-        puts "  #{repo.fetch("name")} — present — #{branch.strip.empty? ? "detached" : branch.strip} — #{dirty} — #{root}"
+        puts "  #{repo.fetch("name")} \u2014 present \u2014 #{branch.strip.empty? ? "detached" : branch.strip} \u2014 #{dirty} \u2014 #{root}"
       else
-        puts "  #{repo.fetch("name")} — missing — #{root}"
+        puts "  #{repo.fetch("name")} \u2014 missing \u2014 #{root}"
       end
     end
   ' "$manifest"
@@ -504,7 +506,7 @@ with_provider() {
 }
 
 redact_output() {
-  sed -E 's/((api[_-]?key|token|secret|password|credential|authorization|cookie)[[:space:]]*[:=][[:space:]]*)[^[:space:],}\"]+/\1<redacted>/Ig'
+  "$STORE_ROOT/bin/agentctl" redact
 }
 
 audit_one() {
@@ -516,9 +518,9 @@ audit_one() {
     openclaw)
       [[ -x "$STORE_ROOT/bin/openclaw-runtime" ]] || { print "openclaw runtime selector: not installed"; return 0; }
       if [[ -x "$HOME/.local/bin/openclaw-gateway-with-omlx" ]]; then
-        "$HOME/.local/bin/openclaw-gateway-with-omlx" doctor --deep --non-interactive 2>&1 | redact_output || true
+        "$HOME/.local/bin/openclaw-gateway-with-omlx" doctor --lint --deep 2>&1 | redact_output || true
       else
-        "$STORE_ROOT/bin/openclaw-runtime" doctor --deep --non-interactive 2>&1 | redact_output || true
+        "$STORE_ROOT/bin/openclaw-runtime" doctor --lint --deep 2>&1 | redact_output || true
       fi
       ;;
     claude)
@@ -580,29 +582,34 @@ audit_one() {
   esac
 }
 
+# Redacted by the same code as backups. A file that cannot be parsed is not copied.
+snapshot_file() {
+  [[ -f "$1" ]] || return 0
+  "$STORE_ROOT/bin/agentctl" redact-config "$1" "$STORE_ROOT/agents/$2" || print -u2 "snapshot skipped: agents/$2 was not updated"
+}
+
 snapshot() {
-  mkdir -p "$STORE_ROOT/agents/hermes" "$STORE_ROOT/agents/openclaw" "$STORE_ROOT/agents/vscode"
+  typeset support="$HOME/Library/Application Support"
   typeset hermes_config="$(hermes_config_path)"
-  [[ -f "$hermes_config" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$hermes_config" "$STORE_ROOT/agents/hermes/current.redacted.yaml"
-  [[ -f "$HOME/.openclaw/openclaw.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.openclaw/openclaw.json" "$STORE_ROOT/agents/openclaw/current.redacted.json"
-  [[ -f "$HOME/.claude/settings.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.claude/settings.json" "$STORE_ROOT/agents/claude/settings.redacted.json"
+  snapshot_file "$hermes_config" hermes/current.redacted.yaml
+  snapshot_file "$HOME/.openclaw/openclaw.json" openclaw/current.redacted.json
+  snapshot_file "$HOME/.claude/settings.json" claude/settings.redacted.json
   # Claude's root file contains project/session metadata as well as MCP state;
   # keep it out of the store. The legacy nested file is safe to snapshot when
   # present, while the reviewed MCP inventory lives in agents/claude/mcp.redacted.yaml.
-  if [[ -f "$HOME/.claude/.claude.json" ]]; then
-    ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.claude/.claude.json" "$STORE_ROOT/agents/claude/claude.redacted.json"
-  fi
-  [[ -f "$HOME/.codex/config.toml" ]] && ruby "$STORE_ROOT/scripts/redact-text.rb" "$HOME/.codex/config.toml" "$STORE_ROOT/agents/codex/config.redacted.toml"
-  [[ -f "$HOME/.config/opencode/opencode.jsonc" ]] && ruby "$STORE_ROOT/scripts/redact-text.rb" "$HOME/.config/opencode/opencode.jsonc" "$STORE_ROOT/agents/opencode/opencode.redacted.jsonc"
-  [[ -f "$HOME/Library/Application Support/opencode/opencode.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/Library/Application Support/opencode/opencode.json" "$STORE_ROOT/agents/opencode/desktop-current.redacted.json"
-  [[ -f "$HOME/Library/Application Support/aider-desk/config.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/Library/Application Support/aider-desk/config.json" "$STORE_ROOT/agents/aider-desk/config.redacted.json"
-  [[ -f "$HOME/Library/Application Support/aider-desk/mcp-servers.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/Library/Application Support/aider-desk/mcp-servers.json" "$STORE_ROOT/agents/aider-desk/mcp-servers.redacted.json"
-  [[ -f "$HOME/.gemini/antigravity-ide/mcp_config.json" ]] && ruby "$STORE_ROOT/scripts/redact-text.rb" "$HOME/.gemini/antigravity-ide/mcp_config.json" "$STORE_ROOT/agents/antigravity/mcp_config.redacted.jsonc"
-  [[ -f "$HOME/.pi/agent/models.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.pi/agent/models.json" "$STORE_ROOT/agents/pi/models.redacted.json"
-  [[ -f "$HOME/.pi/agent/models-store.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.pi/agent/models-store.json" "$STORE_ROOT/agents/pi/models-store.redacted.json"
-  [[ -f "$HOME/Library/Application Support/Code/User/settings.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/Library/Application Support/Code/User/settings.json" "$STORE_ROOT/agents/vscode/settings.redacted.json"
-  [[ -f "$HOME/Library/Application Support/Code/User/mcp.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/Library/Application Support/Code/User/mcp.json" "$STORE_ROOT/agents/vscode/mcp.redacted.json"
-  [[ -f "$HOME/.vscode/agent-plugins/installed.json" ]] && ruby "$STORE_ROOT/scripts/redact-config.rb" "$HOME/.vscode/agent-plugins/installed.json" "$STORE_ROOT/agents/vscode/agent-plugins.redacted.json"
+  snapshot_file "$HOME/.claude/.claude.json" claude/claude.redacted.json
+  snapshot_file "$HOME/.codex/config.toml" codex/config.redacted.toml
+  snapshot_file "$HOME/.config/opencode/opencode.jsonc" opencode/opencode.redacted.jsonc
+  snapshot_file "$support/opencode/opencode.json" opencode/desktop-current.redacted.json
+  snapshot_file "$support/aider-desk/config.json" aider-desk/config.redacted.json
+  snapshot_file "$support/aider-desk/mcp-servers.json" aider-desk/mcp-servers.redacted.json
+  snapshot_file "$HOME/.gemini/antigravity-ide/mcp_config.json" antigravity/mcp_config.redacted.jsonc
+  snapshot_file "$HOME/.pi/agent/models.json" pi/models.redacted.json
+  snapshot_file "$HOME/.pi/agent/models-store.json" pi/models-store.redacted.json
+  snapshot_file "$support/Code/User/settings.json" vscode/settings.redacted.json
+  snapshot_file "$support/Code/User/mcp.json" vscode/mcp.redacted.json
+  snapshot_file "$HOME/.vscode/agent-plugins/installed.json" vscode/agent-plugins.redacted.json
+  mkdir -p "$STORE_ROOT/agents/vscode"
   if command -v code >/dev/null 2>&1; then
     code --list-extensions --show-versions 2>/dev/null > "$STORE_ROOT/agents/vscode/extensions.txt" || true
   fi

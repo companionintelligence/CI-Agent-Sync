@@ -56,8 +56,6 @@ quiet node --experimental-strip-types --no-warnings src/test.ts
 quiet node --experimental-strip-types --no-warnings src/cli.ts conformance --json --timeout 5
 quiet node --experimental-strip-types --no-warnings src/cli.ts harness-smoke --json --timeout 5
 quiet node --experimental-strip-types --no-warnings src/cli.ts platform preflight --json
-quiet ruby -c scripts/redact-config.rb
-quiet ruby -c scripts/redact-text.rb
 zsh -n scripts/doctor.rb
 quiet ruby -c scripts/render.rb
 quiet ruby -c scripts/sync.rb
@@ -68,7 +66,6 @@ quiet ruby -c scripts/validate.rb
 zsh -n scripts/harness-smoke.rb
 quiet ruby -c scripts/harness_probe.rb
 quiet ruby -c scripts/test_harness_probe.rb
-quiet ruby -c scripts/backup.rb
 quiet ruby -c scripts/repair-openclaw.rb
 quiet ruby -c scripts/onepassword.rb
 quiet ruby -c scripts/process_helpers.rb
