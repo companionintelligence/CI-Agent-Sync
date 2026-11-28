@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
-import { join, dirname, basename } from "node:path";
+import { lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, type Stats } from "node:fs";
+import { join, dirname, basename, resolve } from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import {
   HOME,
@@ -76,24 +76,107 @@ function workspaceRepositories(context: ReturnType<typeof machineContext>): Work
   });
 }
 
-export function renderArtifacts(options: { agent?: string; machine?: string; output?: string } = {}): { output: string; outputs: string[]; machine: string } {
+// Render replaces what an earlier render wrote. It marks its output folder so a
+// later run can tell that folder from one the user filled. In a folder it
+// recognises it replaces only the entries it writes; any other folder with files
+// in it needs --force.
+export const RENDER_MARKER = ".agent-sync-render.json";
+const RENDER_AGENTS = ["all", "vscode", "workspace", "aider-desk"];
+const RENDER_ENTRIES = new Set(["manifest.json", "vscode", "workspace", "aider-desk", "clients"]);
+// Files a desktop file browser leaves in any folder it shows. They do not make a
+// folder the user's, and render leaves them where they are.
+const DESKTOP_FILES = new Set([".DS_Store", "Thumbs.db", "desktop.ini"]);
+
+function renderedBefore(root: string, entries: string[]): boolean {
+  try {
+    if (entries.includes(RENDER_MARKER)) return readJson<any>(join(root, RENDER_MARKER))?.tool === "agent-sync render";
+    // A folder rendered before the marker existed holds render's entries and nothing else.
+    const named = entries.filter((name) => !DESKTOP_FILES.has(name));
+    if (!named.includes("manifest.json") || !named.every((name) => RENDER_ENTRIES.has(name))) return false;
+    const manifest = readJson<any>(join(root, "manifest.json"));
+    return manifest?.schema_version === 1 && typeof manifest.generated_at === "string" && RENDER_AGENTS.includes(manifest.agent) && Array.isArray(manifest.outputs);
+  } catch {
+    return false;
+  }
+}
+
+function realOrResolved(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve(path);
+  }
+}
+
+function sameFolder(a: Stats, path: string): boolean {
+  try {
+    const b = statSync(path);
+    return a.dev === b.dev && a.ino === b.ino;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Why render must not replace this existing folder even with --force, or null:
+ * it is the file-system root, or it holds the home folder or this checkout.
+ * Folders are compared by device and inode, not by name. One folder can have
+ * several spellings (a case-insensitive volume accepts any case), and a missed
+ * match here would let --force through.
+ */
+export function protectedOutputReason(output: string): string | null {
+  if (dirname(output) === output) return "it is the file-system root";
+  const target = statSync(output);
+  for (const [name, path] of [["the home folder", HOME], ["this checkout", ROOT]]) {
+    for (let folder = realOrResolved(path); ; folder = dirname(folder)) {
+      if (sameFolder(target, folder)) return `it holds ${name}`;
+      if (dirname(folder) === folder) break;
+    }
+  }
+  return null;
+}
+
+// Returns the real path of the output folder, ready for this render's files.
+function prepareOutputRoot(outputRoot: string, agent: string, force: boolean): string {
+  if (!lstatSync(outputRoot, { throwIfNoEntry: false })) mkdirSync(outputRoot, { recursive: true });
+  let real: string;
+  try {
+    real = realpathSync(outputRoot);
+  } catch {
+    throw new Error(`Refusing to render into ${outputRoot}: it is a symbolic link to a path that does not exist`);
+  }
+  if (!statSync(real).isDirectory()) throw new Error(`Refusing to render into ${outputRoot}: it is not a folder`);
+  const stop = protectedOutputReason(real);
+  if (stop) throw new Error(`Refusing to render into ${outputRoot}: ${stop}`);
+  const entries = readdirSync(real);
+  const owned = entries.every((name) => DESKTOP_FILES.has(name)) || renderedBefore(real, entries);
+  if (!owned && !force) {
+    throw new Error(`Refusing to render into ${outputRoot}: the folder has files that render did not create. Choose a new or empty folder, or run agentctl render with --force, which with --agent all first deletes everything in the folder.`);
+  }
+  // In a folder render owns, it replaces only the entries it writes, so files the user
+  // added stay. --force with --agent all replaces everything in a folder it does not own.
+  const replaced = agent !== "all" ? [agent, "manifest.json", RENDER_MARKER] : owned ? entries.filter((name) => RENDER_ENTRIES.has(name) || name === RENDER_MARKER) : entries;
+  // rmSync removes a symbolic link itself, never what it points to.
+  for (const name of replaced) rmSync(join(real, name), { recursive: true, force: true });
+  // A forced render of one agent leaves the other files, so the folder does not become render's.
+  if (owned || agent === "all") writeJson(join(real, RENDER_MARKER), { schema_version: 1, tool: "agent-sync render", note: "Render writes this folder. The next render replaces the files and folders it wrote here and keeps the rest." });
+  return real;
+}
+
+export function renderArtifacts(options: { agent?: string; machine?: string; output?: string; force?: boolean } = {}): { output: string; outputs: string[]; machine: string } {
   const requested = options.agent || "all";
-  const allowed = ["all", "vscode", "workspace", "aider-desk"];
-  if (!allowed.includes(requested)) throw new Error(`Unknown agent: ${requested}; choose ${allowed.join(", ")}`);
-  const outputRoot = options.output ? expandPath(options.output) : join(ROOT, "local", "rendered");
+  if (!RENDER_AGENTS.includes(requested)) throw new Error(`Unknown agent: ${requested}; choose ${RENDER_AGENTS.join(", ")}`);
+  const outputRoot = resolve(options.output ? expandPath(options.output) : join(ROOT, "local", "rendered"));
   const context = machineContext(options.machine && options.machine !== "auto" ? options.machine : detectedMachine());
   const workspace = readYaml<any>(join(ROOT, "repos", "workspace.yaml"));
   const repos = workspaceRepositories(context);
   const bundles = readYaml<any>(join(ROOT, "integrations", "capability-bundles.yaml"));
   const outputs: string[] = [];
-  const record = (path: string) => outputs.push(path.replace(`${outputRoot}/`, ""));
-
-  if (requested === "all") rmSync(outputRoot, { recursive: true, force: true });
-  else rmSync(join(outputRoot, requested), { recursive: true, force: true });
-  mkdirSync(outputRoot, { recursive: true });
+  const outputDir = prepareOutputRoot(outputRoot, requested, options.force === true);
+  const record = (path: string) => outputs.push(path.replace(`${outputDir}/`, ""));
 
   if (requested === "all" || requested === "vscode") {
-    const target = join(outputRoot, "vscode");
+    const target = join(outputDir, "vscode");
     copyFile(join(ROOT, "integrations", "vscode", "settings.json.example"), join(target, "settings.json"));
     copyFile(join(ROOT, "integrations", "vscode", "mcp.json.example"), join(target, "mcp.json"));
     writeText(join(target, "extensions.txt"), `${extensionIds(join(ROOT, "integrations", "vscode", "extensions.txt")).join("\n")}\n`);
@@ -101,7 +184,7 @@ export function renderArtifacts(options: { agent?: string; machine?: string; out
   }
 
   if (requested === "all" || requested === "workspace") {
-    const target = join(outputRoot, "workspace");
+    const target = join(outputDir, "workspace");
     const settings = {
       "files.exclude": { "**/.env*": true, "**/node_modules": true, "**/target": true, "**/.turbo": true },
       "search.exclude": { "**/node_modules": true, "**/dist": true, "**/build": true, "**/.yarn/cache": true },
@@ -117,7 +200,7 @@ export function renderArtifacts(options: { agent?: string; machine?: string; out
   }
 
   if (requested === "all" || requested === "aider-desk") {
-    const target = join(outputRoot, "aider-desk");
+    const target = join(outputDir, "aider-desk");
     const template = readJson<any>(join(ROOT, "integrations", "aider-desk", "mcp-servers.json.example"));
     const replace = (value: any): any => {
       if (Array.isArray(value)) return value.map(replace);
@@ -131,7 +214,7 @@ export function renderArtifacts(options: { agent?: string; machine?: string; out
   }
 
   if (requested === "all") {
-    const target = join(outputRoot, "clients");
+    const target = join(outputDir, "clients");
     const clients: Record<string, [string, string]> = {
       hermes: ["~/.hermes/config.yaml", "./bin/agent-store with <provider> -- hermes"],
       openclaw: ["~/.openclaw/openclaw.json", "./bin/agent-store with companion-hub -- openclaw"],
@@ -153,7 +236,7 @@ export function renderArtifacts(options: { agent?: string; machine?: string; out
     record(join(target, "harnesses.yaml"));
   }
 
-  writeJson(join(outputRoot, "manifest.json"), { schema_version: 1, generated_at: isoNow(), machine: context.name, agent: requested, source_commit: commandOutput("git", ["-C", ROOT, "rev-parse", "--short", "HEAD"]), outputs });
+  writeJson(join(outputDir, "manifest.json"), { schema_version: 1, generated_at: isoNow(), machine: context.name, agent: requested, source_commit: commandOutput("git", ["-C", ROOT, "rev-parse", "--short", "HEAD"]), outputs });
   return { output: outputRoot, outputs, machine: context.name };
 }
 

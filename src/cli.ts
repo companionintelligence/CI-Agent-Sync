@@ -27,7 +27,7 @@ Usage:
   agentctl harness-smoke [--json] [--live-local] [--agent NAME] [--timeout SECONDS]
   agentctl platform preflight|evidence [--json] [--strict] [--output PATH]
   agentctl backup [--dry-run] [--output PATH]
-  agentctl render [--agent NAME] [--machine NAME] [--output PATH]
+  agentctl render [--agent NAME] [--machine NAME] [--output PATH] [--force]
   agentctl spec toolchains|validate|list|check|init|block|schema [options]
   agentctl <compatibility command> [...]
 
@@ -41,7 +41,7 @@ being ported; credentials are never printed or committed.
 function parseRender(args: string[]): number {
   const parsed = parseArgs(args);
   try {
-    const result = renderArtifacts({ agent: parsed.values.get("--agent"), machine: parsed.values.get("--machine"), output: parsed.values.get("--output") });
+    const result = renderArtifacts({ agent: parsed.values.get("--agent"), machine: parsed.values.get("--machine"), output: parsed.values.get("--output"), force: parsed.flags.has("--force") });
     console.log(`Generated ${result.outputs.length} portable artifacts under ${result.output}`);
     return 0;
   } catch (error) {

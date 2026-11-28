@@ -24,7 +24,11 @@ cp sync/targets.yaml.example sync/targets.yaml
 ```
 
 The default is a plan. `--apply` copies only manifest-listed files. Existing
-dirty or detached Git checkouts are skipped. Applying creates a timestamped
+dirty or detached Git checkouts are skipped. A target is refused when
+`.agent-configs`, or any part of a path sync would read, write or delete there, is
+a symbolic link, is a file where a folder belongs, or resolves outside the
+checkout: the plan lists each refused path, and `--apply` writes nothing to that
+target. Applying creates a timestamped
 rollback copy under `local/sync-backups/` before replacing an existing file;
 use `--no-backup` only for a deliberate exception. A target may add
 `.agent-configs/sync.yml` to disable sync, select groups, or override items.

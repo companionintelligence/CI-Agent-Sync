@@ -41,3 +41,32 @@ covers = ["src/validate.ts", "integrations/**", "providers/**", "profiles/**", "
 docs = ["docs/control-plane.md"]
 requires = ["node", "effect"]
 target = "AS-SCHEMA-1"
+
+[[spec]]
+id = "path-containment"
+title = "Path containment: a proved prefix decision, and tests that the wizard and sync stay inside their folder"
+kind = "invariant"
+tool = "lemmascript"
+status = "conformance"
+gate = "required"
+artefacts = [
+  "src/path-containment.ts",
+  "src/path-containment.dfy.gen",
+  "src/path-containment.dfy",
+  "lemmascript.json",
+  "LemmaScript-files.txt",
+]
+covers = [
+  "src/path-containment.ts",
+  "src/core.ts",
+  "src/atlas-web.ts",
+  "scripts/sync.rb",
+  "scripts/path_containment.rb",
+]
+docs = ["sync/README.md", "docs/control-plane.md"]
+requires = ["node", "lemmascript", "dafny"]
+check = ["npm", "run", "--silent", "spec:containment"]
+properties = ["childWithin_ensures", "containmentNests_ensures"]
+conformance = "The proved childWithin in src/path-containment.ts is the code the wizard runs. src/test.ts checks it, sync's Ruby copy of the decision (PathContainment.within? in scripts/path_containment.rb) and the wizard's safeChildPath against independent references on generated paths. scripts/test_sync.rb checks sync's symbolic-link walk (PathContainment.refusal) and sync's writes on generated file trees and target checkouts: each target is refused and left unchanged, or gets exactly the manifest's files and deletions, and nothing outside the targets changes. Every generator uses a fixed seed."
+target = "AS-SYNC-1"
+notes = "Proved under LemmaScript's javascript-utf16 string model, so strings are UTF-16 code units as in JavaScript, and with the type-system options that Dafny's main branch has made the default. The proof covers only the string decision on absolute, normalised paths. The wizard resolves a request with node:path and, when the path exists, compares real paths. Sync does not resolve symbolic links: it refuses a target when a path it would use leads through one, then compares real paths. That walk and sync's writes are not proved; the property tests in scripts/test_sync.rb check them. A base of / contains only itself, so a caller that passes the file-system root fails closed: it refuses every other path."

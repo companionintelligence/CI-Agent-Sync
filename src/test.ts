@@ -1,13 +1,16 @@
-import { spawn } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { createRequire, syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
-import { join, relative, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { parse as parseYaml } from "yaml";
-import { ROOT, fileExists, readText, redactSecrets, runCommand, runCommandAsync, safeDetail } from "./core.ts";
+import { docsPath } from "./atlas-web.ts";
+import { HOME, ROOT, fileExists, readText, redactSecrets, runCommand, runCommandAsync, safeChildPath, safeDetail } from "./core.ts";
 import { ACTION_TAKEN, ItfError, NONDET_PICKS, decodeItfValue, itfAction, itfPicks, parseItfTrace, type ItfValue } from "./itf.ts";
 import { classifyNanoKvmMcp, classifyProduct, envName, loadKvmTargets, mcpSnippet, nanoKvmKeyEnv, rowStatus } from "./kvm.ts";
+import { RENDER_MARKER, protectedOutputReason, renderArtifacts } from "./operations.ts";
+import { childWithin } from "./path-containment.ts";
 import { summarizeTailscaleStatus } from "./platform.ts";
 import { credentialScanChecks } from "./credential-scan.test.ts";
 import { SPEC_GATES, SPEC_KINDS, SPEC_STATUSES, SPEC_TOOLS, parseRegistry, type SpecEntry } from "./spec-registry.ts";
@@ -622,6 +625,176 @@ function encodingChecks(): void {
   assert(probe.exitCode === 0 && probe.stdout.trim() === "UTF-8", `ruby reads files as ${probe.stdout.trim() || probe.stderr.trim()}, not UTF-8`);
 }
 
+function containmentChecks(): void {
+  // The verified core: a separator must follow the base.
+  assert(childWithin("/a/b", "/a/b", "/") && childWithin("/a/b", "/a/b/c", "/"), "the base and paths under it must be inside the base");
+  assert(!childWithin("/a/b", "/a/bc", "/"), "a sibling that shares the base's prefix must not be inside it");
+  assert(!childWithin("/a/b", "/a", "/") && !childWithin("/a/b", "/b/a/b", "/"), "a parent or an unrelated path must not be inside the base");
+  assert(childWithin("C:\\a", "C:\\a\\b", "\\") && !childWithin("C:\\a", "C:\\ab", "\\"), "the separator must come from the caller");
+
+  // Render's hard stops hold even with --force, and compare folders by identity, not by spelling.
+  assert(protectedOutputReason(sep) !== null && protectedOutputReason(HOME) !== null && protectedOutputReason(dirname(ROOT)) !== null, "render must never replace the file-system root or a folder that holds the home folder or this checkout");
+  const shouted = dirname(ROOT).toUpperCase();
+  const sameFolder = (a: string, b: string): boolean => { try { const x = statSync(a), y = statSync(b); return x.dev === y.dev && x.ino === y.ino; } catch { return false; } };
+  if (shouted !== dirname(ROOT) && sameFolder(shouted, dirname(ROOT))) assert(protectedOutputReason(shouted) !== null, "on a case-insensitive volume, another spelling of a folder that holds this checkout must be refused too");
+
+  const scratch = realpathSync(mkdtempSync(join(tmpdir(), "agent-sync-containment-")));
+  try {
+    // The wizard's file guard: paths above the root, a sibling sharing its prefix, and a symbolic link out.
+    const web = join(scratch, "web");
+    mkdirSync(web);
+    mkdirSync(join(scratch, "webx"));
+    writeFileSync(join(web, "inside.txt"), "inside\n");
+    writeFileSync(join(scratch, "webx", "sibling.txt"), "sibling\n");
+    writeFileSync(join(scratch, "outside.txt"), "outside\n");
+    symlinkSync(join(scratch, "outside.txt"), join(web, "link.txt"));
+    assert(safeChildPath(web, "/inside.txt") === join(web, "inside.txt"), "a file inside the root must be served");
+    assert(safeChildPath(web, "/../outside.txt") === null, "a path above the root must be refused");
+    assert(safeChildPath(web, "/../webx/sibling.txt") === null, "a folder that shares the root's prefix must be refused");
+    assert(safeChildPath(web, "/link.txt") === null, "a symbolic link that leads out of the root must be refused");
+
+    // The wizard's /docs/ route checks against docs/, so a link there cannot lead elsewhere in the checkout.
+    const checkout = join(scratch, "checkout");
+    mkdirSync(join(checkout, "docs"), { recursive: true });
+    mkdirSync(join(checkout, "local"));
+    writeFileSync(join(checkout, "docs", "guide.md"), "guide\n");
+    writeFileSync(join(checkout, "local", "backup.json"), "{}\n");
+    symlinkSync(join("..", "local", "backup.json"), join(checkout, "docs", "notes.md"));
+    assert(docsPath(checkout, "/docs/guide.md") === join(checkout, "docs", "guide.md"), "the docs route must serve a file under docs/");
+    assert(docsPath(checkout, "/docs/notes.md") === null, "the docs route must refuse a link under docs/ that leads elsewhere in the checkout");
+
+    // Render's output guard: it replaces only folders it made, marks them, and needs --force otherwise.
+    assert(protectedOutputReason(scratch) === null, "a scratch folder holds neither the home folder nor this checkout");
+    const rendered = join(scratch, "rendered");
+    assert(renderArtifacts({ agent: "vscode", output: rendered }).outputs.length > 0 && existsSync(join(rendered, RENDER_MARKER)), "render must mark the folder it creates");
+    renderArtifacts({ agent: "vscode", output: rendered });
+    writeFileSync(join(rendered, "my-notes.txt"), "mine\n");
+    writeFileSync(join(rendered, "vscode", "stale.json"), "{}\n");
+    renderArtifacts({ agent: "all", output: rendered });
+    assert(existsSync(join(rendered, "my-notes.txt")) && existsSync(join(rendered, "vscode", "settings.json")) && !existsSync(join(rendered, "vscode", "stale.json")), "render must replace its own entries in its folder and keep a file the user added there");
+    const legacy = join(scratch, "legacy");
+    mkdirSync(join(legacy, "vscode"), { recursive: true });
+    writeFileSync(join(legacy, "manifest.json"), JSON.stringify({ schema_version: 1, generated_at: "2026-01-01T00:00:00.000Z", machine: "macos-laptop", agent: "vscode", source_commit: null, outputs: ["vscode/settings.json"] }));
+    writeFileSync(join(legacy, ".DS_Store"), "");
+    renderArtifacts({ agent: "vscode", output: legacy });
+    assert(existsSync(join(legacy, RENDER_MARKER)) && existsSync(join(legacy, ".DS_Store")), "a folder an earlier render wrote must be recognised by its manifest, also with a file browser's .DS_Store in it");
+    const browsed = join(scratch, "browsed");
+    mkdirSync(browsed);
+    writeFileSync(join(browsed, ".DS_Store"), "");
+    renderArtifacts({ agent: "vscode", output: browsed });
+    assert(existsSync(join(browsed, RENDER_MARKER)), "a folder that holds only a file browser's .DS_Store must count as empty");
+    const kept = join(scratch, "kept");
+    mkdirSync(kept);
+    writeFileSync(join(kept, "keep.txt"), "keep\n");
+    symlinkSync(kept, join(scratch, "link-to-kept"));
+    const refused = (output: string): boolean => {
+      try {
+        renderArtifacts({ agent: "all", output });
+        return false;
+      } catch (error) {
+        return String(error).includes("--force");
+      }
+    };
+    assert(refused(kept) && readdirSync(kept).join() === "keep.txt", "render must not replace a folder with files it did not create");
+    assert(refused(join(scratch, "link-to-kept")) && readdirSync(kept).join() === "keep.txt", "render must not replace such a folder through a symbolic link");
+    renderArtifacts({ agent: "vscode", output: kept, force: true });
+    assert(existsSync(join(kept, "keep.txt")) && !existsSync(join(kept, RENDER_MARKER)) && refused(kept), "a forced render of one agent must not make a folder with other files render's own");
+    renderArtifacts({ agent: "all", output: kept, force: true });
+    assert(!existsSync(join(kept, "keep.txt")) && existsSync(join(kept, RENDER_MARKER)), "--force must let render replace the folder, and render must then mark it");
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+// mulberry32: a small generator with a fixed seed, so a failing case reproduces.
+function seededRandom(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296;
+  };
+}
+
+// The reference compares whole segments, a different method from the core's prefix test.
+function referenceWithin(base: string, candidate: string, separator: string): boolean {
+  const baseSegments = base.split(separator);
+  const candidateSegments = candidate.split(separator);
+  return candidateSegments.length >= baseSegments.length && baseSegments.every((segment, index) => segment === candidateSegments[index]);
+}
+
+function containmentPropertyChecks(): void {
+  const seed = 20_261_126;
+  const random = seededRandom(seed);
+  const pick = <T>(items: T[]): T => items[Math.floor(random() * items.length)];
+  const segments = ["a", "b", "ab", "ba", "a.b", "b-c", "..a", "a..", ".hidden", "é", "e\u0301", "😀", "x y"];
+  const suffixes = ["c", "-x", ".bak", "😀", "a", " "];
+  const pathOf = (separator: string, prefix: string, depth: number): string => prefix + Array.from({ length: depth }, () => pick(segments)).join(separator);
+  const cases: Array<[string, string, string]> = [];
+
+  // Every pair of short strings over "a", "b" and the separator.
+  const alphabet = ["a", "b", "/"];
+  const words = [""];
+  for (let length = 1; length <= 4; length += 1) for (const word of words.filter((item) => item.length === length - 1)) for (const letter of alphabet) words.push(word + letter);
+  for (const base of words) for (const candidate of words) cases.push([base, candidate, "/"]);
+
+  // Generated absolute paths with near misses: the base, children, prefix-sharing siblings,
+  // parents, renamed last segments, cut-off prefixes, doubled separators and unrelated paths.
+  for (let index = 0; index < 20_000; index += 1) {
+    const separator = random() < 0.8 ? "/" : "\\";
+    const prefix = separator === "/" ? "/" : "C:\\";
+    const base = pathOf(separator, prefix, 1 + Math.floor(random() * 4));
+    const parts = base.slice(prefix.length).split(separator);
+    const candidate = pick([
+      () => base,
+      () => `${base}${separator}${pathOf(separator, "", 1 + Math.floor(random() * 3))}`,
+      () => `${base}${pick(suffixes)}`,
+      () => `${base}${pick(suffixes)}${separator}${pick(segments)}`,
+      () => prefix + parts.slice(0, -1).join(separator),
+      () => prefix + [...parts.slice(0, -1), pick(segments)].join(separator),
+      // Cut whole code points, so no case holds half a surrogate pair (Ruby's JSON rejects those).
+      () => Array.from(base).slice(0, Math.floor(random() * Array.from(base).length)).join(""),
+      () => `${base}${separator}${separator}${pick(segments)}`,
+      () => `${base}${separator}`,
+      () => pathOf(separator, prefix, 1 + Math.floor(random() * 4)),
+    ])();
+    cases.push([base, candidate, separator]);
+  }
+  for (const [base, candidate, separator] of cases) {
+    assert(childWithin(base, candidate, separator) === referenceWithin(base, candidate, separator), `containment core disagrees with the reference (seed ${seed}): ${JSON.stringify([base, candidate, separator])}`);
+  }
+  const inside = cases.filter(([base, candidate, separator]) => childWithin(base, candidate, separator)).length;
+  assert(inside > 2_000 && cases.length - inside > 2_000, `the generated cases are lopsided: ${inside} of ${cases.length} inside`);
+
+  // sync's Ruby copy must make the same decision on the same cases.
+  const ruby = spawnSync("ruby", ["-Eutf-8", "-rjson", "-e", "require ARGV[0]; cases = JSON.parse($stdin.read); print JSON.generate(cases.map { |base, candidate, separator| PathContainment.within?(base, candidate, separator) })", join(ROOT, "scripts", "path_containment.rb")], { input: JSON.stringify(cases), encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  assert(ruby.status === 0, `the Ruby containment check did not run: ${ruby.stderr || ruby.error}`);
+  const rubyResults = JSON.parse(ruby.stdout) as boolean[];
+  cases.forEach(([base, candidate, separator], index) => {
+    assert(rubyResults[index] === childWithin(base, candidate, separator), `scripts/path_containment.rb disagrees with the core (seed ${seed}): ${JSON.stringify([base, candidate, separator])}`);
+  });
+
+  // The wizard's guard resolves a request first; a relative-path reference must agree with it.
+  // `..` followed by the root's own name plus "x" reaches a sibling that shares the root's
+  // prefix, and one request in five starts that way.
+  const root = join(tmpdir(), `agent-sync-no-such-root-${process.pid}`);
+  const sibling = `${basename(root)}x`;
+  const requestSegments = ["a", "b", "..", ".", "", "..a", "a..", "%2e%2e", "webx", sibling];
+  let siblings = 0;
+  for (let index = 0; index < 5_000; index += 1) {
+    const segments = Array.from({ length: 1 + Math.floor(random() * 5) }, () => pick(requestSegments));
+    const request = `/${(random() < 0.2 ? ["..", sibling, ...segments] : segments).join("/")}`;
+    const resolved = resolve(root, request.replace(/^\/+/, ""));
+    const rel = relative(resolve(root), resolved);
+    const expected = rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+    if (!expected && resolved.startsWith(resolve(root))) siblings += 1;
+    assert((safeChildPath(root, request) !== null) === expected, `safeChildPath disagrees with the relative-path reference (seed ${seed}): ${request}`);
+  }
+  assert(siblings >= 500, `only ${siblings} generated wizard requests reached a sibling that shares the root's prefix`);
+}
+
 async function main(): Promise<void> {
   for (const file of ["web/index.html", "web/styles.css", "web/app.js", "web/assets/ci-common/tokens.css", "web/assets/ci-common/logo-mark.svg"]) assert(fileExists(file), `missing asset: ${file}`);
   assert(readText("web/index.html").includes("CI Agent Sync"), "wizard name is stale");
@@ -646,6 +819,8 @@ async function main(): Promise<void> {
   specCliChecks();
   encodingChecks();
   await redactionChecks();
+  containmentChecks();
+  containmentPropertyChecks();
   credentialScanChecks();
   assert(!safeDetail('{"apiKey":"not-for-output"}').includes("not-for-output"), "structured secret detail was not redacted");
   assert((redactSecrets({ apiKey: "not-for-output", status: "ok" }) as any).apiKey === "<redacted>", "structured payload secret was not redacted");

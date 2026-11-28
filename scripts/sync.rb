@@ -7,6 +7,7 @@ require "open3"
 require "optparse"
 require "pathname"
 require "yaml"
+require_relative "path_containment"
 
 STORE_ROOT = File.expand_path("..", __dir__)
 MANIFEST_PATH = File.join(STORE_ROOT, "sync", "manifest.yaml")
@@ -144,7 +145,7 @@ results = []
 target_entries.each do |entry|
   name = entry.fetch("name") { File.basename(expand_path(entry.fetch("path"))) }
   target_root = File.expand_path(expand_path(entry.fetch("path")))
-  result = { "name" => name, "path" => target_root, "status" => "planned", "changes" => [], "skipped" => [] }
+  result = { "name" => name, "path" => target_root, "status" => "planned", "changes" => [], "skipped" => [], "refused" => [] }
 
   unless Dir.exist?(target_root)
     result["status"] = "missing"
@@ -173,6 +174,16 @@ target_entries.each do |entry|
     next
   end
 
+  # Sync writes only to real files and folders inside the target. A path that leads
+  # through a symbolic link, .agent-configs itself included, refuses the whole target.
+  policy_file = manifest.dig("policy", "target_policy_file").to_s
+  if (reason = PathContainment.refusal(target_root, policy_file))
+    result["status"] = "refused"
+    result["refused"] << { "id" => "target-policy", "destination" => policy_file, "reason" => reason }
+    results << result
+    next
+  end
+
   policy = target_policy(target_root, entry, manifest)
   if policy["enabled"] == false
     result["status"] = "disabled"
@@ -183,14 +194,19 @@ target_entries.each do |entry|
   target_id = name.gsub(/[^A-Za-z0-9_.-]/, "_")
   backup_root = options[:backup_dir] || File.join(STORE_ROOT, "local", "sync-backups", Time.now.utc.strftime("%Y%m%d-%H%M%S"))
   backup_seen = []
-  result["backup"] = File.join(backup_root, target_id) if options[:apply] && options[:backup]
 
+  # Plan every path first, so a refusal stops the target before anything is written.
+  copies = []
   select_items(manifest, policy).each do |item|
     source = File.join(STORE_ROOT, item.fetch("source"))
     destination = File.join(target_root, item.fetch("destination"))
     unless File.file?(source)
       result["status"] = "invalid"
       result["skipped"] << "missing source: #{item["source"]}"
+      next
+    end
+    if (reason = PathContainment.refusal(target_root, item.fetch("destination")))
+      result["refused"] << { "id" => item["id"], "destination" => item["destination"], "reason" => reason }
       next
     end
     next if File.file?(destination) && sha256(source) == sha256(destination)
@@ -202,20 +218,18 @@ target_entries.each do |entry|
       "destination" => item["destination"],
       "action" => File.file?(destination) ? "update" : "add",
     }
-    next unless options[:apply]
-
-    if options[:backup] && File.exist?(destination)
-      backup_destination = File.join(backup_root, target_id, item.fetch("destination"))
-      backup_existing!(destination, backup_destination, backup_seen)
-    end
-    FileUtils.mkdir_p(File.dirname(destination))
-    FileUtils.cp(source, destination)
+    copies << [source, destination, item.fetch("destination")]
   end
 
+  deletions = []
   if options[:prune]
     Array(manifest["deletions"]).each do |deletion|
       destination = deletion.fetch("destination")
       abort "unsafe deletion path: #{destination}" unless relative_safe?(destination)
+      if (reason = PathContainment.refusal(target_root, destination))
+        result["refused"] << { "id" => "deletion/#{destination}", "destination" => destination, "reason" => reason }
+        next
+      end
       target = File.join(target_root, destination)
       next unless File.exist?(target)
 
@@ -225,11 +239,33 @@ target_entries.each do |entry|
         "destination" => destination,
         "reason" => deletion["reason"],
       }
-      if options[:backup] && File.exist?(target)
-        backup_destination = File.join(backup_root, target_id, destination)
+      deletions << [target, destination]
+    end
+  end
+
+  if result["refused"].any?
+    result["status"] = "refused"
+    result["changes"] = []
+    results << result
+    next
+  end
+
+  result["backup"] = File.join(backup_root, target_id) if options[:apply] && options[:backup]
+  if options[:apply]
+    copies.each do |source, destination, relative|
+      if options[:backup] && File.exist?(destination)
+        backup_destination = File.join(backup_root, target_id, relative)
+        backup_existing!(destination, backup_destination, backup_seen)
+      end
+      FileUtils.mkdir_p(File.dirname(destination))
+      FileUtils.cp(source, destination)
+    end
+    deletions.each do |target, relative|
+      if options[:backup]
+        backup_destination = File.join(backup_root, target_id, relative)
         backup_existing!(target, backup_destination, backup_seen)
       end
-      FileUtils.rm_rf(target) if options[:apply]
+      FileUtils.rm_rf(target)
     end
   end
 
@@ -244,10 +280,12 @@ unless options[:json]
     result["changes"].each do |change|
       puts "    #{change["action"]}: #{change["destination"]} (#{change["id"]})"
     end
+    result["refused"].each { |refusal| puts "    refused: #{refusal["destination"]} (#{refusal["reason"]})" }
+    puts "    note: sync writes nothing to this target until every refused path is a real file or folder inside it" if result["status"] == "refused"
     result["skipped"].each { |reason| puts "    note: #{reason}" }
   end
 else
   puts JSON.pretty_generate("apply" => options[:apply], "prune" => options[:prune], "targets" => results)
 end
 
-exit 1 if results.any? { |result| %w[invalid missing not-git].include?(result["status"]) }
+exit 1 if results.any? { |result| %w[invalid missing not-git refused].include?(result["status"]) }

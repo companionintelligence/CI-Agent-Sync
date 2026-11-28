@@ -61,7 +61,9 @@ quiet ruby -c scripts/redact-text.rb
 zsh -n scripts/doctor.rb
 quiet ruby -c scripts/render.rb
 quiet ruby -c scripts/sync.rb
+quiet ruby -c scripts/path_containment.rb
 quiet ruby -c scripts/test_sync.rb
+quiet node --check scripts/spec-containment.mjs
 quiet ruby -c scripts/validate.rb
 zsh -n scripts/harness-smoke.rb
 quiet ruby -c scripts/harness_probe.rb

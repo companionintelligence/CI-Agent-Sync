@@ -97,6 +97,14 @@ async function routeCheck(kind: string): Promise<any> {
   };
 }
 
+/**
+ * The file a /docs/ request names, or null. It is checked against the docs folder,
+ * not the whole checkout, so a link under docs/ cannot lead to another part of it.
+ */
+export function docsPath(root: string, pathname: string): string | null {
+  return safeChildPath(join(root, "docs"), pathname.slice("/docs/".length));
+}
+
 async function route(request: IncomingMessage): Promise<{ status: number; type: string; body: string }> {
   const method = request.method || "GET";
   const url = new URL(request.url || "/", "http://127.0.0.1");
@@ -109,7 +117,7 @@ async function route(request: IncomingMessage): Promise<{ status: number; type: 
     return { status: result.status === "ok" ? 200 : 503, type: "application/json; charset=utf-8", body: json(result) };
   }
   if (url.pathname.startsWith("/docs/")) {
-    const candidate = safeChildPath(ROOT, url.pathname.slice(1));
+    const candidate = docsPath(ROOT, url.pathname);
     if (!candidate) return { status: 403, type: "text/plain; charset=utf-8", body: "Forbidden\n" };
     if (!existsSync(candidate)) return { status: 404, type: "text/plain; charset=utf-8", body: "Not found\n" };
     return { status: 200, type: contentType(candidate), body: readFileSync(candidate, "utf8") };

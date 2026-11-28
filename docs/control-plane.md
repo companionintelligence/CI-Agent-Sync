@@ -43,9 +43,19 @@ servers. It stores policy and reproducible recipes, not native app state.
    verify the local Memory origin, Tailscale Hub targets, and Cloudflare/Hub
    deployment identity without performing a write.
 14. `agentctl render` generates portable VS Code, workspace, and Aider Desk
-   artifacts under ignored `local/rendered/`.
+   artifacts under ignored `local/rendered/`, or under `--output PATH`. It marks
+   the folder it writes. It writes into a new or empty folder, a folder it
+   marked, or a folder that an earlier render wrote before the marker existed,
+   recognised by its manifest and by holding only render's entries. A file
+   browser's `.DS_Store`, `Thumbs.db` or `desktop.ini` does not count. In such a
+   folder it replaces only the files and folders it writes and keeps the rest.
+   Any other folder needs `--force`, which with `--agent all` deletes everything
+   in it first. `--force` never replaces the file-system root or a folder that
+   holds the home folder or this checkout.
 15. `agentctl sync` distributes only the reviewed manifest into clean target
-   repositories. Applying a sync creates a local rollback backup first.
+   repositories. Applying a sync creates a local rollback backup first. Sync
+   refuses a target where `.agent-configs` or a destination path is a symbolic
+   link or has a file where a folder belongs, and writes nothing to it.
 
 ## Three separate stores
 

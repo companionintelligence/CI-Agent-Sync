@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync, cpSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync, cpSync, statSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import { delimiter, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
+import { childWithin } from "./path-containment.ts";
 
 export type JsonObject = Record<string, any>;
 export type CommandOptions = {
@@ -419,10 +420,23 @@ export function contentType(filePath: string): string {
   }[extname(filePath).toLowerCase()] || "application/octet-stream";
 }
 
+/** Whether candidate is base or inside it once symbolic links are resolved. Both must exist. */
+export function realPathWithin(base: string, candidate: string): boolean {
+  try {
+    return childWithin(realpathSync(base), realpathSync(candidate), sep);
+  } catch {
+    return false;
+  }
+}
+
 export function safeChildPath(root: string, requestPath: string): string | null {
   const base = resolve(root);
   const candidate = resolve(base, requestPath.replace(/^\/+/, ""));
-  return candidate === base || candidate.startsWith(`${base}${sep}`) ? candidate : null;
+  if (!childWithin(base, candidate, sep)) return null;
+  // A symbolic link under the root can lead outside it, so a path that exists
+  // must also be inside the root once links are resolved.
+  if (!existsSync(candidate)) return candidate;
+  return realPathWithin(base, candidate) ? candidate : null;
 }
 
 export function legacyScript(script: string, args: string[] = [], timeoutMs = 60_000): CommandResult {

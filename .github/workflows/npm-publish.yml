@@ -124,6 +124,8 @@ jobs:
         run: brew install ripgrep
       - name: Install TypeScript control-plane dependencies
         run: npm ci
+      - name: Install the pinned Dafny for the path-containment proof
+        run: .github/scripts/install-dafny.sh
       - name: Build TypeScript control plane and browser bundle
         run: npm run build
       - name: Verify scripts and secret hygiene

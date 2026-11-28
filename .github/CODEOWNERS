@@ -1,0 +1,11 @@
+# The owner reviews every change to the containment proof, its configuration and the
+# check that runs it, so a contract cannot be weakened or a guard turned off unseen.
+# This takes effect where a ruleset requires a code owner's review.
+/.github/CODEOWNERS @mrhegemon
+/.agent-configs/specs.toml @mrhegemon
+/lemmascript.json @mrhegemon
+/LemmaScript-files.txt @mrhegemon
+/scripts/spec-containment.mjs @mrhegemon
+/src/path-containment.ts @mrhegemon
+*.dfy @mrhegemon
+*.dfy.gen @mrhegemon
