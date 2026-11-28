@@ -205,7 +205,7 @@ export function renderArtifacts(options: { agent?: string; machine?: string; out
     const replace = (value: any): any => {
       if (Array.isArray(value)) return value.map(replace);
       if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, replace(child)]));
-      return typeof value === "string" ? value.replaceAll("${CI_ROOT}", context.ciRoot).replaceAll("${HOME}", HOME).replace(/\$\{([A-Z0-9_]+)_ROOT\}/g, (_match, key) => context.paths[String(key).toLowerCase()] || _match) : value;
+      return typeof value === "string" ? value.replaceAll("${CI_ROOT}", context.ciRoot).replaceAll("${HOME}", HOME).replace(/\$\{([A-Z0-9_]+)_ROOT\}/g, (_match, key) => context.paths[key === "HUB" ? "companion_hub" : String(key).toLowerCase()] || _match) : value;
     };
     writeJson(join(target, "mcp-servers.json"), replace(template));
     writeText(join(target, "README.md"), "# Generated Aider Desk configuration\n\nReview resolved machine paths before copying this file. Credentials and OAuth sessions are not included.\n");

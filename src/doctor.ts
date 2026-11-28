@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import {
   HOME,
@@ -7,6 +7,7 @@ import {
   directoryExists,
   expandPath,
   fileExists,
+  hermesMetadataCommand,
   isoNow,
   platformName,
   readJson,
@@ -20,38 +21,12 @@ function add(checks: Check[], id: string, status: Check["status"], detail: strin
   checks.push({ id, status, detail, ...extra });
 }
 
-/**
- * Resolve Hermes' metadata-only version probe without starting the full app.
- *
- * Some Hermes launchers initialise the desktop secret store before they even
- * inspect `--version`. The launcher normally points at a venv console script,
- * so its sibling Python interpreter can import package metadata directly. If
- * an installation does not expose that shape, the ordinary command remains a
- * bounded fallback.
- */
-function hermesVersionCommand(): [string, string[]] {
-  const fallback: [string, string[]] = ["hermes", ["--version"]];
-  const configured = process.env.AGENT_CONFIGS_HERMES_BIN?.trim();
-  const executable = configured || commandPath("hermes");
-  if (!executable) return fallback;
-  try {
-    const launcher = readFileSync(executable, "utf8").slice(0, 16_384);
-    const match = launcher.match(/exec\s+(?:"([^"]+)"|'([^']+)'|(\S+))\s+"\$@"/);
-    const interpreter = match?.[1] || match?.[2] || match?.[3];
-    if (!interpreter || !existsSync(interpreter)) return fallback;
-    const delegated = readFileSync(interpreter, "utf8").slice(0, 16_384);
-    if (!delegated.includes("hermes_cli")) return fallback;
-    const python = join(interpreter, "..", "python3");
-    const pythonPath = existsSync(python) ? python : interpreter;
-    return [pythonPath, ["-c", "import importlib.metadata as m; print(m.version('hermes-agent'))"]];
-  } catch {
-    return fallback;
-  }
-}
-
 function commandVersionText(command: string): string | null {
-  const [executable, args] = command === "hermes" ? hermesVersionCommand() : [command, ["--version"]] as [string, string[]];
-  const result = runCommand(executable, args, { timeoutMs: 2_500 });
+  const probe: [string, string[]] | null = command === "hermes"
+    ? hermesMetadataCommand(process.env.AGENT_CONFIGS_HERMES_BIN?.trim() || commandPath("hermes"))
+    : [command, ["--version"]];
+  if (!probe) return null;
+  const result = runCommand(probe[0], probe[1], { timeoutMs: 2_500 });
   return result.exitCode === 0 ? result.stdout.split(/\r?\n/).find((line) => line.trim())?.trim() || null : null;
 }
 

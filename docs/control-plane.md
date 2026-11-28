@@ -9,8 +9,8 @@ servers. It stores policy and reproducible recipes, not native app state.
 1. `agentctl inventory` discovers clients, apps, and config roots.
 2. `agentctl doctor --json` checks command availability, config presence,
    secret-store presence, endpoint reachability, and workspace drift.
-3. `agentctl test --live-local` runs manifest validation, harness smoke checks,
-   a gateway check when available, and a harmless local coding request.
+3. `agentctl harness-smoke --live-local` checks each harness, the OpenClaw
+   gateway when present, and sends a harmless local coding request.
 4. `agentctl conformance --json` produces the current harness/provider
    convergence matrix without printing credentials.
 5. `agentctl readiness --json --from-1password` combines the agent store,

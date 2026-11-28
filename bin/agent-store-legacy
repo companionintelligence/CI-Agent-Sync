@@ -438,9 +438,9 @@ repos_inventory() {
         _out, _err, status = Open3.capture3("git", "-C", root, "status", "--porcelain")
         branch, _branch_err, _branch_status = Open3.capture3("git", "-C", root, "branch", "--show-current")
         dirty = status.success? && !_out.empty? ? "dirty" : "clean"
-        puts "  #{repo.fetch("name")} — present — #{branch.strip.empty? ? "detached" : branch.strip} — #{dirty} — #{root}"
+        puts "  #{repo.fetch("name")} \u2014 present \u2014 #{branch.strip.empty? ? "detached" : branch.strip} \u2014 #{dirty} \u2014 #{root}"
       else
-        puts "  #{repo.fetch("name")} — missing — #{root}"
+        puts "  #{repo.fetch("name")} \u2014 missing \u2014 #{root}"
       end
     end
   ' "$manifest"
@@ -516,9 +516,9 @@ audit_one() {
     openclaw)
       [[ -x "$STORE_ROOT/bin/openclaw-runtime" ]] || { print "openclaw runtime selector: not installed"; return 0; }
       if [[ -x "$HOME/.local/bin/openclaw-gateway-with-omlx" ]]; then
-        "$HOME/.local/bin/openclaw-gateway-with-omlx" doctor --deep --non-interactive 2>&1 | redact_output || true
+        "$HOME/.local/bin/openclaw-gateway-with-omlx" doctor --lint --deep 2>&1 | redact_output || true
       else
-        "$STORE_ROOT/bin/openclaw-runtime" doctor --deep --non-interactive 2>&1 | redact_output || true
+        "$STORE_ROOT/bin/openclaw-runtime" doctor --lint --deep 2>&1 | redact_output || true
       fi
       ;;
     claude)

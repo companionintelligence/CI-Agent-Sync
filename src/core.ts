@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync, cpSync, statSync } from "node:fs";
 import { homedir, platform } from "node:os";
-import { delimiter, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, delimiter, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
@@ -299,7 +299,35 @@ export function runCommandAsync(command: string, args: string[] = [], options: C
 
 export function runInteractive(command: string, args: string[] = [], cwd = ROOT): number {
   const result = spawnSync(command, args, { cwd, env: childEnv(), stdio: "inherit" });
+  if (result.error) console.error(`Could not run ${command}: ${result.error.message}`);
   return result.status ?? 1;
+}
+
+/**
+ * A command that reads Hermes' version from package metadata without starting Hermes, or
+ * null when its launcher offers no safe way. Hermes loads the desktop secret store as it
+ * starts, and its `-c` means "continue a session", so the launcher itself is never run.
+ */
+export function hermesMetadataCommand(executable: string | null): [string, string[]] | null {
+  if (!executable) return null;
+  const read = (path: string): string => readFileSync(path, "utf8").slice(0, 16_384);
+  const query = ["-I", "-c", "import importlib.metadata as m; print(m.version('hermes-agent'))"];
+  try {
+    let script = executable;
+    // Launchers hand over through one or two shell scripts before Python.
+    for (let hop = 0; hop < 3; hop += 1) {
+      const match = /^\s*exec\s+(?:"([^"]+)"|'([^']+)'|(\S+))\s/mu.exec(read(script));
+      const target = match?.[1] || match?.[2] || match?.[3];
+      if (!target || !existsSync(target)) return null;
+      if (/^python[0-9.]*$/u.test(basename(target))) return [target, query];
+      const sibling = join(dirname(target), "python3");
+      if (existsSync(sibling) && read(target).includes("hermes_cli")) return [sibling, query];
+      script = target;
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 const REDACTED = "[REDACTED]";
@@ -453,10 +481,6 @@ export function legacyScript(script: string, args: string[] = [], timeoutMs = 60
 export function legacyScriptAsync(script: string, args: string[] = [], timeoutMs = 60_000): Promise<CommandResult> {
   const ruby = commandPath("ruby") || "ruby";
   return runCommandAsync(ruby, [join(ROOT, "scripts", script), ...args], { timeoutMs });
-}
-
-export function legacyStore(args: string[] = [], timeoutMs = 60_000): CommandResult {
-  return runCommand(join(ROOT, "bin", "agent-store-legacy"), args, { timeoutMs });
 }
 
 // Arguments for `node` that run this control plane again. A checkout and the Homebrew

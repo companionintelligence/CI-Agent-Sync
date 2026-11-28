@@ -4,7 +4,7 @@ import { skillsCommand } from "./skills.ts";
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { companionCommand } from "./companion.ts";
-import { ROOT, commandPath, legacyScript, legacyStore, outputResult, parseArgs, redactText, runCommand, runInteractive, writeText } from "./core.ts";
+import { ROOT, commandPath, legacyScript, outputResult, parseArgs, redactText, runCommand, runInteractive, writeText } from "./core.ts";
 import { configKind, redactConfigText } from "./redact-config.ts";
 import { conformanceCommand, harnessSmokeCommand } from "./diagnostics.ts";
 import { startAtlas } from "./atlas-web.ts";
@@ -90,6 +90,12 @@ function redactConfigFile(args: string[]): number {
   }
 }
 
+// Legacy commands read the keyboard, run for minutes and take relative paths, so they get
+// the caller's terminal and folder, with no time limit.
+function runStore(args: string[]): number {
+  return runInteractive(join(ROOT, "bin", "agent-store-legacy"), args, process.cwd());
+}
+
 function legacy(script: string, args: string[]): number {
   return outputResult(legacyScript(script, args));
 }
@@ -100,8 +106,7 @@ async function storeCommand(args: string[]): Promise<number> {
   if (target === "render") return parseRender(args.slice(1));
   if (target === "backup") return parseBackup(args.slice(1));
   if (target === "doctor") return (await doctor({ json: args.includes("--json"), strict: args.includes("--strict") })).exitCode;
-  if (target === "fallbacks") return legacyStore(args.slice(0), 60_000).exitCode ?? 1;
-  return outputResult(legacyStore(args));
+  return runStore(args);
 }
 
 async function agentctlCommand(args: string[]): Promise<number> {
@@ -133,14 +138,14 @@ async function agentctlCommand(args: string[]): Promise<number> {
       }
       return verification.specCommand(args);
     }
-    case "inventory": return outputResult(legacyStore(["inventory", ...args]));
+    case "inventory": return runStore(["inventory", ...args]);
     case "credentials":
     case "audit":
     case "fallbacks":
     case "sync":
     case "vscode":
     case "repos":
-      return outputResult(legacyStore([target, ...args]));
+      return runStore([target, ...args]);
     case "health": return (await doctor({ json: args.includes("--json"), strict: args.includes("--strict") })).exitCode;
     case "test": {
       const result = runCommand("npm", ["test", "--", ...args], { cwd: ROOT, timeoutMs: 120_000 });
@@ -161,7 +166,7 @@ async function agentctlCommand(args: string[]): Promise<number> {
     case "repair": return args[0] === "openclaw" ? legacy("repair-openclaw.rb", args.slice(1)) : 2;
     case "install":
     case "bootstrap": return runInteractive("zsh", [join(ROOT, "scripts", "bootstrap-machine.zsh"), ...args]);
-    case "openclaw": return runInteractive(join(ROOT, "bin", "openclaw-runtime"), args);
+    case "openclaw": return runInteractive(join(ROOT, "bin", "openclaw-runtime"), args, process.cwd());
     case "check": {
       const validation = await validateStore({ json: false });
       const required = ["web/index.html", "web/styles.css", "web/app.js", "web/assets/ci-common/tokens.css"];

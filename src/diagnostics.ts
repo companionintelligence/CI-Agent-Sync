@@ -1,10 +1,11 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import {
   HOME,
   ROOT,
   commandPath,
   expandPath,
+  hermesMetadataCommand,
   parseArgs,
   parsePayload,
   platformName,
@@ -36,27 +37,18 @@ function timeoutSeconds(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) ? Math.max(1, Math.min(parsed, 300)) : fallback;
 }
 
-function metadataVersionCommand(command: string): [string, string[]] {
-  const fallback: [string, string[]] = [command, ["--version"]];
-  const executable = commandPath(command);
-  if (!executable) return fallback;
-  try {
-    const launcher = readFileSync(executable, "utf8").slice(0, 16_384);
-    const match = launcher.match(/exec\s+(?:"([^"]+)"|'([^']+)'|(\S+))\s+"\$@"/);
-    const delegated = match?.[1] || match?.[2] || match?.[3];
-    if (!delegated || !existsSync(delegated) || !readFileSync(delegated, "utf8").slice(0, 16_384).includes("hermes_cli")) return fallback;
-    const sibling = join(delegated, "..", "python3");
-    const python = existsSync(sibling) ? sibling : delegated;
-    return [python, ["-c", "import importlib.metadata as m; print(m.version('hermes-agent'))"]];
-  } catch {
-    return fallback;
-  }
-}
-
 function harnessCommand(name: string, metadata: HarnessMetadata): [string, string[]] {
   if (name === "openclaw") return [join(ROOT, "bin", "openclaw-runtime"), ["--version"]];
-  if (name === "hermes" && metadata.version_probe === "metadata") return metadataVersionCommand(metadata.command || "hermes");
   return [metadata.command || "", ["--version"]];
+}
+
+// Hermes is never started for a version check; see hermesMetadataCommand.
+function hermesVersionCheck(command: string, timeoutMs: number): Check {
+  const executable = commandPath(command);
+  if (!executable) return { id: "command", status: "not-installed", detail: "command not found" };
+  const metadata = hermesMetadataCommand(executable);
+  const result = metadata ? commandProbe(metadata[0], metadata[1], timeoutMs) : null;
+  return result?.status === "ok" ? result : { id: "command", status: "ok", detail: "installed; version not read, because that would start Hermes" };
 }
 
 function commandProbe(command: string, args: string[], timeoutMs: number): Check {
@@ -107,8 +99,9 @@ async function harnessChecks(agent: string | undefined, timeoutMs: number): Prom
     const metadata = declared[name];
     const result = { installed: false, configured: false, checks: [] as Check[] };
     if (metadata.command) {
-      const [command, args] = harnessCommand(name, metadata);
-      const probe = commandProbe(command, args, timeoutMs);
+      const probe = name === "hermes" && metadata.version_probe === "metadata"
+        ? hermesVersionCheck(metadata.command, timeoutMs)
+        : commandProbe(...harnessCommand(name, metadata), timeoutMs);
       probe.id = "version";
       result.checks.push(withId("version", probe));
       result.installed = probe.status === "ok" || Boolean(commandPath(metadata.command));

@@ -6,7 +6,7 @@ busted:
 ```sh
 ./bin/agentctl backup
 ./bin/agentctl doctor --json
-./bin/agentctl test
+./bin/agentctl harness-smoke
 ```
 
 Backups are redacted and stored below `local/backups/`. They do not contain
@@ -31,7 +31,8 @@ For a service that is reachable but unauthenticated, set the credential through
 For OpenClaw, stop the desktop app before repairing its gateway state. Preserve
 the existing identity and session database. If the dashboard says it cannot
 claim a persisted device identity, use **Debug → Reset Remote Tunnel**, then
-reconnect to the local loopback gateway and rerun `agentctl test --live-local`.
+reconnect to the local loopback gateway and rerun
+`agentctl harness-smoke --live-local`.
 
 When the desktop app and standalone CLI are different releases, use the
 desktop-matched wrapper if one exists. A schema migration needs the gateway

@@ -8,8 +8,8 @@ same native config into every app.
 | --- | --- | --- |
 | Inventory | `agentctl inventory` | Installed clients and config roots are visible |
 | Static | `agentctl doctor` | Commands, manifests, paths, and secret-store metadata are sane |
-| Smoke | `agentctl test` | Installed harnesses answer a safe version/help probe |
-| Local live | `agentctl test --live-local` | A local model endpoint accepts a harmless coding request |
+| Smoke | `agentctl harness-smoke` | Installed harnesses answer a safe version probe |
+| Local live | `agentctl harness-smoke --live-local` | A local model endpoint accepts a harmless coding request |
 | MCP live | client-native test | Transport, auth, and tool list work from that client |
 | Mutation | explicit owner approval | Publishing, scheduling, device control, or destructive changes are allowed |
 

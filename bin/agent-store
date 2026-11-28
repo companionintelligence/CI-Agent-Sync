@@ -3,6 +3,11 @@
 set -euo pipefail
 
 STORE_ROOT="${0:A:h:h}"
+# `with` hands the process over entirely. Services run through it (the OpenClaw gateway),
+# so their signals, exit status and lifetime must be the program's own.
+if [[ "${1:-}" == with ]]; then
+  exec "$STORE_ROOT/bin/agent-store-legacy" "$@"
+fi
 # A checkout and the Homebrew install run the TypeScript directly. An npm install has
 # no src/ and ships the compiled dist/ instead (Node will not strip types under node_modules).
 if [[ -f "$STORE_ROOT/src/cli.ts" ]]; then
