@@ -1,11 +1,12 @@
 import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { request as httpRequest } from "node:http";
 import { createRequire, syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { parse as parseYaml } from "yaml";
-import { docsPath } from "./atlas-web.ts";
+import { TOKEN_HEADER, docsPath, refusal, type Boundary } from "./atlas-web.ts";
 import { HOME, ROOT, fileExists, readText, redactSecrets, runCommand, runCommandAsync, safeChildPath, safeDetail } from "./core.ts";
 import { ACTION_TAKEN, ItfError, NONDET_PICKS, decodeItfValue, itfAction, itfPicks, parseItfTrace, type ItfValue } from "./itf.ts";
 import { classifyNanoKvmMcp, classifyProduct, envName, loadKvmTargets, mcpSnippet, nanoKvmKeyEnv, rowStatus } from "./kvm.ts";
@@ -795,6 +796,59 @@ function containmentPropertyChecks(): void {
   assert(siblings >= 500, `only ${siblings} generated wizard requests reached a sibling that shares the root's prefix`);
 }
 
+// The wizard serves only its own page. This enumerates request shapes and compares
+// refusal() with the rule written out as plain sets, not with the same parsing.
+function atlasBoundaryChecks(): void {
+  const token = "T0k3n-for-tests-only_0123456789abcdefghijk";
+  const loopback: Boundary = { port: 4321, bind: "127.0.0.1", allowRemote: false, token };
+  const own = ["127.0.0.1:4321", "localhost:4321", "LocalHost:4321", "[::1]:4321"];
+  const foreign = [undefined, "", "127.0.0.1", "127.0.0.1:4322", "localhost.:4321", "127.0.0.1.attacker.test:4321", "attacker.test:4321", "attacker.test@127.0.0.1:4321", "127.0.0.1:4321.attacker.test", "[::ffff:127.0.0.1]:4321", "0.0.0.0:4321", "192.168.1.20:4321"];
+  const origins = ["absent", "same", "same-upper", "https", "other", "other-port", "null"] as const;
+  const sites = [undefined, "same-origin", "none", "same-site", "cross-site"];
+  const jsonTypes = ["application/json", "application/json; charset=utf-8"];
+  const types = [undefined, ...jsonTypes, "text/plain", "application/x-www-form-urlencoded", "multipart/form-data", "application/jsonp"];
+  const tokens = [undefined, token, `${token}x`, token.slice(1), ""];
+  const requests = [["POST", "/api/action/backup"], ["POST", "/api/action/render"], ["GET", "/api/overview"], ["GET", "/api/check/fleet"], ["OPTIONS", "/api/action/backup"], ["GET", "/"], ["GET", "/docs/agent-atlas.md"]];
+  let served = 0;
+  let refused = 0;
+  for (const host of [...own, ...foreign]) {
+    for (const kind of origins) {
+      const origin = { absent: undefined, same: `http://${host}`, "same-upper": `HTTP://${String(host).toUpperCase()}`, https: `https://${host}`, other: "http://attacker.test", "other-port": "http://127.0.0.1:1", null: "null" }[kind];
+      const originOwn = kind === "same" || kind === "same-upper";
+      for (const site of sites) for (const type of types) for (const sent of tokens) for (const [method, path] of requests) {
+        const headers = Object.fromEntries(Object.entries({ host, origin, "sec-fetch-site": site, "content-type": type, [TOKEN_HEADER]: sent }).filter(([, value]) => value !== undefined)) as Record<string, string>;
+        const notCrossOrigin = (kind === "absent" || originOwn) && (site === undefined || site === "same-origin" || site === "none");
+        const action = method === "POST" && path.startsWith("/api/action/");
+        const proof = (originOwn || site === "same-origin") && jsonTypes.includes(type ?? "") && sent === token;
+        const expected = host !== undefined && own.includes(host) && (!path.startsWith("/api/") || (notCrossOrigin && (!action || proof)));
+        const allowed = refusal(method, path, headers, loopback) === null;
+        assert(allowed === expected, `the wizard ${allowed ? "serves" : "refuses"} ${method} ${path} with ${JSON.stringify(headers)}`);
+        if (allowed) served += 1;
+        else refused += 1;
+      }
+    }
+  }
+  assert(served > 1_000 && refused > 100_000, `the request enumeration is lopsided: ${served} served, ${refused} refused`);
+  const remote: Boundary = { port: 4321, bind: "atlas.example", allowRemote: true, token };
+  for (const host of ["127.0.0.1:4321", "192.168.1.20:4321", "[fd7a:115c:a1e0::1]:4321", "atlas.example:4321"]) assert(refusal("GET", "/", { host }, remote) === null, `--allow-remote refused ${host}`);
+  for (const host of ["attacker.test:4321", "192.168.1.20:4322", "atlas.example.attacker.test:4321"]) assert(refusal("GET", "/", { host }, remote) !== null, `--allow-remote served ${host}`);
+  assert(refusal("GET", "/", { host: "localhost" }, { ...loopback, port: 80 }) === null, "a Host without a port means port 80");
+}
+
+type RawRequest = { method?: string; path: string; headers?: Record<string, string>; body?: string };
+
+// node:http, not fetch: a test must be able to send any Host and Origin.
+function rawRequest(port: number, { method = "GET", path, headers = {}, body }: RawRequest): Promise<number> {
+  return new Promise((resolveStatus, reject) => {
+    const sent = httpRequest({ host: "127.0.0.1", port, method, path, headers: { ...(body === undefined ? {} : { "content-length": String(Buffer.byteLength(body)) }), ...headers } }, (response) => {
+      response.resume();
+      response.on("end", () => resolveStatus(response.statusCode ?? 0));
+    });
+    sent.on("error", reject);
+    sent.end(body);
+  });
+}
+
 async function main(): Promise<void> {
   for (const file of ["web/index.html", "web/styles.css", "web/app.js", "web/assets/ci-common/tokens.css", "web/assets/ci-common/logo-mark.svg"]) assert(fileExists(file), `missing asset: ${file}`);
   assert(readText("web/index.html").includes("CI Agent Sync"), "wizard name is stale");
@@ -821,6 +875,7 @@ async function main(): Promise<void> {
   await redactionChecks();
   containmentChecks();
   containmentPropertyChecks();
+  atlasBoundaryChecks();
   credentialScanChecks();
   assert(!safeDetail('{"apiKey":"not-for-output"}').includes("not-for-output"), "structured secret detail was not redacted");
   assert((redactSecrets({ apiKey: "not-for-output", status: "ok" }) as any).apiKey === "<redacted>", "structured payload secret was not redacted");
@@ -850,12 +905,34 @@ async function main(): Promise<void> {
     assert(overview.status === 200 && payload.app?.name === "CI Agent Sync", "overview payload is stale");
     const tokens = await fetch(`http://127.0.0.1:${port}/assets/ci-common/tokens.css`);
     assert(tokens.status === 200 && (await tokens.text()).includes("--background"), "vendored token asset is not served");
-    const guarded = await fetch(`http://127.0.0.1:${port}/api/action/backup`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
-    assert(guarded.status === 400, "backup action lost its confirmation guard");
+    const page = await fetch(`http://127.0.0.1:${port}/`);
+    const token = /<meta name="agent-atlas-token" content="([A-Za-z0-9_-]{43})" \/>/.exec(await page.text())?.[1] ?? "";
+    assert(token !== "", "the wizard page carries no token");
+    assert(page.headers.get("x-frame-options") === "DENY" && page.headers.get("content-security-policy") === "frame-ancestors 'none'", "another page can frame the wizard");
+    const origin = `http://127.0.0.1:${port}`;
+    const fromPage = { "content-type": "application/json", origin, [TOKEN_HEADER]: token };
+    const backup = (headers: Record<string, string>, body = "{}") => rawRequest(port, { method: "POST", path: "/api/action/backup", headers, body });
+    assert(await backup(fromPage) === 400, "backup action lost its confirmation guard");
+    assert(await backup({ "content-type": "application/json", "sec-fetch-site": "same-origin", [TOKEN_HEADER]: token }) === 400, "Sec-Fetch-Site: same-origin was not accepted in place of Origin");
+    // Each refused action sends confirm false, so a missing guard still runs nothing.
+    const unconfirmed = JSON.stringify({ confirm: false });
+    const attacks: Array<[string, number, Promise<number>]> = [
+      ["a foreign Host", 403, rawRequest(port, { path: "/api/overview", headers: { host: `attacker.test:${port}` } })],
+      ["a foreign Host for the page", 403, rawRequest(port, { path: "/", headers: { host: `attacker.test:${port}` } })],
+      ["a cross-origin text/plain POST", 403, backup({ origin: "http://attacker.test", "content-type": "text/plain" }, unconfirmed)],
+      ["a same-origin text/plain POST", 415, backup({ ...fromPage, "content-type": "text/plain" }, unconfirmed)],
+      ["a POST without Origin or Sec-Fetch-Site", 403, backup({ "content-type": "application/json", [TOKEN_HEADER]: token }, unconfirmed)],
+      ["a POST without the token", 403, backup({ "content-type": "application/json", origin }, unconfirmed)],
+      ["a POST with a wrong token", 403, backup({ ...fromPage, [TOKEN_HEADER]: "0".repeat(43) }, unconfirmed)],
+      ["a cross-site check", 403, rawRequest(port, { path: "/api/check/backup-plan", headers: { "sec-fetch-site": "cross-site" } })],
+      ["a cross-origin preflight", 403, rawRequest(port, { method: "OPTIONS", path: "/api/action/backup", headers: { origin: "http://attacker.test" } })],
+    ];
+    for (const [name, expected, status] of attacks) assert(await status === expected, `${name} got ${await status}, not ${expected}`);
     const unknownCheck = await fetch(`http://127.0.0.1:${port}/api/check/unknown`);
     const unknownPayload = await unknownCheck.json() as any;
     assert(unknownCheck.status === 503 && unknownPayload.status === "error", "failed checks did not return a failing HTTP status");
-    const oversized = await fetch(`http://127.0.0.1:${port}/api/action/backup`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ confirm: true, padding: "x".repeat(70_000) }) });
+    // fetch, because it reads an early 413 while the body is still being sent.
+    const oversized = await fetch(`${origin}/api/action/backup`, { method: "POST", headers: fromPage, body: JSON.stringify({ confirm: true, padding: "x".repeat(70_000) }) });
     assert(oversized.status === 413, "action body limit did not fail closed");
   } finally {
     child.kill("SIGTERM");

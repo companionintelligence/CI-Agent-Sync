@@ -84,6 +84,7 @@ The loopback wizard has these reliability boundaries:
 - read-only checks return a failing HTTP status when the check fails;
 - action bodies are capped at 64 KiB;
 - write actions remain explicit-confirmation only;
+- requests under another host name, and cross-origin API requests, are refused;
 - the wizard remains loopback-only unless `--allow-remote` is supplied.
 
 The wizard does not repair native app state, copy OAuth sessions, claim device

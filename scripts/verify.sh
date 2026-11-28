@@ -80,7 +80,6 @@ quiet ruby -c scripts/test_action_ledger.rb
 quiet ruby -c scripts/profile.rb
 quiet ruby -c scripts/marketplace-audit.rb
 quiet ruby -c scripts/test_marketplace_audit.rb
-quiet ruby -c scripts/atlas-web.rb
 quiet ruby -c scripts/test_atlas_web.rb
 quiet npm run build
 

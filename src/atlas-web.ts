@@ -1,4 +1,6 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer, type IncomingHttpHeaders, type IncomingMessage, type ServerResponse } from "node:http";
+import { randomBytes, timingSafeEqual } from "node:crypto";
+import { isIP } from "node:net";
 import { readFileSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawn } from "node:child_process";
@@ -45,6 +47,57 @@ function overviewPayload(): any {
 
 const MAX_ACTION_BODY_BYTES = 64 * 1024;
 
+/** The header that carries the page's token on a local action. */
+export const TOKEN_HEADER = "x-agent-atlas-token";
+const TOKEN_META = '<meta name="agent-atlas-token" content="" />';
+const LOOPBACK_NAMES = new Set(["127.0.0.1", "localhost", "::1"]);
+const OWN_FETCH_SITES = new Set(["same-origin", "none"]);
+
+/** What a request must match to count as this wizard's own. */
+export type Boundary = { port: number; bind: string; allowRemote: boolean; token: string };
+
+function isOwnHost(host: string | undefined, boundary: Boundary): boolean {
+  const match = /^(?:\[([0-9a-f:.]+)\]|([a-z0-9._-]+))(?::([0-9]{1,5}))?$/i.exec(host ?? "");
+  // A browser leaves the port out of Host only when it is 80.
+  if (!match || Number(match[3] ?? 80) !== boundary.port) return false;
+  const name = (match[1] ?? match[2]).toLowerCase();
+  if (LOOPBACK_NAMES.has(name)) return true;
+  // With --allow-remote, an address or the --bind value, but no other name: a page that
+  // re-points its own DNS name at this machine arrives under that name.
+  return boundary.allowRemote && (isIP(name) !== 0 || name === boundary.bind.toLowerCase());
+}
+
+function hasToken(value: string | string[] | undefined, token: string): boolean {
+  if (typeof value !== "string") return false;
+  const given = Buffer.from(value);
+  const expected = Buffer.from(token);
+  return given.length === expected.length && timingSafeEqual(given, expected);
+}
+
+/**
+ * Why the wizard refuses a request, or null to serve it. Every request must name this
+ * server. An /api/ request must not come from another origin. A local action also needs
+ * a JSON body, proof that it is same-origin and the token from the page.
+ */
+export function refusal(method: string, pathname: string, headers: IncomingHttpHeaders, boundary: Boundary): { status: number; message: string } | null {
+  if (!isOwnHost(headers.host, boundary)) return { status: 403, message: "The wizard does not answer under this host name" };
+  if (!pathname.startsWith("/api/")) return null;
+  const own = `http://${headers.host}`.toLowerCase();
+  const origin = headers.origin?.toLowerCase();
+  const site = headers["sec-fetch-site"] as string | undefined;
+  if ((origin !== undefined && origin !== own) || (site !== undefined && !OWN_FETCH_SITES.has(site))) return { status: 403, message: "Requests from another origin are refused" };
+  if (method !== "POST" || !pathname.startsWith("/api/action/")) return null;
+  if (!/^application\/json\s*(;|$)/i.test(headers["content-type"] ?? "")) return { status: 415, message: "Local actions need a JSON body" };
+  if (origin !== own && site !== "same-origin") return { status: 403, message: "Local actions need a same-origin request" };
+  if (!hasToken(headers[TOKEN_HEADER], boundary.token)) return { status: 403, message: "Reload the wizard page and try again" };
+  return null;
+}
+
+/** The page, carrying this server's token for its local actions. */
+function page(token: string): string {
+  return readFileSync(join(WEB_ROOT, "index.html"), "utf8").replace(TOKEN_META, TOKEN_META.replace('content=""', `content="${token}"`));
+}
+
 function readBody(request: IncomingMessage): Promise<string> {
   return new Promise((resolveBody, rejectBody) => {
     let body = "";
@@ -67,7 +120,8 @@ function readBody(request: IncomingMessage): Promise<string> {
 }
 
 function send(response: ServerResponse, status: number, type: string, body: string, method = "GET"): void {
-  response.writeHead(status, { "Content-Type": type, "Content-Length": Buffer.byteLength(body), "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Connection": "close" });
+  // No other page may frame the wizard and collect clicks on its buttons.
+  response.writeHead(status, { "Content-Type": type, "Content-Length": Buffer.byteLength(body), "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "frame-ancestors 'none'", "Connection": "close" });
   if (method !== "HEAD") response.end(body);
   else response.end();
 }
@@ -105,11 +159,11 @@ export function docsPath(root: string, pathname: string): string | null {
   return safeChildPath(join(root, "docs"), pathname.slice("/docs/".length));
 }
 
-async function route(request: IncomingMessage): Promise<{ status: number; type: string; body: string }> {
+async function route(request: IncomingMessage, token: string): Promise<{ status: number; type: string; body: string }> {
   const method = request.method || "GET";
   const url = new URL(request.url || "/", "http://127.0.0.1");
   if (method === "POST" && !url.pathname.startsWith("/api/action/")) return { status: 405, type: "application/json; charset=utf-8", body: json({ status: "error", message: "Only the named local actions accept POST" }) };
-  if (url.pathname === "/" || url.pathname === "/index.html") return { status: 200, type: "text/html; charset=utf-8", body: readFileSync(join(WEB_ROOT, "index.html"), "utf8") };
+  if (url.pathname === "/" || url.pathname === "/index.html") return { status: 200, type: "text/html; charset=utf-8", body: page(token) };
   if (url.pathname === "/api/overview") return { status: 200, type: "application/json; charset=utf-8", body: json(overviewPayload()) };
   if (url.pathname === "/healthz") return { status: 200, type: "application/json; charset=utf-8", body: json({ ok: true, name: APP_NAME, version: APP_VERSION }) };
   if (url.pathname.startsWith("/api/check/")) {
@@ -130,9 +184,14 @@ async function route(request: IncomingMessage): Promise<{ status: number; type: 
 
 // The route function above is split into a small request wrapper so POST bodies
 // are only read for the two allowlisted local actions.
-async function handle(request: IncomingMessage): Promise<{ status: number; type: string; body: string }> {
+async function handle(request: IncomingMessage, boundary: Boundary): Promise<{ status: number; type: string; body: string }> {
   const method = request.method || "GET";
   const url = new URL(request.url || "/", "http://127.0.0.1");
+  const refused = refusal(method, url.pathname, request.headers, boundary);
+  if (refused) {
+    request.resume();
+    return { status: refused.status, type: "application/json; charset=utf-8", body: json({ status: "error", message: refused.message }) };
+  }
   if (url.pathname === "/api/action/render" || url.pathname === "/api/action/backup") {
     if (method !== "POST") return { status: 405, type: "application/json; charset=utf-8", body: json({ status: "error", message: "Use POST for local actions" }) };
     let payload: any = {};
@@ -156,13 +215,14 @@ async function handle(request: IncomingMessage): Promise<{ status: number; type:
       return { status: 500, type: "application/json; charset=utf-8", body: json({ status: "error", message: safeDetail(error) }) };
     }
   }
-  return route(request);
+  return route(request, boundary.token);
 }
 
 function checkAssets(): number {
   const required = ["index.html", "styles.css", "app.js", "assets/ci-common/tokens.css", "assets/ci-common/logo-mark.svg"];
   const missing = required.filter((file) => !existsSync(join(WEB_ROOT, file)));
   if (missing.length) { console.error(`Missing web assets: ${missing.join(", ")}`); return 1; }
+  if (!readFileSync(join(WEB_ROOT, "index.html"), "utf8").includes(TOKEN_META)) { console.error("web/index.html lacks the agent-atlas-token placeholder"); return 1; }
   console.log("CI Agent Sync TypeScript web assets passed");
   return 0;
 }
@@ -181,9 +241,11 @@ export async function startAtlas(args: string[]): Promise<number> {
   if (args.includes("--check")) return checkAssets();
   if (!Number.isInteger(port) || port < 0 || port > 65_535) { console.error(`Invalid port: ${portValue}`); return 2; }
   if (!allowRemote && !["127.0.0.1", "localhost", "::1"].includes(bind)) { console.error("Refusing non-loopback bind without --allow-remote"); return 2; }
+  const token = randomBytes(32).toString("base64url");
   const server = createServer(async (request, response) => {
     try {
-      const result = await handle(request);
+      const address = server.address();
+      const result = await handle(request, { port: typeof address === "object" && address ? address.port : port, bind, allowRemote, token });
       send(response, result.status, result.type, result.body, request.method);
     } catch (error) {
       send(response, 500, "text/plain; charset=utf-8", `CI Agent Sync error: ${safeDetail(error)}\n`, request.method);

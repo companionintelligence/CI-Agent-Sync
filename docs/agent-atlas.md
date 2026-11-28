@@ -58,7 +58,7 @@ arbitrary shell command.
 The API intentionally reads public YAML metadata and invokes the typed
 operations in `src/operations.ts`. The two write routes are fixed, allowlisted
 actions with an explicit JSON
-`confirm: true` body. They do not read credential values, create 1Password
+`confirm: true` body, and they pass the request checks under Safety boundary. They do not read credential values, create 1Password
 items, claim a Hub, mutate a fleet node, change an app, or deploy an
 application.
 
@@ -66,9 +66,21 @@ application.
 
 The server binds to loopback by default and rejects non-loopback binds unless
 the operator explicitly passes `--allow-remote`. That flag adds no
-authentication; use it only on a trusted, isolated network and prefer a
-private Tailscale path with an authenticated reverse proxy if remote access is
-ever needed.
+authentication; use it only on a trusted, isolated network.
+
+A web page open in the same browser must not be able to use the wizard, so the
+server checks each request:
+
+- `Host` must name the wizard: `127.0.0.1`, `localhost` or `[::1]` with its
+  port. With `--allow-remote`, an IP address or the `--bind` value is accepted
+  too. Other host names are refused, including the name of a reverse proxy that
+  forwards its own `Host`.
+- A `/api/` request must not come from another origin, as its `Origin` or
+  `Sec-Fetch-Site` header shows.
+- `render` and `backup` also need a JSON content type, a same-origin `Origin`
+  or `Sec-Fetch-Site` header, and the token the server puts in its own page, sent
+  as `X-Agent-Atlas-Token`.
+- No other page may frame the wizard.
 
 The wizard is not a replacement for the approval ledger. Use the CLI for
 fleet, deployment, Hub, or repository changes:

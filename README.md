@@ -107,7 +107,8 @@ The bounded process, service discovery, and recovery contract is in
 
 To expose the console beyond the laptop, you must opt in explicitly with
 `--allow-remote`; the console adds no authentication, so loopback is the
-recommended and supported default.
+recommended and supported default. Even then it answers only to an IP address
+or the `--bind` value, not to other host names.
 
 
 ## How it fits together

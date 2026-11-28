@@ -157,7 +157,9 @@
     button.disabled = true;
     text(statusSelector, "Working\u2026");
     try {
-      const result = await request(url, { method: "POST", body: JSON.stringify({ confirm: true }) });
+      const token = document.querySelector('meta[name="agent-atlas-token"]')?.getAttribute("content") || "";
+      const headers = { Accept: "application/json", "Content-Type": "application/json", "X-Agent-Atlas-Token": token };
+      const result = await request(url, { method: "POST", headers, body: JSON.stringify({ confirm: true }) });
       if (result.status !== "ok") throw new Error(result.message || "Action did not complete");
       if (url.includes("backup")) state.backup = result.message || "Created";
       else state.rendered = true;

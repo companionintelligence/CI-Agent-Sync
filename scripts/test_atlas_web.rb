@@ -28,8 +28,13 @@ begin
   abort "overview omitted profiles" unless payload.fetch("profiles").any? { |profile| profile["id"] == "ceo" }
   token_response = Net::HTTP.get_response(URI("#{base}/assets/ci-common/tokens.css"))
   abort "CI-Common token route failed" unless token_response.code == "200" && token_response.body.include?("--background")
+  page = Net::HTTP.get_response(URI("#{base}/"))
+  token = page.body.to_s[/<meta name="agent-atlas-token" content="([A-Za-z0-9_-]{43})"/, 1]
+  abort "wizard page carries no token" unless token
   post_request = Net::HTTP::Post.new("/api/action/backup")
   post_request["Content-Type"] = "application/json"
+  post_request["Origin"] = base
+  post_request["X-Agent-Atlas-Token"] = token
   post_request.body = "{}"
   post_response = Net::HTTP.start("127.0.0.1", port) { |http| http.request(post_request) }
   post_payload = JSON.parse(post_response.body)
